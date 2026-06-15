@@ -89,6 +89,19 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  // HSTS: ignored by browsers over plain HTTP, so safe to always send; engages on the HTTPS host.
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // Relaxed CSP — single-file app uses inline script/style (needs 'unsafe-inline'); data: for inline
+  // SVG/PNG; self-hosted fonts; wss/ws for the live socket. Still blocks third-party script injection.
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data:; " +
+    "font-src 'self'; " +
+    "connect-src 'self' ws: wss:; " +
+    "base-uri 'self'; " +
+    "frame-ancestors 'none'");
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));

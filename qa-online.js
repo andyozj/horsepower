@@ -61,7 +61,7 @@ async function main() {
     await testProxyTrust();     // Task 3 (GETs only)
     await testWsOrigin();       // Task 5 (WS only)
     await testDiffGate();       // Task 6 (mints — MUST precede the global-mint drain)
-    // await testHeaders();     // Task 7 (GET / only)
+    await testHeaders();        // Task 7 (GET / only) — before the global-mint drain
     await testGlobalMint();     // Task 4 — MUST BE LAST: it drains the global mint bucket, so any
                                 // later check that mints would 429. (Reordered after a real test-isolation bug.)
   } finally {
@@ -145,6 +145,17 @@ async function testGlobalMint() {
     if (r.ok) codes++;
   }
   ok('global mint cap returns 429 once exhausted', sawCap, { codes });
+}
+
+// ---- Task 7: HSTS + relaxed CSP headers ----
+async function testHeaders() {
+  console.log('\n[security headers]');
+  const r = await fetch(BASE + '/');
+  ok('HSTS header present', /max-age=\d+/.test(r.headers.get('strict-transport-security') || ''), r.headers.get('strict-transport-security'));
+  const csp = r.headers.get('content-security-policy') || '';
+  ok('CSP present with self default', /default-src 'self'/.test(csp), csp);
+  ok('CSP allows wss/ws connect', /connect-src[^;]*wss:/.test(csp) && /connect-src[^;]*ws:/.test(csp), csp);
+  ok('existing nosniff header retained', (r.headers.get('x-content-type-options') || '') === 'nosniff');
 }
 
 // ---- Task 5: WebSocket origin allowlist ----
