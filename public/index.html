@@ -270,6 +270,18 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .interviewhero .ivcomposer{border-top:1.5px dashed var(--line-soft); padding-top:10px}
 .interviewhero .ivcomposer textarea{flex:1}
 .interviewhero .ivskip{align-self:flex-end}
+/* A2c: the Coach's verify hand-off banner (top of the map) */
+.verifybanner{position:absolute; left:50%; top:12px; transform:translateX(-50%); z-index:var(--z-panel,20); display:flex; align-items:center; gap:10px; max-width:min(680px,92%); background:var(--card); border:1.5px solid var(--gold-deep,#e0a93a); border-radius:var(--r-paper); padding:10px 14px; box-shadow:var(--shadow-float)}
+.verifybanner span{font-size:14px; line-height:1.3}
+.verifybanner .btn{flex:none}
+/* A2c: the Coach docked at the BOTTOM of the Surface map (Stage 2). Slim always-present composer bar;
+   the conversation thread expands above it on demand. A flex-column member (doesn't float over the map). */
+.coachdock{display:flex; flex-direction:column; background:var(--card); border-top:1.5px solid var(--line-soft)}
+.coachdock .dockmsgs{max-height:22vh; overflow:auto; padding:8px 12px; display:flex; flex-direction:column; gap:7px; border-bottom:1.5px dashed var(--line-soft)}
+.coachdock .dockbar{display:flex; gap:8px; align-items:flex-end; padding:8px 12px}
+.coachdock .dockav{flex:none; display:flex; align-items:center}
+.coachdock .dockinput{flex:1; resize:none; min-height:38px; max-height:96px}
+.coachdock .docktoggle{flex:none; width:34px; height:34px; border-radius:8px; border:1.5px solid var(--line-soft); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center}
 
 /* ---------- CANVAS ---------- */
 .toolbar{display:flex; gap:5px; flex-wrap:wrap; padding:8px 10px; border-bottom:1.5px solid var(--line-soft); background:var(--card); align-items:center; flex:none; z-index:var(--z-canvas-ui)}
@@ -2470,14 +2482,14 @@ function catchUpCard(phase){
 function viewSurface(){
   const t = myTeam();
   flushScratch(t);
-  // A2 Stage 1: the AI-led interview is the OPENING of Surface — chat-hero until the map has >=3
-  // blocks (then it graduates to the map+rail). "Draw it myself" (ui.interviewSkip) opts out.
-  // skip persists per-team (survives reload) so a member who chose "draw it myself" isn't re-prompted
+  // A2/A2c: Surface OPENS in the AI interview (Stage 1, chat-hero). It hands off to the map (Stage 2)
+  // when the Coach is satisfied (done) OR the team chose "draw it myself". skip + done persist per-team.
   const skipped = ui.interviewSkip || (me.ivSkip && me.ivSkip[t.id]);
-  const interviewing = (t.canvas.blocks||[]).length < 3 && !skipped;
-  if(interviewing) return interviewHero(t);   // greeting is now server-seeded on phase→surface (no per-client dup)
-  const work = el('div',{class:'work'});
-  const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0'});
+  const handedOff = (me.ivDone && me.ivDone[t.id]) || interviewReadyClient(t.canvas);
+  if(!handedOff && !skipped) return interviewHero(t);
+  // ---- Stage 2: the map is the HERO; the Coach docks at the BOTTOM (not a right rail) ----
+  const work = el('div',{class:'work stage2'});
+  const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
   // the reconciler applies incremental updates instead of rebuilding the whole map every state.
   const ckey='surface:'+t.id;
@@ -2485,6 +2497,9 @@ function viewSurface(){
   if(cv) cv._update({ canvas:t.canvas, gov:t.governance, onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } });
   else { cv = makeCanvas({ canvas:t.canvas, editable:true, mode:'surface', gov:t.governance, testid:'surface-canvas',
     onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } }); canvasCache[ckey]=cv; }
+  // A2c: the Coach's verify hand-off banner — only when it handed off (not on a plain "draw it myself")
+  // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.
+  if(handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
   cv.querySelector('.scene').append(baselineStrip(t));   // R4b: today's numbers (a side-note, never a gate item)
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
@@ -2495,9 +2510,61 @@ function viewSurface(){
   // control hovering 12px above it (desktop only; phones keep their fixed lanes)
   if(!isPhone()){ const vc=cv.querySelector('.viewctl'); if(vc){ vc.classList.add('ingate'); bar.append(vc); } }
   left.append(bar);
+  left.append(interviewDock(t));   // A2c: the Coach docked at the bottom (keeps refining the map)
   work.append(left);
-  work.append(buildCoachRail('surface', (t.canvas.chat)||[]));
   return work;
+}
+// A2c: client mirror of the server's interviewReady — the map is "captured" (verify-ready) once the
+// core ontology is present. Drives the Stage-1→2 hand-off as a backstop to the server `done` flag.
+function interviewReadyClient(canvas){ return ['trigger','persona','phase','intent','outcome'].every(ty=>(canvas.blocks||[]).some(b=>b.type===ty)); }
+// A2c: the Coach's "I mapped it — verify & edit" hand-off banner (advisory).
+function verifyBanner(t){
+  const n=el('div',{class:'verifybanner', 'data-testid':'verify-banner', html: coachAvatar(30)+'<span><b>The Coach mapped your workflow.</b> Give it a look — edit anything I got wrong, then you’re set.</span>'});
+  n.append(el('button',{class:'btn sm primary', 'data-testid':'verify-ok', onclick:()=>{ me.ivVerified=me.ivVerified||{}; me.ivVerified[t.id]=true; saveMe(); n.remove(); }}, 'Looks right ✓'));
+  return n;
+}
+// "What's thin?" and the Newcomer check are RULE-ANSWERABLE (from governance) — never sent to the bank.
+// Module-scope so both the Rebuild rail and the Surface dock use the same logic.
+function ruleAnswerFor(txt){
+  const t0=myTeam(); const g=t0&&t0.governance; if(!g) return null;
+  if(/thin/i.test(txt)){
+    const th=(g.thin||[]);
+    return th.length ? 'Thin spots ('+th.length+'):\n'+th.map(x=>'• '+x.why).join('\n') : 'Nothing reads thin right now — a newcomer could follow every card.';
+  }
+  if(/newcomer check/i.test(txt)){
+    const bad=(g.gate.checks||[]).filter(c=>!c.ok);
+    return bad.length ? 'Newcomer check — '+bad.length+' to fix:\n'+bad.map(c=>'✕ '+c.label).join('\n') : '✓ All checks pass — saddle-ready.';
+  }
+  return null;
+}
+// A2c: the Coach docked at the BOTTOM of the Surface map (Stage 2). The composer bar is ALWAYS present
+// (so you can keep talking / the map stays the hero); the message thread expands on demand.
+function interviewDock(t){
+  const open = ui.dockOpen === true;   // default: slim composer bar (map is the hero); thread expands on the toggle / on a new reply
+  const dock = el('div',{class:'coachdock'+(open?' open':''), 'data-testid':'coach-dock'});
+  // rule-answered quick chips (always present so they're reachable without expanding the thread)
+  const chips=el('div',{class:'chips dockchips'});
+  [['What’s thin?','#b3760b'],['Run the Newcomer check','#2e7d52'],['Push me on WHY','#e23b3b']].forEach(([txt,col])=>
+    chips.append(el('button',{class:'chip', onclick:()=>{ const ra=ruleAnswerFor(txt); if(ra){ wsSend({type:'chat:post',role:'user',name:me.name,content:txt}); wsSend({type:'chat:post',role:'assistant',content:ra}); ui.dockOpen=true; render(); return; } ui.dockOpen=true; sendInterviewTurn(txt); }}, el('span',{class:'dot',style:`background:${col}`}), txt)));
+  dock.append(chips);
+  if(open){
+    const msgs=el('div',{class:'dockmsgs', id:'coach-msgs', 'aria-live':'polite'});
+    (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+    dock.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
+  }
+  const bar=el('div',{class:'dockbar'});
+  bar.append(el('span',{class:'dockav', html:coachAvatar(28)}));
+  const inp=el('textarea',{class:'dockinput', placeholder:'Tell the Coach more, or just fix the map…', 'data-testid':'coach-input', rows:'1'});
+  if(ui.coachDraft) inp.value=ui.coachDraft;
+  inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
+  const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.dockOpen=true; sendInterviewTurn(v); };   // open the thread so the reply is seen
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
+  bar.append(inp,
+    el('button',{class:'btn sm ghost', disabled:'', title:'Voice — coming soon (Slice B)'},'Voice'),
+    el('button',{class:'btn primary sm', 'data-testid':'coach-send', onclick:fire},'Send'),
+    el('button',{class:'docktoggle', 'data-testid':'dock-toggle', title: open?'Hide the thread':'Show the conversation', 'aria-label':'Toggle the Coach conversation', onclick:()=>{ ui.dockOpen=!open; render(); }, html: glyph(open?'i-down':'i-chev')}));
+  dock.append(bar);
+  return dock;
 }
 // a dismissible one-line goal banner — every phase states its exit criteria
 function goalNote(htmlTxt){
@@ -2672,6 +2739,8 @@ async function sendInterviewTurn(text){
     coachBusy=false; coachStatus=d.degraded?'offline':'idle';
     // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
     // post it, or each member's client duplicates it in the shared thread.
+    // A2c: when the Coach hands off (done), persist it per-team + render so Surface flips to the verify stage.
+    if(d.done && me.teamId){ me.ivDone=me.ivDone||{}; me.ivDone[me.teamId]=true; saveMe(); render(); }
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
   }catch(e){ coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
 }
@@ -2734,21 +2803,8 @@ function buildCoachRail(mode, chat){
   setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const chips=el('div',{class:'chips'});
   const chipSets={ surface:[['What’s thin?','#b3760b'],['Run the Newcomer check','#2e7d52'],['Push me on WHY','#e23b3b']], rebuild:[['Challenge this','#e23b3b'],['Ask about the workflow','#2e7d52'],['Real constraint?','#7c3aed']] };
-  // "What's thin?" and the Newcomer check are RULE-ANSWERABLE — never send them to the bank
-  const ruleAnswer = (txt)=>{
-    const t0=myTeam(); const g=t0&&t0.governance; if(!g) return null;
-    if(/thin/i.test(txt)){
-      const th=(g.thin||[]);
-      return th.length ? 'Thin spots ('+th.length+'):\n'+th.map(x=>'• '+x.why).join('\n') : 'Nothing reads thin right now — a newcomer could follow every card.';
-    }
-    if(/newcomer check/i.test(txt)){
-      const bad=(g.gate.checks||[]).filter(c=>!c.ok);
-      return bad.length ? 'Newcomer check — '+bad.length+' to fix:\n'+bad.map(c=>'✕ '+c.label).join('\n') : '✓ All checks pass — saddle-ready.';
-    }
-    return null;
-  };
   (chipSets[mode]||[]).forEach(([txt,col])=> chips.append(el('button',{class:'chip', onclick:()=>{
-    const ra=ruleAnswer(txt);
+    const ra=ruleAnswerFor(txt);
     if(ra){ wsSend({type:'chat:post', role:'user', name:me.name, content:txt}); wsSend({type:'chat:post', role:'assistant', content:ra}); return; }
     inp.value=txt; doSend();
   }}, el('span',{class:'dot',style:`background:${col}`}), txt)) );

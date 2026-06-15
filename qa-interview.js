@@ -88,6 +88,15 @@ async function main() {
       c3.blocks.every(BLOCK_OK) && !c3.blocks.find(b => b.id === pid) && !!c3.blocks.find(b => b.type === 'phase' && b.text.length <= 400),
       c3.blocks.map(b => b.type + ':' + (b.text || '').length));
 
+    // A2c: the Coach hands off (done) when it says so OR the map is ontology-complete
+    nextReply = { reply: 'That’s your workflow mapped — take a look.', ops: [], done: true };
+    const rDone = await callInterview(room.code, room.teamId, 'and that’s the whole thing');
+    ok('A2c: interview returns done:true when the Coach hands off', rDone.done === true, rDone);
+    nextReply = { reply: 'keep going', ops: [], done: false };
+    const rNot = await callInterview(room.code, room.teamId, 'one more thing');
+    // map isn't ontology-complete (no trigger/intent/outcome) → done stays false
+    ok('A2c: done:false mid-interview (not ontology-complete)', rNot.done === false, rNot);
+
     room.m.close(); room.fac.close();
   } finally { srv.kill('SIGKILL'); mock.close(); try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
   console.log(`\nqa-interview: ${pass} passed, ${fail} failed`);

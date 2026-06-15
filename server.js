@@ -858,12 +858,13 @@ SYSTEMS.recap = `You write a 3-4 sentence warm recap intro for a participant's t
 // A1: the AI-led interview — the Coach DRIVES, turning what the team says into map blocks as they speak.
 SYSTEMS.interview = `You are the Coach running a live interview to map a team's CURRENT workflow. You DRIVE: ask ONE sharp question at a time, dig into the WHY, and turn what they say into map blocks as you go.
 You are given the CURRENT MAP (block ids + labels). Return ONLY JSON, no prose:
-{"reply":"<your next single question or steer, <=2 sentences>","ops":[ <map edits> ]}
+{"reply":"<your next single question or steer, <=2 sentences>","ops":[ <map edits> ],"done":false}
 Op types (key to existing ids; use a tmpId for a new block you connect in the same turn):
   {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<only if they stated a reason>","capacity":"operates|accountable|served|informed (personas only, only if stated)"}
   {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true}
   {"op":"connect","from":"<id|tmpId>","to":"<id|tmpId>"}
   {"op":"remove","id":"<existing id>"}
+Set "done": true ONLY once the workflow is fully captured — a trigger, the people (with capacity), inputs, the phases/moments, a real intent (a DECISION, not "a report"), and an outcome, each with its WHY. When you set done:true, your reply is a short warm hand-off ("That’s your workflow mapped — take a look and fix anything I got wrong."). Until then, done:false and keep interviewing.
 Rules: never invent content they didn't say; one intent at most; a correction ("X is actually Y") is an UPDATE to that block, never a new one; max ~6 ops per turn; intent must be a decision, not an artifact ("a report"). ${SECRECY}`;
 
 function clampClusters(p) {
@@ -952,6 +953,12 @@ const INTERVIEW_QS = [
   'What’s the part that frustrates you most about how this runs today?'
 ];
 function interviewScript(canvas, n) { return INTERVIEW_QS[Math.min(Math.max(0, n | 0), INTERVIEW_QS.length - 1)]; }
+// A2c: the workflow is "captured" (Coach can hand off to verify) when the core ontology is on the map.
+// Rule-based readiness — used as the degraded "done" signal and as a backstop if the live AI omits it.
+function interviewReady(canvas) {
+  const has = ty => (canvas.blocks || []).some(b => b.type === ty);
+  return has('trigger') && has('persona') && has('phase') && has('intent') && has('outcome');
+}
 // A2: the server OWNS the interview reply (greeting + every degraded turn) so it's appended + broadcast
 // exactly once — the client never posts it (per-client posting duplicated it in multi-member rooms).
 function degradedInterviewReply(room, team) {
@@ -1031,8 +1038,8 @@ app.post('/api/coach', async (req, res) => {
   if (req.body.interview && (!AI_PROVIDER || !workshops.get(String(req.body.code || '').toUpperCase()))) {
     const room0 = workshops.get(String(req.body.code || '').toUpperCase());
     const team0 = room0 && room0.teams.find(t => t.id === req.body.teamId);
-    if (team0 && room0) return res.json({ reply: degradedInterviewReply(room0, team0), degraded: true, interview: true });
-    return res.json({ reply: interviewScript({ blocks: [] }, 0), degraded: true, interview: true });
+    if (team0 && room0) return res.json({ reply: degradedInterviewReply(room0, team0), degraded: true, interview: true, done: interviewReady(team0.canvas) });
+    return res.json({ reply: interviewScript({ blocks: [] }, 0), degraded: true, interview: true, done: false });
   }
   // Bank replies are free + deterministic — never gated (the degradation path IS the product, rule #8).
   if (!AI_PROVIDER) return res.json({ reply: bankReply(m), degraded: true });
@@ -1064,14 +1071,15 @@ app.post('/api/coach', async (req, res) => {
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.interview, ic) : await callAnthropic(SYSTEMS.interview, ic);
         const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
         const reply = String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX);
-        if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true }); }
+        if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) }); }
         applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
         team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
         broadcast(room);
-        return res.json({ reply, interview: true });
+        // A2c: hand off to verify when the AI says done OR the map is ontology-complete (backstop)
+        return res.json({ reply, interview: true, done: !!j.done || interviewReady(team.canvas) });
       } catch (e) {
         log('coach_degraded', { kind: 'interview', err: String(e.message || e).slice(0, 200) });
-        return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true });
+        return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) });
       }
     }
     // R1b: optional AI recap-intro tier — a 3-4 sentence warm intro for the take-home recap.

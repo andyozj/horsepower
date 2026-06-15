@@ -95,7 +95,7 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
 
   // Jonas iter2: composer draft survives a broadcast re-render
   await A.fill('[data-testid=coach-input]', 'half-typed thought about approvals');
-  await drop(A, 'input', 200, 380); await A.keyboard.type('the form'); await A.click('[data-testid=tool-select]');
+  await drop(A, 'input', 200, 180); await A.keyboard.type('the form'); await A.click('[data-testid=tool-select]');
   await wait(700);                                       // broadcast → full re-render
   const draft = await A.locator('[data-testid=coach-input]').inputValue();
   ok('J2: in-flight Coach text survives a broadcast re-render', /half-typed thought/.test(draft), draft);

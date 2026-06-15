@@ -143,7 +143,7 @@ async function emptySpot(page, sceneSel, fallback) {
     await Alex.click('[data-testid=interview-skip]'); await wait(300);
     await Alex.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     ok('member enters Surface with the diagramming canvas', true);
-    ok('Surface: Coach rail OPEN by default (brain-dump is the Coach)', await Alex.locator('[data-testid=coach-rail]:not(.collapsed)').count() === 1);
+    ok('Surface: Coach docked at the bottom (A2c — map is the hero)', await Alex.locator('[data-testid=coach-dock]').count() === 1);
     const S = '[data-testid=surface-canvas]';
     // author a transfer-grade map by hand (no Coach needed → degradation path)
     await dropBlock(Alex, S, 'persona', 120, 90, 'OpCo GM');
