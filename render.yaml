@@ -1,0 +1,32 @@
+# Render Blueprint — Horsepower (free tier to start).
+# In Render: New + → "Blueprint" → connect this repo → it reads this file.
+# WebSockets + persistent Node are supported on free; the only free-tier limits are
+# idle-sleep (~15 min) and NO persistent disk (workshop data resets on restart — see DEPLOY.md).
+services:
+  - type: web
+    name: horsepower
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev   # skips Playwright (devDependency) → faster, smaller build
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"                          # Render runs behind one proxy → real client IPs
+      - key: MINT_GLOBAL_MAX
+        value: "300"
+      - key: COACH_IP_MAX
+        value: "40"
+      - key: COACH_GLOBAL_MAX
+        value: "2000"
+      - key: ALLOWED_ORIGINS
+        sync: false                         # SET AFTER 1st deploy → your https://<name>.onrender.com URL
+      - key: ANTHROPIC_API_KEY
+        sync: false                         # OPTIONAL — leave unset to run the free rule-based Coach
+# NOTE: no `disk:` block — free tier has none. To make workshops durable later, upgrade
+# `plan: starter` and add:
+#   disk: { name: data, mountPath: /data, sizeGB: 1 }
+# then add an env var DATA_DIR=/data.
