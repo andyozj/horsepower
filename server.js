@@ -40,6 +40,10 @@ const CONFIG = {
   WS_MAX_BUFFERED: 1_000_000,        // skip a socket in broadcast when this far behind
   // coach: gates the PROVIDER call only — bank replies stay free (degradation path)
   COACH_BUCKET: { capacity: 6, refillPerSec: 10 / 60 },   // ~10/min per room, burst 6
+  // public-internet coach spend caps (per-IP + global). Env-overridable; defaults are high
+  // enough that no honest LAN room trips them. On trip → degrade to the free bank reply.
+  COACH_IP_BUCKET: { capacity: Number(process.env.COACH_IP_MAX) || 40, refillPerSec: 40 / 3600 },        // ~40/hr/IP
+  COACH_GLOBAL_BUCKET: { capacity: Number(process.env.COACH_GLOBAL_MAX) || 2000, refillPerSec: 2000 / 86400 }, // ~2000/day total
   COACH_TIMEOUT_MS: 20_000,
   COACH_REPLY_MAX: 1200,
   // minting: full local CI run mints <10 workshops; dev loops ~40/10min worst -> 60 burst
@@ -58,6 +62,7 @@ const CONFIG = {
 // ---- AI provider config (anthropic | azure) ----
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
 const AZURE_ENDPOINT = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '');
 const AZURE_KEY = process.env.AZURE_OPENAI_KEY || '';
 const AZURE_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || '';
@@ -111,6 +116,14 @@ function reqIp(req) {
     || req.socket.remoteAddress || 'unknown';
 }
 const coachBuckets = new Map(); // workshop code -> bucket (kept OFF the workshop object so it never hits disk)
+const coachIpBuckets = new Map();                 // per-IP coach spend bucket
+const coachGlobalBucket = makeBucket(CONFIG.COACH_GLOBAL_BUCKET);  // one shared global ceiling
+function coachSpendAllowed(ip, room) {
+  // per-room (existing intent), per-IP, and global — all must have a token to spend the key.
+  if (!coachBuckets.has(room.code)) coachBuckets.set(room.code, makeBucket(CONFIG.COACH_BUCKET));
+  if (!coachIpBuckets.has(ip)) coachIpBuckets.set(ip, makeBucket(CONFIG.COACH_IP_BUCKET));
+  return takeToken(coachBuckets.get(room.code)) && takeToken(coachIpBuckets.get(ip)) && takeToken(coachGlobalBucket);
+}
 
 // ---- JSON-line logger -----------------------------------------------------
 function log(evt, data) { console.log(JSON.stringify(Object.assign({ ts: new Date().toISOString(), evt }, data))); }
@@ -849,7 +862,7 @@ function bankReply(mode) {
 const lastBankReply = {};
 
 async function callAnthropic(system, chat) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch(ANTHROPIC_BASE_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 400, system, messages: chat }),
@@ -888,8 +901,8 @@ app.post('/api/coach', async (req, res) => {
   // Spending the key requires a LIVE room + budget; otherwise degrade honestly.
   const room = workshops.get(String(req.body.code || '').toUpperCase());
   if (!room) return res.json({ reply: bankReply(m), degraded: true });
-  if (!coachBuckets.has(room.code)) coachBuckets.set(room.code, makeBucket(CONFIG.COACH_BUCKET));
-  if (!takeToken(coachBuckets.get(room.code))) return res.json({ reply: bankReply(m), degraded: true });
+  // public-internet cost control: per-room + per-IP + global must all allow before we spend the key.
+  if (!coachSpendAllowed(reqIp(req), room)) { log('coach_capped', { code: room.code, ip: reqIp(req) }); return res.json({ reply: bankReply(m), degraded: true }); }
 
   const system = SYSTEMS[m];
   const chat = (Array.isArray(messages) ? messages : [])
