@@ -168,7 +168,9 @@ async function testDiffGate() {
   // a fresh room is in 'lobby' — the diff endpoint must refuse regardless of code knowledge.
   const { code } = await (await fetch(BASE + '/api/workshop', { method: 'POST' })).json();
   const r = await fetch(`${BASE}/api/diff/${code}/anyteam`);
-  ok('diff refused pre-share (not 200)', r.status !== 200, { status: r.status });
+  // Assert 403 specifically (the phase gate), not just "not 200": pre-fix a lobby room returned 404
+  // incidentally, so a "not 200" check passed even WITHOUT the gate. 403 proves the gate is doing it.
+  ok('diff phase-gated pre-share (403, not the incidental 404)', r.status === 403, { status: r.status });
 }
 
 main();
