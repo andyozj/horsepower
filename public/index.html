@@ -1280,6 +1280,7 @@ function timerLow(){ const t=state&&state.timer; if(!t||!t.running) return false
 // RENDER
 //==================================================================
 let lobbyTimer = null, tourTimer = null, posterTimer = null;
+let canvasCache = {};   // A0: live makeCanvas instances kept across state broadcasts (key: '<mode>:<teamId>')
 function render(){
   if (editingLock){ pendingRender = true; return; }
   // B5: focus survives the app.innerHTML wipe — extend the toolRestore idea to the focused element.
@@ -1337,6 +1338,7 @@ async function goHome(){
   me = { role:null, code:null, teamId:null, memberId:null, hostKey:null, seatToken:null, sandbox:false, name: me.name||'' };
   saveMe();
   state=null; view='landing'; ui.roomView=false; ui.drillTeamId=null;
+  canvasCache = {};   // drop persisted canvas instances on leaving the workshop
   render();
 }
 function topbar(){
@@ -1941,7 +1943,7 @@ const seenBlocks = {};   // per-canvas: which block ids have already entered (po
 // CANVAS ENGINE
 //==================================================================
 function makeCanvas(opts){
-  const c = opts.canvas || {blocks:[],arrows:[]};
+  let c = opts.canvas || {blocks:[],arrows:[]};   // let: _update re-points it on instance reuse
   if(!c.blocks) c.blocks=[]; if(!c.arrows) c.arrows=[];
   const editable = opts.editable && !opts.readOnly;
   // tool + selection survive full re-renders (every commit triggers a state broadcast
@@ -2008,11 +2010,21 @@ function makeCanvas(opts){
     requestAnimationFrame(()=>{ const r=scene.getBoundingClientRect(); if(r.width){ root._fit(r.width, r.height, 1); if(!opts.compact){ ui.zoom=local.zoom; ui.pan={x:local.pan.x, y:local.pan.y}; } } });
   }
   const seenKey = opts.testid || null;       // map-build stagger only on real (editable) canvases
+  // A0 reconciler: a string of every render-affecting field of a block. An existing node whose
+  // sig is unchanged renders identically, so it is left untouched (no rebuild → identity/focus/
+  // entrance-animation preserved). Selection is in the sig so a select change recreates exactly
+  // the two affected nodes (handles add/remove).
+  function blockSig(b, selected){
+    const m = b.meta || {};
+    return [b.x, b.y, b.w, b.h, b.type, b.text || '', b.locked?1:0, b.pain?1:0, b.conflict?1:0,
+      m.capacity||'', m.why||'', m.system||'', m.phaseId||'', (m.author&&m.author.c)||'',
+      selected?1:0, opts.mode||''].join('│');
+  }
   function draw(){
     // B9 §2.5: preserve keyboard focus across the within-canvas node rebuild (scoped to NODE focus
     // only — never steal focus from a label/inspector textarea; those run under editingLock anyway).
     const hadNodeFocus = document.activeElement && world.contains(document.activeElement) && document.activeElement.classList.contains('node') ? document.activeElement.dataset.id : null;
-    world.querySelectorAll('.node, .ingcard, .challengebtn, .inspector').forEach(n=>n.remove());
+    world.querySelectorAll('.ingcard, .challengebtn, .inspector').forEach(n=>n.remove());   // derived overlays rebuild; blocks reconcile below
     // B1 extends to the teardown overlays: on first paint, ALL cards (locked blocks +
     // candidates + concerns) assemble left→right on one shared cadence — the scattered
     // delivery made physical, not a hard cut (finite, capped ~900ms)
@@ -2045,13 +2057,28 @@ function makeCanvas(opts){
       // hand-stroked edge (gold for candidates, red for concerns) — needs laid-out dimensions
       requestAnimationFrame(()=>{ const w=card.offsetWidth, h=card.offsetHeight; if(w&&h&&!card.querySelector('.roughbox')) card.prepend(roughBoxSvg(w,h,'ing-'+o.id)); });
     });
-    if (editable && seenKey){
-      const seen = seenBlocks[seenKey] || (seenBlocks[seenKey] = new Set());
-      // B1: stagger entrance left→right on the SHARED cadence (ovOrder covers blocks +
-      // overlays sorted together) so the whole teardown assembles as one sweep
-      (c.blocks||[]).forEach(b=>{ const isNew=!seen.has(b.id); world.append(renderBlock(b, isNew? ovOrder[b.id] : null)); seen.add(b.id); });
-    } else {
-      (c.blocks||[]).forEach(b=>{ world.append(renderBlock(b)); });
+    // A0 keyed reconcile: leave unchanged nodes in place (preserves DOM identity, focus, entrance
+    // animations); recreate only changed nodes; append new ones (entrance stagger via ovOrder); drop
+    // removed. Replaces the wipe-and-rebuild so a live-updating map (the interview) never thrashes.
+    {
+      const seen = (editable && seenKey) ? (seenBlocks[seenKey] || (seenBlocks[seenKey] = new Set())) : null;
+      const existing = {}; world.querySelectorAll('.node').forEach(n=>{ existing[n.dataset.id]=n; });
+      (c.blocks||[]).forEach(b=>{
+        const sig = blockSig(b, sel===b.id);
+        const cur = existing[b.id];
+        // never recreate a node whose label is being edited — it would drop the in-flight text
+        const editingThis = cur && document.activeElement && cur.contains(document.activeElement);
+        if (cur){ delete existing[b.id]; if (cur.dataset.sig===sig || editingThis) return; }
+        const isNew = !cur && (!seen || !seen.has(b.id));
+        const node = renderBlock(b, (seen && isNew) ? ovOrder[b.id] : null);
+        node.dataset.sig = sig;
+        if (cur) cur.replaceWith(node); else world.append(node);
+        if (seen) seen.add(b.id);
+      });
+      Object.keys(existing).forEach(id=>existing[id].remove());   // blocks that no longer exist
+      // roving tabindex depends on rovingId() (sel/first-visual), which isn't in blockSig — so KEPT
+      // nodes would hold a stale tabindex and break Tab navigation. Refresh it across all nodes here.
+      if (editable){ const rov = rovingId(); world.querySelectorAll('.node').forEach(n=>{ n.tabIndex = (n.dataset.id===rov)?0:-1; }); }
     }
     drawArrows();
     // "Challenge this" on a selected locked block (the §6a amendment hatch)
@@ -2356,14 +2383,16 @@ function makeCanvas(opts){
     if(msgs[tool]) root.append(el('div',{class:'hintbar'}, msgs[tool]));
   }
 
-  if(!opts.compact){
+  function mkViewCtl(){
+    if(opts.compact) return;
     const vc=el('div',{class:'viewctl'});
     vc.append(el('button',{title:'Zoom out', 'aria-label':'Zoom out', onclick:()=>{local.zoom=Math.max(.25,local.zoom-.15);applyTransform();}},'−'));
-    zlblEl=el('span',{class:'zlbl'}, '100%'); vc.append(zlblEl);
+    zlblEl=el('span',{class:'zlbl'}, Math.round(local.zoom*100)+'%'); vc.append(zlblEl);
     vc.append(el('button',{title:'Zoom in', 'aria-label':'Zoom in', onclick:()=>{local.zoom=Math.min(2,local.zoom+.15);applyTransform();}},'+'));
     vc.append(el('button',{title:'Fit', 'aria-label':'Fit the map to the screen', onclick:()=>{local.zoom=1;local.pan.x=0;local.pan.y=0;applyTransform();}},'⤢'));
     scene.append(vc);
   }
+  mkViewCtl();
 
   draw();
   root._view = ()=>({zoom:local.zoom, pan:{x:local.pan.x, y:local.pan.y}});
@@ -2375,6 +2404,19 @@ function makeCanvas(opts){
     const minX=Math.min(...boxes.map(b=>b.x)), minY=Math.min(...boxes.map(b=>b.y)), maxX=Math.max(...boxes.map(b=>b.x+b.w)), maxY=Math.max(...boxes.map(b=>b.y+b.h));
     const sc=Math.min(maxScale,(cw-20)/(maxX-minX+40||1),(ch-20)/(maxY-minY+40||1));
     local.zoom=sc; local.pan.x=(cw-(maxX-minX)*sc)/2 - minX*sc; local.pan.y=(ch-(maxY-minY)*sc)/2 - minY*sc; applyTransform(); };
+  // A0 persistence: re-point this LIVE instance at fresh data on a state broadcast instead of building
+  // a new canvas. Node event-listeners close over this instance, so reuse keeps them valid; the keyed
+  // draw() reconcile then preserves unchanged nodes (identity/focus/animation). The caller re-injects
+  // its chrome (trays/banners/gate dock) after this, so strip the stale chrome first to avoid stacking.
+  root._update = (newOpts) => {
+    Object.assign(opts, newOpts || {});
+    c = opts.canvas || {blocks:[],arrows:[]};
+    if(!c.blocks) c.blocks=[]; if(!c.arrows) c.arrows=[];
+    [...root.children].forEach(ch=>{ if(ch!==scene && !ch.classList.contains('toolbar')) ch.remove(); });
+    [...scene.children].forEach(ch=>{ if(ch!==world) ch.remove(); });
+    mkViewCtl();   // surface re-homes the zoom control into the gate bar (destroyed on re-render) → recreate it
+    draw();
+  };
   return root;
 }
 function showShortcuts(){ toast('Mouse: double-click to edit · ⌫ deletes · drag corners to resize. Keyboard: Tab walks the blocks · arrows nudge · Enter edits · A draws an arrow · i opens the back of the card · Esc clears.',false); }
@@ -2420,8 +2462,13 @@ function viewSurface(){
   flushScratch(t);
   const work = el('div',{class:'work'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0'});
-  const cv = makeCanvas({ canvas:t.canvas, editable:true, mode:'surface', gov:t.governance, testid:'surface-canvas',
-    onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } });
+  // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
+  // the reconciler applies incremental updates instead of rebuilding the whole map every state.
+  const ckey='surface:'+t.id;
+  let cv = canvasCache[ckey];
+  if(cv) cv._update({ canvas:t.canvas, gov:t.governance, onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } });
+  else { cv = makeCanvas({ canvas:t.canvas, editable:true, mode:'surface', gov:t.governance, testid:'surface-canvas',
+    onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } }); canvasCache[ckey]=cv; }
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
   cv.querySelector('.scene').append(baselineStrip(t));   // R4b: today's numbers (a side-note, never a gate item)
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
@@ -2736,10 +2783,13 @@ function viewRebuild(){
   const r = t.redesign;
   const work = el('div',{class:'work rebuild'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
-  const cv = makeCanvas({ canvas:r.canvas, editable:true, mode:'rebuild', testid:'rebuild-canvas',
+  const ckey='rebuild:'+t.id;
+  let cv = canvasCache[ckey];
+  if(cv) cv._update({ canvas:r.canvas, overlays: rebuildOverlays(r), onChange:(c)=>{ wsSend({type:'redesign:update', redesign:{canvas:c}}); }, onChallengeLock:(b)=>openChallenge(b) });
+  else { cv = makeCanvas({ canvas:r.canvas, editable:true, mode:'rebuild', testid:'rebuild-canvas',
     overlays: rebuildOverlays(r),
     onChange:(c)=>{ wsSend({type:'redesign:update', redesign:{canvas:c}}); },
-    onChallengeLock:(b)=>openChallenge(b) });
+    onChallengeLock:(b)=>openChallenge(b) }); canvasCache[ckey]=cv; }
   cv.querySelector('.scene').append(goalNote('Goal: rebuild it <b>AI-native</b> — drop <b>Agent</b> blocks where AI should act, land every person, log your guesses.'));
   const cu=catchUpCard('rebuild'); if(cu) cv.append(cu);
   cv.append(landTray(t));            // people 'to land' — mirror of the orphan tray
