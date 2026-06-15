@@ -1705,8 +1705,13 @@ function viewLobby(){
   // ---- right: Meet your Coach — the step between saddling up and the off.
   // "Let's ride" is YOUR commitment; the Farrier still starts the ride for the room.
   const cp = el('div',{class:'coachpanel', 'data-testid':'coach-vignette'});
-  cp.append(el('div',{class:'who anim-rise', html: coachAvatar(54)+'<span>Meet your Coach</span>'}));
-  if(!me.saddled){
+  // BUGFIX: "Let's ride" is a CLIENT-ONLY flag — re-render just this panel in place, not the
+  // whole page (full render() wiped app.innerHTML and restarted every lobby animation → read as a
+  // jarring page refresh).
+  function fillCoach(){
+   cp.innerHTML='';
+   cp.append(el('div',{class:'who anim-rise', html: coachAvatar(54)+'<span>Meet your Coach</span>'}));
+   if(!me.saddled){
     cp.append(el('div',{class:'coachsay anim-rise', style:'animation-delay:100ms'}, 'I’ll read along, ask smart questions, and keep you honest.'));
     const prom = el('div',{class:'vignette promises anim-rise', style:'animation-delay:200ms'});
     [['g-pin','I’ll capture everything','your brain-dump becomes a living map — nothing gets lost'],
@@ -1716,10 +1721,11 @@ function viewLobby(){
     prom.append(el('div',{class:'prow'}, el('span',{class:'pico findme-av', html:coachAvatar(34)}),
       el('div',{}, el('b',{},'Where to find me'), el('div',{class:'meta'},'I live beside every map — look for my face, tap it if I’m tucked away.'))));
     cp.append(prom);
-    cp.append(el('button',{class:'btn primary ride anim-rise', style:'animation-delay:300ms', 'data-testid':'lets-ride', onclick:()=>{ me.saddled=true; saveMe(); render(); }}, 'Let’s ride →'));
+    cp.append(el('button',{class:'btn primary ride anim-rise', style:'animation-delay:300ms', 'data-testid':'lets-ride', onclick:()=>{ me.saddled=true; saveMe(); fillCoach(); }}, 'Let’s ride →'));
     cp.append(el('div',{class:'ridenote anim-rise', style:'animation-delay:380ms'},'You can always ask me to slow down.'));
     cp.append(scratchPad(360));
-  } else {
+   } else {
+    if (lobbyTimer){ clearInterval(lobbyTimer); lobbyTimer=null; }   // avoid stacking the vignette cycler on in-place refill
     const vig = el('div',{style:'width:100%; max-width:560px; display:flex; justify-content:center'});
     let i=0; const cycle=()=>{ vig.innerHTML=''; vig.append(coachVignette(i%3)); i++; };
     cycle(); lobbyTimer=setInterval(cycle, 3800);
@@ -1729,7 +1735,9 @@ function viewLobby(){
     cp.append(el('p',{class:'meta anim-rise', style:'max-width:460px; animation-delay:150ms'},
       offline ? 'Waiting on '+offline+' more to saddle up — the Farrier starts the ride.' : 'Your stable’s all saddled — the Farrier starts the ride for the room.'));
     cp.append(scratchPad(240));
+   }
   }
+  fillCoach();
   wrap.append(cp);
   return wrap;
 }
@@ -2225,7 +2233,10 @@ function makeCanvas(opts){
     editingLock=true;  // hold full re-renders until the new label blurs, so the echo broadcast can't detach it
     c.blocks.push(b); setSel(b.id); commit(); draw();
     setTimeout(()=>{ const node=world.querySelector(`.node[data-id="${b.id}"] .label`); if(node) node.focus(); else { editingLock=false; if(pendingRender){pendingRender=false;render();} } },10);
-    activeTool='select'; root.querySelectorAll('.tool').forEach(x=>x.classList.toggle('active',x.dataset.tool==='select')); scene.classList.remove('linking'); hint('select');
+    // BUGFIX: persist via setTool so the commit→broadcast re-render (which re-reads activeTool from
+    // ui.toolRestore) doesn't snap the creation tool back on — otherwise every click kept dropping the
+    // same block. One-shot placement → back to Select.
+    setTool('select'); updateTools(); scene.classList.remove('linking'); hint('select');
   }
   function onNodeDown(e,b,n){
     if (activeTool==='arrow'){
@@ -2241,7 +2252,12 @@ function makeCanvas(opts){
     setSel(b.id); draw();
     const start=toWorld(e.clientX,e.clientY); const ox=b.x, oy=b.y; let moved=false;
     const move=ev=>{ const w0=toWorld(ev.clientX,ev.clientY); b.x=Math.round(ox+(w0.x-start.x)); b.y=Math.round(oy+(w0.y-start.y)); moved=true; const node=world.querySelector(`.node[data-id="${b.id}"]`); if(node){node.style.left=b.x+'px'; node.style.top=b.y+'px';} drawArrows(); };
-    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); if(moved) commit(); };
+    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+      if(moved){ commit(); return; }
+      // BUGFIX: a click without a drag = edit the name. Single-click selected but didn't focus the
+      // label (you had to double-click / press Enter — undiscoverable). Match the place-then-type flow.
+      if(!b.locked){ const l=world.querySelector(`.node[data-id="${b.id}"] .label`); if(l){ l.focus(); const r=document.createRange(); r.selectNodeContents(l); r.collapse(false); const s=document.getSelection(); s.removeAllRanges(); s.addRange(r); } }
+    };
     document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
   }
   function addHandles(n,b){
