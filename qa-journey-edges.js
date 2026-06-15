@@ -87,6 +87,7 @@ async function dropBlock(page, tool, x, y, text) {
     await F.click('[data-testid=phase-surface]');
     await wait(250);
     if (await F.locator('[data-testid=modal-confirm]').count()) await F.click('[data-testid=modal-confirm]');
+    await A.click('[data-testid=interview-skip]').catch(() => {}); await wait(300);   // A2: leave the interview hero
     await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     await dropBlock(A, 'persona', 140, 100, 'OpCo GM');
     await dropBlock(A, 'trigger', 140, 220, 'invoice arrives');
@@ -165,6 +166,7 @@ async function dropBlock(page, tool, x, y, text) {
       await joinAs(C, 'Bo', code);
       await C.fill('[data-testid=create-team-name]', 'ETL Crew');
       await C.click('[data-testid=create-team-btn]');
+      await C.click('[data-testid=interview-skip]').catch(() => {}); await wait(300);   // A2: leave the interview hero
       await C.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
       const jumpC=C.locator('button:has-text("Jump in")');
       if(await jumpC.count()) await jumpC.click();
