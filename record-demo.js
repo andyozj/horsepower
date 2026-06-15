@@ -123,16 +123,17 @@ async function drop(page, scene, tool, x, y, text, typeDelay = 55) {
 
   // 3) Lobby — big "Meet the Coach" slide; press "Let's ride →", linger on the warm-up
   await M.waitForSelector('[data-testid=stable]');
-  await beat(4200);
-  await clickIt(M, '[data-testid=lets-ride]', { after: 900 });
-  await beat(4200); // paddock + warm-up vignette
+  await beat(4200); // paddock + meet-the-Coach (A2b: no saddle step)
 
-  // 4) Farrier starts Surface (off camera)
+  // 4) Farrier starts Surface (off camera) → members land in the interview, then draw by hand
   await F.click('[data-testid=phase-surface]');
+  await M.waitForSelector('[data-testid=interview-hero]', { timeout: 10000 }); await beat(1200);
+  await M.click('[data-testid=interview-skip]').catch(()=>{}); await beat(600);
   await M.waitForSelector('[data-testid=surface-canvas]', { timeout: 10000 });
   await beat(1500);
 
   // background: give ETL Crew a small gate-ready canvas (off camera)
+  await Sam.click('[data-testid=interview-skip]').catch(()=>{}); await beat(300);
   await Sam.waitForSelector('[data-testid=surface-canvas]');
   const SB = '[data-testid=surface-canvas]';
   const dropS = async (tool, x, y, text) => {

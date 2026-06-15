@@ -93,13 +93,14 @@ const confirmIfModal = async (page) => { await wait(250); if (await page.locator
       await B.click('[data-testid=create-team-btn]');
       await B.waitForSelector('[data-testid=stable]', { timeout: 8000 });
     });
-    await step('A lobby saddle', async () => {
-      await A.click('[data-testid=lets-ride]'); await wait(2500); await snap(A, 'lobby-saddled');
+    await step('A lobby', async () => {   // A2b: no saddle step
+      await wait(800); await snap(A, 'lobby-saddled');
     });
     await step('console 2 teams', async () => { await wait(600); await snap(F, 'console-lobby-2teams'); });
 
     // ---------- surface ----------
     await step('start surface', async () => { await F.click('[data-testid=phase-surface]'); await confirmIfModal(F); await wait(1200); });
+    await step('A surface interview', async () => { await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 }); await snap(A, 'surface-interview'); await A.click('[data-testid=interview-skip]'); await wait(400); });
     await step('A surface empty', async () => { await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 }); await wait(800); await snap(A, 'surface-empty'); });
     await step('A brain dump', async () => {
       await A.fill('[data-testid=coach-input]', 'an invoice lands in the shared inbox, someone checks it against the PO, then we chase the approver — month-end is chaos');
@@ -127,6 +128,7 @@ const confirmIfModal = async (page) => { await wait(250); if (await page.locator
       await snap(A, 'surface-whats-thin');
     });
     await step('B minimal map', async () => {
+      await B.click('[data-testid=interview-skip]').catch(() => {}); await wait(300);   // A2: B leaves the interview
       await B.waitForSelector(S, { timeout: 8000 });
       await dropBlock(B, S, 'persona', 120, 90, 'Finance Analyst');
       await dropBlock(B, S, 'trigger', 120, 200, 'month end');

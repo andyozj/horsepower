@@ -77,14 +77,14 @@ async function axeSerious(page) {
   await A.fill('[data-testid=join-name]', 'Vera'); await A.fill('[data-testid=join-code]', code); await A.click('[data-testid=join-btn]');
   await A.waitForSelector('[data-testid=create-team-name]');
   await A.fill('[data-testid=create-team-name]', 'A11y Crew'); await A.click('[data-testid=create-team-btn]');
-  await A.waitForSelector('[data-testid=stable]'); await A.click('[data-testid=lets-ride]'); await wait(300);
+  await A.waitForSelector('[data-testid=stable]'); await wait(300);
 
   const B2 = await (await ctx()).newPage(); B2.on('dialog', d => d.accept().catch(() => {}));
   await B2.goto(BASE);
   await B2.fill('[data-testid=join-name]', 'Pat'); await B2.fill('[data-testid=join-code]', code); await B2.click('[data-testid=join-btn]');
   await B2.waitForSelector('[data-testid=create-team-name]');
   await B2.fill('[data-testid=create-team-name]', 'Other Crew'); await B2.click('[data-testid=create-team-btn]');
-  await B2.waitForSelector('[data-testid=stable]'); await B2.click('[data-testid=lets-ride]').catch(() => {}); await wait(200);
+  await B2.waitForSelector('[data-testid=stable]'); await wait(200);
 
   // console axe + landmark
   v = await axeSerious(F);

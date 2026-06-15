@@ -122,12 +122,12 @@ async function snapAll(page, name, settle = 500) {
       await B.click('[data-testid=create-team-btn]');
       await B.waitForSelector('[data-testid=stable]', { timeout: 8000 });
     });
-    await step('A saddle', async () => { await A.click('[data-testid=lets-ride]'); await wait(2500); await snapAll(A, 'lobby-saddled'); });
+    await step('A lobby', async () => { await wait(800); await snapAll(A, 'lobby-saddled'); });   // A2b: no saddle step
     await step('console 2 teams', async () => { await wait(600); await snapAll(F, 'console-lobby-2teams'); });
 
     // ---- surface ----
     await step('start surface', async () => { await F.click('[data-testid=phase-surface]'); await confirmIfModal(F); await wait(1200); });
-    await step('A surface empty', async () => { await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 }); await wait(800); await snapAll(A, 'surface-empty'); await measure(A, 'surface-empty', ['.toolbar', '.scene', '.rail', '.gatebar', '.goalnote', '.viewctl', '.canvaspane']); });
+    await step('A surface empty', async () => { await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 }); await A.click('[data-testid=interview-skip]'); await wait(400); await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 }); await wait(800); await snapAll(A, 'surface-empty'); await measure(A, 'surface-empty', ['.toolbar', '.scene', '.rail', '.gatebar', '.goalnote', '.viewctl', '.canvaspane']); });
     const S = '[data-testid=surface-canvas]';
     await step('A coach reply', async () => {
       await A.fill('[data-testid=coach-input]', 'an invoice lands in the shared inbox, someone checks it against the PO, then we chase the approver — month-end is chaos');

@@ -65,7 +65,6 @@ async function drop(page, tool, text) {
       await p.fill('[data-testid=create-team-name]', team);
       await p.click('[data-testid=create-team-btn]');
       await wait(250);
-      const lr = p.locator('[data-testid=lets-ride]'); if (await lr.count()) await lr.first().click().catch(() => {});
       return p;
     }
     const Mara = await member('Mara', 'Alpha Stable');
@@ -75,6 +74,9 @@ async function drop(page, tool, text) {
     // ---- start Surface, place a few blocks so the war-room minis have content ----
     await F.click('[data-testid=phase-surface]');
     await F.waitForSelector('[data-testid=stepper]'); await wait(400);
+    await Mara.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });
+    await Mara.click('[data-testid=interview-skip]'); await wait(250);
+    await Nils.click('[data-testid=interview-skip]').catch(() => {}); await wait(250);
     await Mara.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     await Nils.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     await drop(Mara, 'persona', 'AP Clerk'); await drop(Mara, 'phase', 'match PO');

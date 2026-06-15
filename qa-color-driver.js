@@ -125,11 +125,12 @@ async function measure(page, label, selFg, selBg){
     await B.click('[data-testid=create-team-btn]');
     await B.waitForSelector('[data-testid=stable]', { timeout: 8000 });
 
-    await A.click('[data-testid=lets-ride]'); await wait(2500); await snap(A, 'lobby-saddled');
+    await wait(900); await snap(A, 'lobby-saddled');   // A2b: no saddle step
     await wait(600); await snap(F, 'console-lobby-2teams');
 
     // surface
     await F.click('[data-testid=phase-surface]'); await confirmIfModal(F); await wait(1200);
+    await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 }); await A.click('[data-testid=interview-skip]'); await wait(400);
     await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 }); await wait(800);
     await snap(A, 'surface-empty');
     await measure(A, 'emptyhint muted', '.emptyhint');

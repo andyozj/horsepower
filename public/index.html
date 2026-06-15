@@ -341,6 +341,11 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .authordot.pulse{animation:authorPulse 1s ease-in-out 8}
 @keyframes authorPulse{0%,100%{transform:scale(1); box-shadow:0 0 0 0 currentColor}50%{transform:scale(1.4); box-shadow:0 0 0 3px transparent}}
 .handle{position:absolute; width:11px; height:11px; background:var(--card); border:1.5px solid var(--ink); border-radius:3px; z-index:6}
+/* resize-handle hit-area fix: handles straddle the node edge, but .node has overflow:hidden which CLIPPED
+   their outer half → the visible centre wasn't clickable. Un-clip the node while it carries handles
+   (i.e. while selected), and give each handle a larger invisible hit pad. */
+.node:has(.handle){overflow:visible}
+.handle::before{content:''; position:absolute; inset:-6px}
 .bendhandle{position:absolute; width:11px; height:11px; background:var(--highlighter); border:1.5px solid var(--ink); border-radius:50%; z-index:6; cursor:move}
 .dimbadge{position:absolute; background:var(--ink); color:var(--card); font-size:12px; padding:2px 6px; border-radius:5px; z-index:7; font-variant-numeric:tabular-nums}
 .hintbar{position:absolute; top:8px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--card); font-size:13px; padding:5px 13px; border-radius:999px; z-index:var(--z-canvas-ui); pointer-events:none}
@@ -1210,9 +1215,14 @@ function sendJoin(){
 
 let railPhase = null;
 function afterState(){
-  // A11: stash the ids as RECEIVED from the server, before any local mutation
+  // A11: stash the ids as RECEIVED from the server, before any local mutation.
+  // DELETE-RESURRECTION FIX: only refresh known ids when NOT mid-edit. Under editingLock render() is
+  // deferred, so our in-memory canvas still holds a block a teammate may have just deleted; refreshing
+  // known here would drop that id and make our next commit RE-INSERT it (mergeColl sees incoming-has +
+  // server-lacks + known-lacks = "new"). Keeping the pre-edit known means the commit is correctly read
+  // as a stale echo of a peer-deleted item → skipped. Self-corrects on the next broadcast after blur.
   const t0 = myTeam();
-  ui.known = {
+  if (!editingLock) ui.known = {
     surface: t0 ? idsOf(t0.canvas) : null,
     rebuild: (t0 && t0.redesign) ? idsOf(t0.redesign.canvas) : null
   };
@@ -1721,32 +1731,22 @@ function viewLobby(){
   // jarring page refresh).
   function fillCoach(){
    cp.innerHTML='';
+   // A2b: no "Let's ride" commitment — you MEET the Coach by talking to it in the interview; the Farrier
+   // starting Surface is the de-facto "off". The lobby just introduces the Coach + parks early thoughts.
    cp.append(el('div',{class:'who anim-rise', html: coachAvatar(54)+'<span>Meet your Coach</span>'}));
-   if(!me.saddled){
-    cp.append(el('div',{class:'coachsay anim-rise', style:'animation-delay:100ms'}, 'I’ll read along, ask smart questions, and keep you honest.'));
-    const prom = el('div',{class:'vignette promises anim-rise', style:'animation-delay:200ms'});
-    [['g-pin','I’ll capture everything','your brain-dump becomes a living map — nothing gets lost'],
-     ['g-bulb','I’ll push on the WHY','“a report isn’t a reason” — I keep asking until it’s a decision'],
-     ['g-persona','I’ll keep it newcomer-proof','could someone new pick this up and run with it?']
-    ].forEach(([g,b,s])=> prom.append(el('div',{class:'prow'}, el('span',{class:'pico', html:glyph(g)}), el('div',{}, el('b',{},b), el('div',{class:'meta'},s)))));
-    prom.append(el('div',{class:'prow'}, el('span',{class:'pico findme-av', html:coachAvatar(34)}),
-      el('div',{}, el('b',{},'Where to find me'), el('div',{class:'meta'},'I live beside every map — look for my face, tap it if I’m tucked away.'))));
-    cp.append(prom);
-    cp.append(el('button',{class:'btn primary ride anim-rise', style:'animation-delay:300ms', 'data-testid':'lets-ride', onclick:()=>{ me.saddled=true; saveMe(); fillCoach(); }}, 'Let’s ride →'));
-    cp.append(el('div',{class:'ridenote anim-rise', style:'animation-delay:380ms'},'You can always ask me to slow down.'));
-    cp.append(scratchPad(360));
-   } else {
-    if (lobbyTimer){ clearInterval(lobbyTimer); lobbyTimer=null; }   // avoid stacking the vignette cycler on in-place refill
-    const vig = el('div',{style:'width:100%; max-width:560px; display:flex; justify-content:center'});
-    let i=0; const cycle=()=>{ vig.innerHTML=''; vig.append(coachVignette(i%3)); i++; };
-    cycle(); lobbyTimer=setInterval(cycle, 3800);
-    cp.append(el('div',{class:'rosette anim-rise'}, el('span',{class:'r', html:glyph('g-horse')}), 'saddled up — here’s a warm-up'));
-    cp.append(vig);
-    const offline=(t&&t.members||[]).filter(m=>!m.online).length;
-    cp.append(el('p',{class:'meta anim-rise', style:'max-width:460px; animation-delay:150ms'},
-      offline ? 'Waiting on '+offline+' more to saddle up — the Farrier starts the ride.' : 'Your stable’s all saddled — the Farrier starts the ride for the room.'));
-    cp.append(scratchPad(240));
-   }
+   cp.append(el('div',{class:'coachsay anim-rise', style:'animation-delay:100ms'}, 'When we start, I’ll interview you — you talk, I build the map and keep you honest.'));
+   const prom = el('div',{class:'vignette promises anim-rise', style:'animation-delay:200ms'});
+   [['g-pin','I’ll capture everything','your brain-dump becomes a living map — nothing gets lost'],
+    ['g-bulb','I’ll push on the WHY','“a report isn’t a reason” — I keep asking until it’s a decision'],
+    ['g-persona','I’ll keep it newcomer-proof','could someone new pick this up and run with it?']
+   ].forEach(([g,b,s])=> prom.append(el('div',{class:'prow'}, el('span',{class:'pico', html:glyph(g)}), el('div',{}, el('b',{},b), el('div',{class:'meta'},s)))));
+   prom.append(el('div',{class:'prow'}, el('span',{class:'pico findme-av', html:coachAvatar(34)}),
+     el('div',{}, el('b',{},'Where to find me'), el('div',{class:'meta'},'I live beside every map — look for my face, tap it if I’m tucked away.'))));
+   cp.append(prom);
+   const offline=(t&&t.members||[]).filter(m=>!m.online).length;
+   cp.append(el('p',{class:'meta anim-rise', style:'max-width:460px; animation-delay:300ms'},
+     offline ? ('Waiting on '+offline+' more to arrive — then the Farrier starts the ride.') : 'Your stable’s all here — the Farrier starts the ride for the room.'));
+   cp.append(scratchPad(360));
   }
   fillCoach();
   wrap.append(cp);
@@ -1774,7 +1774,8 @@ function paddockFence(members){
     const c=(m.steed&&m.steed.color)||'#7c3aed';
     // illustrated portrait (chroma-keyed transparent) standing behind the fence: the rail
     // crosses the lower neck (fenceimg z-index in front) so the head + face read above it.
-    const s=el('span',{class:'pad-steed canter'+(m.online?'':' off'), style:'animation-delay:'+(360+i*120)+'ms',
+    // A2b: steeds appear all at once (no staggered canter-in) — the team assembles together
+    const s=el('span',{class:'pad-steed'+(m.online?'':' off'),
       title:((m.steed&&m.steed.name)||m.name||'')+(m.name?' · '+m.name:''), html:steedSvg(c,headSize)});
     line.append(s);
   });

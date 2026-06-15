@@ -26,11 +26,10 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
   // H: scratchpad visible pre-saddle
   await A.fill('[data-testid=create-team-name]', 'Test Crew'); await A.click('[data-testid=create-team-btn]');
   await A.waitForSelector('[data-testid=stable]');
-  ok('H: warm-up scratchpad visible BEFORE Let’s ride', await A.locator('.scratch textarea').count() === 1);
+  ok('H: warm-up scratchpad visible in the lobby', await A.locator('.scratch textarea').count() === 1);
   await A.locator('.scratch textarea').fill('approvals bounce between four inboxes');
   await A.locator('.scratch textarea').blur(); await wait(300);
-  await A.click('[data-testid=lets-ride]'); await wait(400);
-  ok('H2: scratchpad also present after saddling', await A.locator('.scratch textarea').count() === 1);
+  ok('H2: scratchpad still present in the lobby', await A.locator('.scratch textarea').count() === 1);
 
   // second team so the swap can run later
   const B2 = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
@@ -42,6 +41,8 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
   await B2.waitForSelector('[data-testid=stable]');
 
   await F.click('[data-testid=phase-surface]'); await conf(F);
+  await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });   // A2: Surface opens in the interview
+  await A.click('[data-testid=interview-skip]'); await wait(300);
   await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
 
   // G: scratch note flushed; orphan has × ; positive gate label
@@ -102,6 +103,7 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
   // O: polish clock — requires gate green; too heavy here, assert element wiring instead
   // (covered indirectly: e2e drives gate-green; just check the interval hook exists)
   // I: reveal click-anywhere dismiss — need the swap
+  await B2.click('[data-testid=interview-skip]').catch(() => {}); await wait(300);   // A2: B2 leaves the interview to draw
   await drop(B2, 'persona', 200, 120); await B2.keyboard.type('Someone');
   await B2.click('[data-testid=tool-select]');
   await F.click('[data-testid=phase-rebuild]'); await conf(F);
