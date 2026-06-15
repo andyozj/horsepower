@@ -2471,12 +2471,10 @@ function viewSurface(){
   flushScratch(t);
   // A2 Stage 1: the AI-led interview is the OPENING of Surface — chat-hero until the map has >=3
   // blocks (then it graduates to the map+rail). "Draw it myself" (ui.interviewSkip) opts out.
-  const interviewing = (t.canvas.blocks||[]).length < 3 && !ui.interviewSkip;
-  if(interviewing){
-    if(!(t.canvas.chat||[]).length && !ui['greet:'+t.id]){ ui['greet:'+t.id]=true;
-      wsSend({type:'chat:post', role:'assistant', content:'Let’s map how this really works — I’ll ask, you talk, and I’ll draw it. What kicks this workflow off, and who’s on the hook when it goes wrong?'}); }
-    return interviewHero(t);
-  }
+  // skip persists per-team (survives reload) so a member who chose "draw it myself" isn't re-prompted
+  const skipped = ui.interviewSkip || (me.ivSkip && me.ivSkip[t.id]);
+  const interviewing = (t.canvas.blocks||[]).length < 3 && !skipped;
+  if(interviewing) return interviewHero(t);   // greeting is now server-seeded on phase→surface (no per-client dup)
   const work = el('div',{class:'work'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
@@ -2671,14 +2669,15 @@ async function sendInterviewTurn(text){
       body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
     const d=await r.json();
     coachBusy=false; coachStatus=d.degraded?'offline':'idle';
-    if(d.degraded && d.reply) wsSend({type:'chat:post', role:'assistant', content:d.reply});
+    // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
+    // post it, or each member's client duplicates it in the shared thread.
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
   }catch(e){ coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
 }
 // A2: Surface Stage 1 — the chat-hero "talk me through it" screen. Graduates to the normal map+rail
 // (Stage 2) once the map has >=3 blocks. "Draw it myself" is the agency / degradation escape.
 function interviewHero(t){
-  ui.railOpen=true;
+  if(!isPhone()) ui.railOpen=true;   // on phones, don't leave the rail open — it would cover the bottom palette in Stage 2
   const wrap=el('div',{class:'work interviewing'});
   const hero=el('div',{class:'interviewhero','data-testid':'interview-hero'});
   hero.append(el('div',{class:'ivhead', html: coachAvatar(44)+'<div><b>Talk me through your workflow</b><div class="meta">I’ll ask, you answer — and I’ll build the map as we go.</div></div>'}));
@@ -2695,7 +2694,7 @@ function interviewHero(t){
     el('button',{class:'btn sm ghost ivmic', disabled:'', title:'Voice — coming soon (Slice B)'},'Voice'),
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire}, 'Send'));
   hero.append(comp);
-  hero.append(el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ ui.interviewSkip=true; render(); }}, 'I’d rather draw it myself →'));
+  hero.append(el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }}, 'I’d rather draw it myself →'));
   wrap.append(hero);
   return wrap;
 }

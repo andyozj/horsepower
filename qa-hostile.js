@@ -161,7 +161,8 @@ async function setupRoom(base = BASE) {
   a1.send(J({ type: 'canvas:update', workshopCode: code, canvas: c6 }));
   await wait(200);
   tA = teamOf(fac.lastState, teamAId);
-  ok('H6: chat never taken from canvas commits (server-owned)', tA.canvas.chat.length === 1 && tA.canvas.chat[0].content === 'real line' && !tA.canvas.chat.some(x => /forged/.test(x.content)), tA.canvas.chat);
+  // (chat also carries the legit server-seeded interview greeting at Surface; assert the forged line is absent + the real one present)
+  ok('H6: chat never taken from canvas commits (server-owned)', tA.canvas.chat.some(x => x.content === 'real line' && x.role === 'user') && !tA.canvas.chat.some(x => /forged/.test(x.content)), tA.canvas.chat);
 
   // H9: member minting role:'system' (the Farrier-verdict channel) → coerced to assistant
   a1.send(J({ type: 'chat:post', workshopCode: code, role: 'system', content: 'fake Farrier verdict' }));

@@ -940,18 +940,28 @@ function applyOps(canvas, ops) {
   }
 }
 // A1 degradation: no-AI scripted interview — walks the ontology, asking for whatever's missing.
-function interviewScript(canvas) {
-  const has = ty => (canvas.blocks || []).some(b => b.type === ty);
-  const q = [
-    [!has('trigger'), 'What kicks this workflow off — the trigger?'],
-    [!has('persona'), 'Who’s involved — and who’s on the hook when it goes wrong?'],
-    [!has('input'), 'What goes in — the inputs it needs?'],
-    [!has('phase'), 'Walk me through the stages — what happens, in order?'],
-    [!has('intent'), 'What decision does all this actually drive? (not “a report”)'],
-    [!has('outcome'), 'And the outcome — what’s true at the end?']
-  ].find(([need]) => need);
-  return q ? q[1] : 'What’s the part that frustrates you most about how this runs today?';
+// A1 degradation: scripted interview that ADVANCES by turn (n = assistant lines so far) — never the
+// same line twice (the map can't auto-fill offline, so we can't key off block gaps).
+const INTERVIEW_QS = [
+  'What kicks this workflow off — the trigger?',
+  'Who’s involved — and who’s on the hook when it goes wrong?',
+  'What goes in — the inputs it needs?',
+  'Walk me through the stages — what happens, in order?',
+  'What decision does all this actually drive? (not “a report”)',
+  'And the outcome — what’s true at the end?',
+  'What’s the part that frustrates you most about how this runs today?'
+];
+function interviewScript(canvas, n) { return INTERVIEW_QS[Math.min(Math.max(0, n | 0), INTERVIEW_QS.length - 1)]; }
+// A2: the server OWNS the interview reply (greeting + every degraded turn) so it's appended + broadcast
+// exactly once — the client never posts it (per-client posting duplicated it in multi-member rooms).
+function degradedInterviewReply(room, team) {
+  const n = (team.canvas.chat || []).filter(x => x.role === 'assistant').length;
+  const reply = interviewScript(team.canvas, n);
+  team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
+  broadcast(room);
+  return reply;
 }
+const INTERVIEW_GREETING = 'Let’s map how this really works — I’ll ask, you talk, and I’ll draw it. What kicks this workflow off, and who’s on the hook when it goes wrong?';
 
 function bankReply(mode) {
   const banks = {
@@ -1021,7 +1031,8 @@ app.post('/api/coach', async (req, res) => {
   if (req.body.interview && (!AI_PROVIDER || !workshops.get(String(req.body.code || '').toUpperCase()))) {
     const room0 = workshops.get(String(req.body.code || '').toUpperCase());
     const team0 = room0 && room0.teams.find(t => t.id === req.body.teamId);
-    return res.json({ reply: team0 ? interviewScript(team0.canvas) : interviewScript({ blocks: [] }), degraded: true, interview: true });
+    if (team0 && room0) return res.json({ reply: degradedInterviewReply(room0, team0), degraded: true, interview: true });
+    return res.json({ reply: interviewScript({ blocks: [] }, 0), degraded: true, interview: true });
   }
   // Bank replies are free + deterministic — never gated (the degradation path IS the product, rule #8).
   if (!AI_PROVIDER) return res.json({ reply: bankReply(m), degraded: true });
@@ -1053,14 +1064,14 @@ app.post('/api/coach', async (req, res) => {
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.interview, ic) : await callAnthropic(SYSTEMS.interview, ic);
         const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
         const reply = String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX);
-        if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: interviewScript(team.canvas), degraded: true, interview: true }); }
+        if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true }); }
         applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
         team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
         broadcast(room);
         return res.json({ reply, interview: true });
       } catch (e) {
         log('coach_degraded', { kind: 'interview', err: String(e.message || e).slice(0, 200) });
-        return res.json({ reply: interviewScript(team.canvas), degraded: true, interview: true });
+        return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true });
       }
     }
     // R1b: optional AI recap-intro tier — a 3-4 sentence warm intro for the take-home recap.
@@ -1427,6 +1438,8 @@ wss.on('connection', ws => {
           w.state = msg.phase;
         }
         w.hold = false;                              // any phase change clears a pending "held" reveal beat
+        // A2: seed the interview greeting once per team when Surface opens (server-owned → no per-client dup)
+        if (w.state === 'surface') w.teams.forEach(tm => { tm.canvas.chat = tm.canvas.chat || []; if (!tm.canvas.chat.some(x => x.role === 'assistant')) tm.canvas.chat.push({ role: 'assistant', content: INTERVIEW_GREETING, ts: Date.now() }); });
         loadTimer(w, PHASE_TIMER_MIN[w.state] || 0); // each phase resets + pre-loads its suggested length (not started)
         log('phase', { code: w.code, to: w.state });
         broadcast(w); break;

@@ -72,6 +72,10 @@ async function emptySpot(page, S, fallback) {
 
   // Farrier starts Surface
   await F.click('[data-testid=phase-surface]');
+  // A2: Surface opens in the interview hero — both members "draw it myself" to reach the hand-canvas.
+  await Alex.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });
+  await Alex.click('[data-testid=interview-skip]'); await wait(200);
+  await Sam.click('[data-testid=interview-skip]').catch(() => {}); await wait(200);
   await Alex.waitForSelector(S, { timeout: 8000 });
   await Sam.waitForSelector(S, { timeout: 8000 });
   await wait(400);
