@@ -61,7 +61,7 @@ async function main() {
     await testProxyTrust();     // Task 3
     await testGlobalMint();     // Task 4 — LAST of the create-heavy checks (drains the global mint bucket)
     await testWsOrigin();    // Task 5
-    // await testDiffGate();    // Task 6
+    await testDiffGate();    // Task 6
     // await testHeaders();     // Task 7
   } finally {
     srv.kill('SIGKILL');
@@ -160,6 +160,15 @@ async function testWsOrigin() {
   ok('allowed Origin connects', (await tryOrigin('http://allowed.test')) === 'open');
   ok('disallowed Origin is rejected', (await tryOrigin('http://evil.test')) === 'rejected');
   ok('no Origin (native client / LAN) is allowed', (await tryOrigin(null)) === 'open');
+}
+
+// ---- Task 6: /api/diff phase gate ----
+async function testDiffGate() {
+  console.log('\n[diff phase gate]');
+  // a fresh room is in 'lobby' — the diff endpoint must refuse regardless of code knowledge.
+  const { code } = await (await fetch(BASE + '/api/workshop', { method: 'POST' })).json();
+  const r = await fetch(`${BASE}/api/diff/${code}/anyteam`);
+  ok('diff refused pre-share (not 200)', r.status !== 200, { status: r.status });
 }
 
 main();

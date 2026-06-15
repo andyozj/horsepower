@@ -1424,6 +1424,8 @@ wss.on('close', () => clearInterval(heartbeat));
 app.get('/api/diff/:code/:teamId', (req, res) => {
   const w = workshops.get((req.params.code || '').toUpperCase());
   if (!w) return res.status(404).json({ error: 'not found' });
+  if (w.state !== 'share' && w.state !== 'closed')   // parity with the A2 WS projection: no original pre-reveal
+    return res.status(403).json({ error: 'not available yet' });
   const rebuilder = findTeam(w, req.params.teamId);
   if (!rebuilder || !rebuilder.redesign) return res.status(404).json({ error: 'no redesign' });
   const original = findTeam(w, rebuilder.receivedFromTeamId);
