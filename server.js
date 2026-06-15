@@ -1016,6 +1016,13 @@ app.post('/api/coach', async (req, res) => {
     const cv0 = team0 ? (req.body.synthMode === 'rebuild' && team0.redesign ? team0.redesign.canvas : team0.canvas) : null;
     return res.json({ reply: cv0 ? synthLines(cv0, req.body.synthMode === 'rebuild' ? 'rebuild' : 'surface') : '', degraded: true, synth: true });
   }
+  // A1: the no-key (or no-room) interview path degrades to the rule-based scripted interview (NOT a
+  // generic bank line), so the room can run the interview offline. Same early-return exception as synth.
+  if (req.body.interview && (!AI_PROVIDER || !workshops.get(String(req.body.code || '').toUpperCase()))) {
+    const room0 = workshops.get(String(req.body.code || '').toUpperCase());
+    const team0 = room0 && room0.teams.find(t => t.id === req.body.teamId);
+    return res.json({ reply: team0 ? interviewScript(team0.canvas) : interviewScript({ blocks: [] }), degraded: true, interview: true });
+  }
   // Bank replies are free + deterministic — never gated (the degradation path IS the product, rule #8).
   if (!AI_PROVIDER) return res.json({ reply: bankReply(m), degraded: true });
   // Spending the key requires a LIVE room + budget; otherwise degrade honestly.

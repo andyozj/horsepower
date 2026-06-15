@@ -92,6 +92,9 @@ async function axeSerious(page) {
   ok('4c: console [role=banner] present', (await F.locator('[role=banner]').count()) >= 1);
 
   await F.click('[data-testid=phase-surface]'); await conf(F);
+  await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });   // A2: Surface opens in the interview
+  await A.click('[data-testid=interview-skip]'); await wait(300);               // → "draw it myself" to reach the canvas
+  await B2.click('[data-testid=interview-skip]').catch(() => {}); await wait(200);  // Pat too (places a block later)
   await A.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 }); await wait(600);
 
   // surface axe (with map chrome)

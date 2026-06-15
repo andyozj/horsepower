@@ -136,6 +136,11 @@ async function emptySpot(page, sceneSel, fallback) {
     ok('console CTA advances to Swap → Rebuild (enabled with 2 teams)', await F.locator('[data-testid=phase-rebuild].runcta:not([disabled])').count() === 1);
     ok('step-back now available (forward-by-default, guarded back)', await F.locator('[data-testid=step-back]').count() === 1);
     ok('Farrier dashboard shows team steeds 🐎', await F.locator('[data-testid=team-row] .teamsteeds svg').count() >= 1);
+    // A2: Surface now OPENS in the AI-led interview (chat-hero). Assert it, then "draw it myself" to
+    // reach the hand-canvas this suite exercises.
+    await Alex.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });
+    ok('Surface opens in the AI-led interview (chat-hero)', true);
+    await Alex.click('[data-testid=interview-skip]'); await wait(300);
     await Alex.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     ok('member enters Surface with the diagramming canvas', true);
     ok('Surface: Coach rail OPEN by default (brain-dump is the Coach)', await Alex.locator('[data-testid=coach-rail]:not(.collapsed)').count() === 1);
@@ -198,6 +203,7 @@ async function emptySpot(page, sceneSel, fallback) {
 
     // Team B: a minimal canvas so it has a persona for the people inventory
     const SB = '[data-testid=surface-canvas]';
+    await Bo.click('[data-testid=interview-skip]').catch(() => {}); await wait(300);   // A2: leave the interview hero for the hand-canvas
     await Bo.waitForSelector(SB, { timeout: 8000 });
     await dropBlock(Bo, SB, 'persona', 120, 90, 'Finance Analyst');
     await dropBlock(Bo, SB, 'trigger', 120, 200, 'month end');

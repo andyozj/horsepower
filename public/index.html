@@ -261,6 +261,15 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .chip .dot{width:8px; height:8px; border-radius:50%}
 .composer{padding:10px 12px; border-top:1.5px dashed var(--line-soft); display:flex; gap:8px; align-items:flex-end}
 .composer textarea{resize:none; min-height:42px; max-height:120px}
+/* A2 Surface Stage-1 interview hero */
+.work.interviewing{justify-content:center; align-items:flex-start; padding:24px; overflow:auto}
+.interviewhero{width:min(760px,94%); margin:0 auto; background:var(--card); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-float); max-height:calc(100vh - 150px)}
+.interviewhero .ivhead{display:flex; gap:12px; align-items:center}
+.interviewhero .ivhead .meta{font-size:13px; color:var(--muted-strong)}
+.interviewhero .ivmsgs{flex:1; overflow:auto; min-height:220px; display:flex; flex-direction:column; gap:8px; padding:4px 2px}
+.interviewhero .ivcomposer{border-top:1.5px dashed var(--line-soft); padding-top:10px}
+.interviewhero .ivcomposer textarea{flex:1}
+.interviewhero .ivskip{align-self:flex-end}
 
 /* ---------- CANVAS ---------- */
 .toolbar{display:flex; gap:5px; flex-wrap:wrap; padding:8px 10px; border-bottom:1.5px solid var(--line-soft); background:var(--card); align-items:center; flex:none; z-index:var(--z-canvas-ui)}
@@ -2460,6 +2469,14 @@ function catchUpCard(phase){
 function viewSurface(){
   const t = myTeam();
   flushScratch(t);
+  // A2 Stage 1: the AI-led interview is the OPENING of Surface — chat-hero until the map has >=3
+  // blocks (then it graduates to the map+rail). "Draw it myself" (ui.interviewSkip) opts out.
+  const interviewing = (t.canvas.blocks||[]).length < 3 && !ui.interviewSkip;
+  if(interviewing){
+    if(!(t.canvas.chat||[]).length && !ui['greet:'+t.id]){ ui['greet:'+t.id]=true;
+      wsSend({type:'chat:post', role:'assistant', content:'Let’s map how this really works — I’ll ask, you talk, and I’ll draw it. What kicks this workflow off, and who’s on the hook when it goes wrong?'}); }
+    return interviewHero(t);
+  }
   const work = el('div',{class:'work'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
@@ -2640,6 +2657,48 @@ function gateBar(t){
 //==================================================================
 // COACH PANE
 //==================================================================
+// A2: one interview turn — post the user line, then ask the server (interview mode) to apply ops to
+// the map + broadcast (every client's reconciler fills it live). Non-degraded: the server appends the
+// reply. Degraded (no key/offline): we post the scripted question and the team draws by hand.
+async function sendInterviewTurn(text){
+  text=(text||'').trim(); if(!text||coachBusy) return;
+  ui.coachDraft='';
+  wsSend({type:'chat:post', role:'user', name:me.name, content:text});
+  coachBusy=true; coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+  const hist=(chatNow('surface')||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
+  try{
+    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
+    const d=await r.json();
+    coachBusy=false; coachStatus=d.degraded?'offline':'idle';
+    if(d.degraded && d.reply) wsSend({type:'chat:post', role:'assistant', content:d.reply});
+    const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
+  }catch(e){ coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
+}
+// A2: Surface Stage 1 — the chat-hero "talk me through it" screen. Graduates to the normal map+rail
+// (Stage 2) once the map has >=3 blocks. "Draw it myself" is the agency / degradation escape.
+function interviewHero(t){
+  ui.railOpen=true;
+  const wrap=el('div',{class:'work interviewing'});
+  const hero=el('div',{class:'interviewhero','data-testid':'interview-hero'});
+  hero.append(el('div',{class:'ivhead', html: coachAvatar(44)+'<div><b>Talk me through your workflow</b><div class="meta">I’ll ask, you answer — and I’ll build the map as we go.</div></div>'}));
+  const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
+  (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+  hero.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
+  const comp=el('div',{class:'composer ivcomposer'});
+  const inp=el('textarea',{placeholder:'Type how it really works… (or just answer the Coach)', 'data-testid':'coach-input', rows:'2'});
+  if(ui.coachDraft) inp.value=ui.coachDraft;
+  inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
+  const fire=()=>{ const v=inp.value; inp.value=''; sendInterviewTurn(v); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
+  comp.append(inp,
+    el('button',{class:'btn sm ghost ivmic', disabled:'', title:'Voice — coming soon (Slice B)'},'Voice'),
+    el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire}, 'Send'));
+  hero.append(comp);
+  hero.append(el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ ui.interviewSkip=true; render(); }}, 'I’d rather draw it myself →'));
+  wrap.append(hero);
+  return wrap;
+}
 function buildCoachRail(mode, chat){
   const chatArr = chat || [];
   const collapsed = !ui.railOpen;
@@ -2706,6 +2765,7 @@ function buildCoachRail(mode, chat){
   async function doSend(){
     const text=(inp.value||'').trim(); if(!text||coachBusy) return;
     inp.value=''; ui.coachDraft='';
+    if(mode==='surface') return sendInterviewTurn(text);   // A2: the Surface coach IS the interview (drives the map via ops)
     wsSend({type:'chat:post', role:'user', name:me.name, content:text});
     // a long multi-clause message in Surface is a brain-dump → ask for typed blocks back
     const isDump = mode==='surface' && (text.length>110 || (text.match(/[.;\n]|, /g)||[]).length>=2);
