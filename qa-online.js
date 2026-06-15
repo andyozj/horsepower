@@ -56,13 +56,14 @@ async function main() {
   for (let i = 0; i < 50; i++) { try { const r = await fetch(BASE + '/api/health'); if (r.ok) break; } catch {} await wait(100); }
 
   try {
-    await testCoachCaps();      // Task 1
-    await testCodeLength();     // Task 2
-    await testProxyTrust();     // Task 3
-    await testGlobalMint();     // Task 4 — LAST of the create-heavy checks (drains the global mint bucket)
-    await testWsOrigin();    // Task 5
-    await testDiffGate();    // Task 6
-    // await testHeaders();     // Task 7
+    await testCoachCaps();      // Task 1 (mints)
+    await testCodeLength();     // Task 2 (mints)
+    await testProxyTrust();     // Task 3 (GETs only)
+    await testWsOrigin();       // Task 5 (WS only)
+    await testDiffGate();       // Task 6 (mints — MUST precede the global-mint drain)
+    // await testHeaders();     // Task 7 (GET / only)
+    await testGlobalMint();     // Task 4 — MUST BE LAST: it drains the global mint bucket, so any
+                                // later check that mints would 429. (Reordered after a real test-isolation bug.)
   } finally {
     srv.kill('SIGKILL');
     mock.close();
