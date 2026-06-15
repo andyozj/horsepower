@@ -60,7 +60,7 @@ async function emptySpot(page, sceneSel, fallback) {
     await F.click('[data-testid=host-btn]');
     await F.waitForSelector('.codechip', { timeout: 8000 });
     const code = (await F.textContent('.codechip')).trim();
-    ok('host mints a 4-letter workshop code', /^[A-Z0-9]{4}$/.test(code), code);
+    ok('host mints a 6-letter workshop code', /^[A-Z0-9]{6}$/.test(code), code);
     const hostKeyShown = await F.locator('.codechip').nth(1).textContent().catch(() => '');
     ok('private host code shown on the console', !!hostKeyShown && hostKeyShown.trim().length === 8, hostKeyShown);
     ok('console shows the honest phase sequence incl. Rebuild (Farrier-only)', /Rebuild/.test(await F.textContent('[data-testid=stepper]')));

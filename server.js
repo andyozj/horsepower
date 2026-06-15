@@ -87,7 +87,7 @@ const wss = new WebSocketServer({ server, maxPayload: CONFIG.WS_MAX_PAYLOAD });
 const workshops = new Map(); // code -> workshop
 
 function newId(n = 10) { return crypto.randomBytes(n).toString('hex').slice(0, n); }
-function newCode(len = 4) {
+function newCode(len = 6) {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let c = '';
   for (let i = 0; i < len; i++) c += chars[Math.floor(Math.random() * chars.length)];

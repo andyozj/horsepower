@@ -57,7 +57,7 @@ async function main() {
 
   try {
     await testCoachCaps();      // Task 1
-    // await testCodeLength();  // Task 2 (added later)
+    await testCodeLength();     // Task 2
     // await testProxyTrust();  // Task 3
     // await testGlobalMint();  // Task 4
     // await testWsOrigin();    // Task 5
@@ -95,6 +95,21 @@ async function testCoachCaps() {
   const third = await callCoach();   // 3rd from same IP > COACH_IP_MAX=2 → degrade, NO upstream
   ok('per-IP cap blocks the 3rd call BEFORE spending (degraded, upstream unchanged)', third.degraded === true && upstreamCalls === 2, { third, upstreamCalls });
 
+  m.close();
+}
+
+// ---- Task 2: 6-char workshop codes ----
+async function testCodeLength() {
+  console.log('\n[code length]');
+  const { code, hostKey } = await (await fetch(BASE + '/api/workshop', { method: 'POST' })).json();
+  ok('new workshop code is 6 chars', typeof code === 'string' && code.length === 6, code);
+  ok('host key length unchanged (8)', typeof hostKey === 'string' && hostKey.length === 8, hostKey);
+  // a 6-char code is joinable end-to-end
+  const m = new WebSocket(WSBASE); await new Promise(r => m.on('open', r));
+  let joined = null; m.on('message', d => { const x = JSON.parse(d); if (x.type === 'joined') joined = x; });
+  m.send(J({ type: 'join', role: 'member', workshopCode: code, name: 'T' }));
+  await wait(150);
+  ok('6-char code joins over WS', !!joined, joined);
   m.close();
 }
 
