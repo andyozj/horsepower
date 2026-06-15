@@ -100,6 +100,7 @@ app.use((req, res, next) => {
     "img-src 'self' data:; " +
     "font-src 'self'; " +
     "connect-src 'self' ws: wss:; " +
+    "worker-src 'self'; " +   // explicit coverage for the service worker (don't rely on script-src fallback)
     "base-uri 'self'; " +
     "frame-ancestors 'none'");
   next();
@@ -132,11 +133,16 @@ function newCode(len = 6) {
 function makeBucket({ capacity, refillPerSec }) {
   return { tokens: capacity, capacity, refillPerSec, last: Date.now() };
 }
-function takeToken(b, n = 1) {
+// peekToken: refill-and-check WITHOUT consuming (so callers can test several buckets before
+// committing). takeToken consumes only after a successful peek.
+function peekToken(b, n = 1) {
   const now = Date.now();
   b.tokens = Math.min(b.capacity, b.tokens + ((now - b.last) / 1000) * b.refillPerSec);
   b.last = now;
-  if (b.tokens < n) return false;
+  return b.tokens >= n;
+}
+function takeToken(b, n = 1) {
+  if (!peekToken(b, n)) return false;
   b.tokens -= n; return true;
 }
 const ipBuckets = new Map();   // `${kind}:${ip}` -> bucket (mint, GET)
@@ -164,7 +170,13 @@ function coachSpendAllowed(ip, room) {
   // per-room (existing intent), per-IP, and global — all must have a token to spend the key.
   if (!coachBuckets.has(room.code)) coachBuckets.set(room.code, makeBucket(CONFIG.COACH_BUCKET));
   if (!coachIpBuckets.has(ip)) coachIpBuckets.set(ip, makeBucket(CONFIG.COACH_IP_BUCKET));
-  return takeToken(coachBuckets.get(room.code)) && takeToken(coachIpBuckets.get(ip)) && takeToken(coachGlobalBucket);
+  const rb = coachBuckets.get(room.code), ib = coachIpBuckets.get(ip);
+  // PEEK all three first — takeToken is destructive, so a plain `&&` chain would burn the per-room
+  // token even when the per-IP/global gate denies (a throttled IP could silently drain a room's
+  // shared coach budget). Only consume once all three have a token.
+  if (!(peekToken(rb) && peekToken(ib) && peekToken(coachGlobalBucket))) return false;
+  takeToken(rb); takeToken(ib); takeToken(coachGlobalBucket);
+  return true;
 }
 
 // ---- JSON-line logger -----------------------------------------------------
@@ -1435,6 +1447,8 @@ wss.on('close', () => clearInterval(heartbeat));
 
 // ---------- expose diff helper for share (REST, rule-based, offline) ----------
 app.get('/api/diff/:code/:teamId', (req, res) => {
+  if (!takeToken(ipBucket('diff', reqIp(req), CONFIG.GET_BUCKET)))   // own bucket, won't collide with /api/workshop GETs
+    return res.status(429).json({ error: 'Slow down.' });
   const w = workshops.get((req.params.code || '').toUpperCase());
   if (!w) return res.status(404).json({ error: 'not found' });
   if (w.state !== 'share' && w.state !== 'closed')   // parity with the A2 WS projection: no original pre-reveal
@@ -1450,6 +1464,7 @@ load();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
   console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
+  if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
 });
 
 module.exports = { app, server, governance, buildTeardown, performSwap, buildDiff };

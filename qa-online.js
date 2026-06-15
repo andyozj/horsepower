@@ -44,7 +44,7 @@ async function main() {
       ANTHROPIC_BASE_URL: mockUrl,                   // (Task 1) point spend at the mock
       ALLOWED_ORIGINS: 'http://allowed.test',        // (Task 5)
       TRUSTED_PROXY_HOPS: '1',                       // (Task 3)
-      COACH_GLOBAL_MAX: '3',                         // (Task 1) tiny global cap for the test
+      COACH_GLOBAL_MAX: '50',                        // (Task 1) high enough that per-IP/per-room are the limiters under test
       COACH_IP_MAX: '2',                             // (Task 1) tiny per-IP cap for the test
       MINT_GLOBAL_MAX: '4'                           // (Task 4) tiny global mint cap for the test
     }),
@@ -57,6 +57,7 @@ async function main() {
 
   try {
     await testCoachCaps();      // Task 1 (mints)
+    await testCoachDrain();     // Task 1 review-fix (mints) — throttled IP must not drain the room budget
     await testCodeLength();     // Task 2 (mints)
     await testProxyTrust();     // Task 3 (GETs only)
     await testWsOrigin();       // Task 5 (WS only)
@@ -97,6 +98,28 @@ async function testCoachCaps() {
   ok('per-IP cap blocks the 3rd call BEFORE spending (degraded, upstream unchanged)', third.degraded === true && upstreamCalls === 2, { third, upstreamCalls });
 
   m.close();
+}
+
+// ---- Task 1 review-fix: a per-IP-throttled caller must NOT drain the room's shared coach budget ----
+// (takeToken is destructive; the old `a && b && c` chain burned the per-room token even when the
+//  per-IP gate denied. With TRUSTED_PROXY_HOPS=1 the rightmost XFF entry is the trusted IP, so we
+//  simulate distinct clients via XFF.)
+async function testCoachDrain() {
+  console.log('\n[coach budget not drained by a throttled IP]');
+  const { code } = await (await fetch(BASE + '/api/workshop', { method: 'POST' })).json();
+  const callAs = (lastIp) => fetch(BASE + '/api/coach', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': `${lastIp}` },
+    body: J({ mode: 'surface', code, messages: [{ role: 'user', content: 'go' }] })
+  }).then(r => r.json());
+  upstreamCalls = 0;
+  await callAs('7.0.0.1'); await callAs('7.0.0.1');           // IP-A: 2 successful (per-IP cap=2)
+  const baseUpstream = upstreamCalls;                          // expect 2
+  for (let i = 0; i < 4; i++) await callAs('7.0.0.1');        // IP-A: 4 more, all per-IP-blocked (must NOT spend, NOT drain room)
+  ok('blocked IP-A calls spent no upstream', upstreamCalls === baseUpstream, { baseUpstream, upstreamCalls });
+  const b1 = await callAs('7.0.0.2'); const b2 = await callAs('7.0.0.2');   // fresh IP-B: 2 calls
+  // With the bug, IP-A's blocked calls would have drained the per-room bucket (cap 6) and IP-B would degrade.
+  ok('fresh IP-B still gets its 2 calls (room budget intact)', b1.degraded !== true && b2.degraded !== true && upstreamCalls === baseUpstream + 2, { upstreamCalls, baseUpstream });
 }
 
 // ---- Task 2: 6-char workshop codes ----
