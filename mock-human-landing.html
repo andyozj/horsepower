@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Where did the people land? (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1140px;margin:0 auto;padding:26px 20px 90px}
+  h1{font-family:'Fraunces';font-size:23px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:820px;line-height:1.5;margin:0 0 12px;font-size:13.5px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#ffd24a;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .pill.phase{background:#0f172a;color:#fff;transform:none;border-color:#0f172a}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  .banner{padding:11px 18px;border-bottom:2px dashed #d9cfb3;background:#faf5ff;font-family:'Patrick Hand';font-size:14px;color:#5b21b6}
+  .banner b{font-weight:700}
+
+  .cols{display:grid;grid-template-columns:1fr 0.96fr;gap:0}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+
+  .feedwrap{padding:14px 15px;border-right:2px dashed #b9b094;min-height:470px;display:flex;flex-direction:column}
+  .feedwrap .h{font-family:'Caveat';font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .feed{flex:1;display:flex;flex-direction:column;gap:8px}
+  .m{opacity:0;transform:translateY(7px);transition:.38s;max-width:90%}
+  .m.show{opacity:1;transform:none}
+  .ask{background:#fff;border:2px solid #e23b3b;border-radius:13px 13px 13px 4px;padding:8px 11px;font-family:'Patrick Hand';font-size:14px}
+  .ask .tag{display:block;font-family:'Permanent Marker';font-size:9px;color:#e02d2d;margin-bottom:2px;letter-spacing:.04em}
+  .team{align-self:flex-end;background:#dbe6ff;border:2px solid #21314f;border-radius:13px 13px 4px 13px;padding:8px 11px;font-family:'Patrick Hand';font-size:13.5px}
+  .team.filler{border-color:#e02d2d;text-decoration:wavy underline #e02d2d}
+  .opts{display:flex;gap:7px;flex-wrap:wrap}
+  .opt{font-family:'Patrick Hand';font-size:12.5px;border:2px solid #21314f;border-radius:9px;padding:4px 11px;background:#fff}
+  .opt.stay{background:#dbe6ff}.opt.trans{background:#e6f4ec;border-color:#2e7d52;color:#1f5c3c}.opt.rem{background:#f1f1f1;color:#888}
+
+  .right{padding:14px 16px 16px}
+  .right .h{font-family:'Caveat';font-weight:700;font-size:18px;margin:0 0 4px}
+  .gate{font-family:'Patrick Hand';font-size:12.5px;padding:3px 10px;border-radius:999px;border:2px solid;display:inline-block;margin-bottom:10px;transition:.4s}
+  .gate.blocked{color:#b3261e;border-color:#e6a3a3;background:#fff3f3}
+  .gate.ready{color:#2e7d52;border-color:#86c9a3;background:#e6f4ec}
+  .person{border:2px solid #cbb;border-radius:12px;padding:10px 12px;margin-bottom:9px;background:#fff;opacity:.55;transition:.45s}
+  .person.placed{opacity:1}
+  .person .nm{font-family:'Patrick Hand';font-size:15px;display:flex;align-items:center;gap:7px}
+  .person .land{font-size:11.5px;margin-top:5px;line-height:1.4;opacity:0;max-height:0;overflow:hidden;transition:.45s}
+  .person.placed .land{opacity:1;max-height:120px}
+  .badge{font-family:'Permanent Marker';font-size:9px;letter-spacing:.04em;padding:2px 7px;border-radius:5px;margin-left:auto}
+  .badge.stay{background:#dbe6ff;color:#21314f}
+  .badge.trans{background:#e6f4ec;color:#1f5c3c}
+  .badge.rem{background:#eee;color:#888}
+  .person.stay{border-color:#9fb8ff}.person.trans{border-color:#9cc9ad}.person.rem{border-color:#ccc}
+  .land .role{font-weight:600}
+  .pitch{margin-top:8px;font-size:11.5px;color:#7a5c3e;background:#fff7e9;border:1.5px dashed #e0b87a;border-radius:9px;padding:8px 10px;opacity:0;transition:.5s}
+  .pitch.show{opacity:1}
+  .doneband{opacity:0;transition:.5s;margin:8px 16px 16px;text-align:center;font-family:'Permanent Marker';color:#2e7d52;border:3px solid #2e7d52;border-radius:8px;padding:9px;transform:rotate(-1deg)}
+  .doneband.show{opacity:.95}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>"Where did the people land?" — the redesign isn't done until every human has a job</h1>
+  <p class="sub">The pipeline absorbed the work — so each person must land in one of three honest outcomes, <b>read off the new design</b>: <b>stays</b>, <b>transforms</b>, or <b>removed-with-justification</b>. "Freed up for higher-value work" is rejected — it's a placeholder, not a landing. They're SMEs, not headcount.</p>
+  <div class="controls"><button class="btn" id="replay">↻ Replay</button><span class="hint" id="hint">playing…</span></div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span><span class="pill phase">REDESIGN</span>
+      <span class="pill">completeness gate</span>
+      <span class="timer">⏱ 29:40</span>
+    </div>
+    <div class="banner">🧍 The agentic pipeline now does the work. <b>Before this counts as done — where did the people go?</b> Nobody gets "freed up."</div>
+
+    <div class="cols">
+      <div class="feedwrap">
+        <div class="h">
+          <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="21" r="14" fill="#fff" stroke="#21314f" stroke-width="2.2"/><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/></svg>
+          The Coach · fair skeptic
+        </div>
+        <div class="feed" id="feed"></div>
+      </div>
+
+      <div class="right">
+        <div class="h">Where did the people land?</div>
+        <span class="gate blocked" id="gate">✕ 3 unplaced — redesign blocked</span>
+
+        <div class="person" id="p-gm" data-k="gm">
+          <div class="nm">👤 OpCo GM <span class="badge stay" style="opacity:0" id="b-gm">STAYS</span></div>
+          <div class="land">Accountable approver for &gt;£10k — <span class="role">stays exactly as-is</span>. Never the thing automated.</div>
+        </div>
+        <div class="person" id="p-clerk" data-k="clerk">
+          <div class="nm">👤 Invoice clerk <span class="badge trans" style="opacity:0" id="b-clerk">TRANSFORMS</span></div>
+          <div class="land"><span class="role">Exception judge.</span> Owns the matching rules · handles the 18 ambiguous of 100 · audits pipeline misses so the rules improve. <i>A job you could hire for.</i></div>
+        </div>
+        <div class="person" id="p-sarah" data-k="sarah">
+          <div class="nm">👤 Sarah (data) <span class="badge rem" style="opacity:0" id="b-sarah">REMOVED</span></div>
+          <div class="land">Only added supplier data she held → <span class="role">absorbed</span>: the agent reads the supplier system directly. Justified by the design. <i>SME — flag for redeployment.</i></div>
+        </div>
+
+        <div class="pitch" id="pitch">💼 These cards = your SME pitch. "You're the judge of the queue and owner of the rules" wins them over. "Freed up for higher-value work" gets your project quietly killed.</div>
+      </div>
+    </div>
+    <div class="doneband" id="done">✓ EVERY HUMAN ACCOUNTED FOR — redesign complete → EXPORT</div>
+  </div>
+</div>
+
+<script>
+  const feed=document.getElementById('feed'), hint=document.getElementById('hint');
+  let timers=[]; const T=(fn,d)=>timers.push(setTimeout(fn,d));
+  let unplaced=3;
+  const gateEl=document.getElementById('gate');
+
+  function msg(kind,html){
+    const el=document.createElement('div'); el.className='m';
+    if(kind==='ask') el.innerHTML=`<div class="ask"><span class="tag">✋ CHALLENGE</span>${html}</div>`;
+    else if(kind==='team') el.innerHTML=`<div class="team">${html}</div>`;
+    else if(kind==='filler') el.innerHTML=`<div class="team filler">${html}</div>`;
+    else if(kind==='opts') el.innerHTML=`<div class="opts"><span class="opt stay">Stays</span><span class="opt trans">Transforms ✓</span><span class="opt rem">Removed</span></div>`;
+    feed.appendChild(el); requestAnimationFrame(()=>el.classList.add('show'));
+    while(feed.children.length>7) feed.removeChild(feed.firstChild);
+  }
+  function place(k,badge){
+    const p=document.getElementById('p-'+k); p.classList.add('placed',badge);
+    document.getElementById('b-'+k).style.opacity=1;
+    unplaced--;
+    gateEl.textContent = unplaced ? `✕ ${unplaced} unplaced — redesign blocked` : '✓ redesign-ready';
+    gateEl.className = 'gate '+(unplaced?'blocked':'ready');
+  }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[]; feed.innerHTML=''; unplaced=3;
+    ['gm','clerk','sarah'].forEach(k=>{document.getElementById('p-'+k).className='person';document.getElementById('b-'+k).style.opacity=0;});
+    gateEl.textContent='✕ 3 unplaced — redesign blocked'; gateEl.className='gate blocked';
+    document.getElementById('pitch').classList.remove('show'); document.getElementById('done').classList.remove('show');
+    hint.textContent='playing…';
+
+    T(()=>msg('ask',"The pipeline does the work now. Three people did it before — where does each land? And no, nobody's just 'freed up.'"), 500);
+
+    // GM — stays
+    T(()=>msg('team',"The GM stays — he's the accountable approver for anything over £10k."), 2300);
+    T(()=>{ msg('ask',"✓ Stays. He was never the thing you automated — accountability is a real constraint."); place('gm','stay'); }, 3400);
+
+    // Clerk — filler -> rejected -> transforms
+    T(()=>msg('filler',"The invoice clerk is freed up for higher-value work."), 5300);
+    T(()=>msg('ask',"✋ That's a placeholder, not a landing. Which is it — <b>stays</b>, <b>transforms</b>, or <b>removed</b>? Name the job: input, output, a skill you could hire for."), 6400);
+    T(()=>msg('opts'), 8200);
+    T(()=>msg('team',"Transforms → exception judge. Owns the matching rules, handles the ~18 ambiguous of 100, audits the misses."), 9300);
+    T(()=>{ msg('ask',"✓ Now <i>that's</i> a job. They went from doing the volume to governing the system — more leverage than today."); place('clerk','trans'); }, 10600);
+
+    // Sarah — removed, justified by design
+    T(()=>msg('team',"Sarah only pulled supplier data — remove her?"), 12500);
+    T(()=>msg('ask',"Removed needs the <b>design</b> to justify it. Where does the redesign absorb what she did?"), 13600);
+    T(()=>msg('team',"The agent reads the supplier system directly — her data step's gone."), 15100);
+    T(()=>{ msg('ask',"✓ The design absorbs it — removed, justified, on the record. She's an SME, so flag her for redeployment."); place('sarah','rem'); }, 16200);
+
+    // done
+    T(()=>{ document.getElementById('pitch').classList.add('show'); }, 18000);
+    T(()=>{ document.getElementById('done').classList.add('show'); hint.textContent='done — hit replay'; }, 19000);
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

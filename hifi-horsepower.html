@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horsepower — hi-fi (Surface + Rebuild)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e4e0d6;color:#21314f;overflow:hidden}
+  .app{height:100vh;display:flex;flex-direction:column;background:#f4efe2;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:20px 20px}
+  .bar{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:2px dashed #b9b094;background:#f4efe2;z-index:5}
+  .logo{font-family:'Caveat';font-weight:700;font-size:26px}
+  .logo .hp{color:#21314f}
+  .tabs{display:flex;gap:6px;margin-left:8px}
+  .tab{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;border-radius:10px 10px 0 0;padding:6px 16px;background:#e7ddc6;cursor:pointer;position:relative;top:2px}
+  .tab.on{background:#fffaf0;border-bottom-color:#fffaf0}
+  .tab small{display:block;font-size:9px;color:#8a7;font-family:'Inter';font-weight:600;letter-spacing:.04em}
+  .pill{font-family:'Patrick Hand';font-size:12px;padding:2px 10px;border:2px solid #21314f;border-radius:11px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:20px}
+  .farrier{font-size:11px;color:#7a5c3e;background:#fff3cf;border:1.5px solid #e0b87a;border-radius:6px;padding:3px 8px;font-family:'Patrick Hand'}
+
+  .view{flex:1;display:none;min-height:0}
+  .view.on{display:flex}
+
+  /* ---------- SURFACE: resizable split ---------- */
+  #surface{flex-direction:row}
+  .pane{min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .chat{background:#fffaf0;border-right:0}
+  .chat .ch-h{font-family:'Caveat';font-weight:700;font-size:18px;padding:12px 14px 6px;display:flex;align-items:center;gap:8px}
+  .feed{flex:1;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+  .m{max-width:90%;padding:8px 11px;font-size:13.5px;line-height:1.45;border-radius:13px;font-family:'Patrick Hand';opacity:0;transform:translateY(7px);transition:.35s}
+  .m.show{opacity:1;transform:none}
+  .m.ai{background:#fff;border:2px solid #e23b3b;border-radius:13px 13px 13px 4px}
+  .m.user{align-self:flex-end;background:#dbe6ff;border:2px solid #21314f;border-radius:13px 13px 4px 13px;font-family:'Inter';font-size:13px}
+  .composer{display:flex;gap:7px;padding:10px 14px;border-top:2px dashed #d9cfb3}
+  .composer input{flex:1;font:inherit;font-size:13px;border:1.5px solid #c7cdda;border-radius:9px;padding:8px 10px}
+  .composer button{font-family:'Patrick Hand';background:#21314f;color:#fff;border:none;border-radius:9px;padding:8px 13px;cursor:pointer}
+  .divider{width:8px;cursor:col-resize;background:repeating-linear-gradient(#b9b094 0 6px,transparent 6px 12px);flex:0 0 8px}
+  .mapwrap{background:#fffaf0;position:relative;display:flex;flex-direction:column}
+  .map-h{font-family:'Caveat';font-weight:700;font-size:18px;padding:10px 14px 2px;display:flex;align-items:center;gap:10px}
+  .tools{margin-left:auto;display:flex;gap:6px}
+  .tbtn{font-family:'Patrick Hand';font-size:12px;border:2px solid #21314f;border-radius:8px;padding:3px 9px;background:#cfe0d2;cursor:pointer}
+  .hintbar{font-size:11px;color:#8a8a72;font-style:italic;padding:0 14px 4px}
+  .canvas{flex:1;min-height:0;position:relative}
+  svg.board{width:100%;height:100%;display:block;touch-action:none}
+  .node{cursor:grab}.node:active{cursor:grabbing}
+  .node rect{transition:filter .15s}
+  .node:hover rect{filter:drop-shadow(0 3px 5px rgba(0,0,0,.18))}
+  .gov{display:flex;gap:6px;flex-wrap:wrap;padding:6px 14px 10px}
+  .gv{font-family:'Patrick Hand';font-size:11.5px;border:2px solid #d9cfb3;border-radius:999px;padding:2px 10px;color:#a99;background:#fff}
+  .gv.ok{border-color:#2e7d52;color:#2e7d52;background:#e6f4ec}
+  .gv.thin{border-color:#d9920b;color:#b3760b;background:#fff6e3}
+
+  /* ---------- REBUILD: map-heavy + coach dock ---------- */
+  #rebuild{flex-direction:column}
+  .brief{display:flex;gap:10px;padding:9px 16px;border-bottom:2px dashed #d9cfb3;background:#faf5ff;flex-wrap:wrap}
+  .bc{font-size:11.5px;background:#fff;border:1.5px solid #c4a3f0;border-radius:9px;padding:4px 10px;color:#5b21b6;line-height:1.3}
+  .bc b{color:#3a1d6e}
+  .rebuild-body{flex:1;position:relative;min-height:0}
+  .coachdock{position:absolute;right:16px;bottom:16px;width:300px;max-height:62%;background:#fffaf0;border:2px solid #21314f;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:10}
+  .coachdock .cd-h{font-family:'Caveat';font-weight:700;font-size:16px;padding:8px 12px;border-bottom:2px dashed #d9cfb3;display:flex;align-items:center;gap:7px}
+  .coachdock .dot{width:8px;height:8px;border-radius:50%;background:#2e7d52}
+  .cd-feed{flex:1;overflow-y:auto;padding:9px 11px;display:flex;flex-direction:column;gap:7px}
+  .cd-feed .m{font-size:13px}
+  .coachdock .composer{padding:8px 10px}
+  .legend{position:absolute;left:16px;bottom:14px;font-size:11px;color:#8a8a72;font-style:italic;background:#fffaf0cc;padding:5px 9px;border-radius:8px;border:1.5px solid #d9cfb3}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <span class="logo"><span class="hp">🐎 Horsepower</span></span>
+    <div class="tabs">
+      <div class="tab on" data-v="surface" id="t-surface">Surface<small>capture what is</small></div>
+      <div class="tab" data-v="rebuild" id="t-rebuild">Rebuild<small>reinvent it</small></div>
+    </div>
+    <span class="pill code">K7PD</span>
+    <span class="farrier">⚒ the Farrier is running this room</span>
+    <span class="timer">⏱ 17:42</span>
+  </div>
+
+  <!-- ===================== SURFACE ===================== -->
+  <div class="view on" id="surface">
+    <div class="pane chat" id="s-chat" style="flex:0 0 38%">
+      <div class="ch-h">
+        <svg width="22" height="22" viewBox="0 0 40 40"><circle cx="20" cy="21" r="14" fill="#fff" stroke="#21314f" stroke-width="2.2"/><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/></svg>
+        the Coach · just tell me how it works
+      </div>
+      <div class="feed" id="s-feed"></div>
+      <div class="composer"><input placeholder="dump a thought, any order…"><button>Send</button></div>
+    </div>
+    <div class="divider" id="divider"></div>
+    <div class="pane mapwrap" style="flex:1">
+      <div class="map-h">Live map
+        <span class="tools"><span class="tbtn" id="addNode">+ phase</span></span>
+      </div>
+      <div class="hintbar">drag any box to move it · double-click to rename · arrows follow</div>
+      <div class="canvas" id="s-canvas"></div>
+      <div class="gov" id="s-gov">
+        <span class="gv ok">trigger ✓</span><span class="gv thin">persona ～</span><span class="gv ok">phases ✓</span><span class="gv thin">intent ～</span><span class="gv">outcome</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== REBUILD ===================== -->
+  <div class="view" id="rebuild">
+    <div class="brief">
+      <span class="bc"><b>NEED</b> invoice → suppliers paid on time</span>
+      <span class="bc"><b>WANT</b> no late penalties · trusted suppliers</span>
+      <span class="bc"><b>CONSTRAINTS</b> slow · manual · error-prone <i>(no old steps shown)</i></span>
+    </div>
+    <div class="rebuild-body">
+      <div class="canvas" id="r-canvas" style="position:absolute;inset:0"></div>
+      <div class="legend">map-heavy — you build it. drag · rename · add. the Coach only chimes in when asked, or when you play it safe.</div>
+      <div class="coachdock">
+        <div class="cd-h"><span class="dot"></span> the Coach · fair skeptic</div>
+        <div class="cd-feed" id="r-feed"></div>
+        <div class="composer"><input placeholder="ask, or just build…"><button>Send</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ interactive hand-drawn map ============ */
+function makeBoard(canvas, {nodes, links, vb}){
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','board');
+  svg.setAttribute('viewBox',`0 0 ${vb[0]} ${vb[1]}`); svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.innerHTML=`<defs><filter id="ruf"><feTurbulence type="fractalNoise" baseFrequency="0.013" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#9aa3b8"/></marker></defs>
+    <g id="links"></g><g id="nodes"></g>`;
+  canvas.innerHTML=''; canvas.appendChild(svg);
+  const gLinks=svg.querySelector('#links'), gNodes=svg.querySelector('#nodes');
+  const byId={};
+
+  function draw(){
+    gNodes.innerHTML='';
+    nodes.forEach(n=>{
+      byId[n.id]=n;
+      const g=document.createElementNS(NS,'g'); g.setAttribute('class','node'); g.setAttribute('transform',`translate(${n.x},${n.y})`);
+      g.dataset.id=n.id;
+      const fill=n.kind==='trigger'?'#cfe0d2':n.kind==='out'?'#ffd24a':n.kind==='agent'?'#e7f0ff':n.kind==='pain'?'#ffe3e3':n.kind==='keep'?'#f3e8ff':'#fff9ec';
+      const stroke=n.kind==='agent'?'#2b3a55':n.kind==='pain'?'#b91c1c':n.kind==='keep'?'#7c3aed':'#21314f';
+      g.innerHTML=`<rect width="${n.w}" height="${n.h}" rx="13" fill="${fill}" stroke="${stroke}" stroke-width="2.4" filter="url(#ruf)"></rect>
+        <text x="${n.w/2}" y="${n.h/2+4}" text-anchor="middle" font-size="${n.fs||12}" font-family="Patrick Hand" fill="#21314f">${n.label}</text>`;
+      if(n.hidden){ g.style.opacity=0; g.style.transition='opacity .5s, transform .5s'; }
+      gNodes.appendChild(g);
+      g.querySelector('text').setAttribute('pointer-events','none');
+    });
+    redrawLinks();
+  }
+  function center(n){ return [n.x+n.w/2, n.y+n.h/2]; }
+  function redrawLinks(){
+    gLinks.innerHTML = links.map(([a,b])=>{
+      const A=byId[a],B=byId[b]; if(!A||!B||A.hidden||B.hidden) return '';
+      const [ax,ay]=center(A),[bx,by]=center(B);
+      // exit from right of A to left of B-ish
+      const x1=A.x+A.w, y1=ay, x2=B.x, y2=by;
+      const mx=(x1+x2)/2;
+      return `<path d="M${x1} ${y1} C${mx} ${y1}, ${mx} ${y2}, ${x2-8} ${y2}" stroke="#9aa3b8" stroke-width="2.2" fill="none" marker-end="url(#ar)"/>`;
+    }).join('');
+  }
+
+  // dragging
+  let drag=null;
+  function sp(evt){ const p=svg.createSVGPoint(); p.x=evt.clientX; p.y=evt.clientY; const m=svg.getScreenCTM().inverse(); return p.matrixTransform(m); }
+  svg.addEventListener('pointerdown',e=>{
+    const g=e.target.closest('.node'); if(!g) return;
+    const n=byId[g.dataset.id]; const p=sp(e);
+    drag={g,n,dx:p.x-n.x,dy:p.y-n.y}; g.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove',e=>{
+    if(!drag) return; const p=sp(e);
+    drag.n.x=p.x-drag.dx; drag.n.y=p.y-drag.dy;
+    drag.g.setAttribute('transform',`translate(${drag.n.x},${drag.n.y})`); redrawLinks();
+  });
+  svg.addEventListener('pointerup',()=>drag=null);
+  svg.addEventListener('dblclick',e=>{
+    const g=e.target.closest('.node'); if(!g) return; const n=byId[g.dataset.id];
+    const v=prompt('Rename node:',n.label); if(v!=null){ n.label=v; g.querySelector('text').textContent=v; }
+  });
+
+  draw();
+  return {
+    reveal(seq){ // fade nodes in by index order with delay
+      nodes.forEach(n=>{ if(n.hidden){ const g=gNodes.querySelector(`[data-id="${n.id}"]`); }});
+      seq.forEach((id,k)=>setTimeout(()=>{
+        const n=byId[id]; n.hidden=false; const g=gNodes.querySelector(`[data-id="${id}"]`);
+        if(g){ g.style.opacity=1; } redrawLinks();
+      }, 350*k));
+    },
+    addNode(node){ nodes.push(node); draw(); },
+    redraw:draw
+  };
+}
+
+/* ============ Surface ============ */
+const sBoard = makeBoard(document.getElementById('s-canvas'),{
+  vb:[640,360],
+  nodes:[
+    {id:'trig',kind:'trigger',x:24,y:150,w:96,h:64,label:'invoice arrives',fs:10},
+    {id:'p1',x:170,y:60,w:150,h:70,label:'OpCo drafts AP',hidden:true},
+    {id:'p1m',kind:'pain',x:180,y:150,w:130,h:58,label:'reconcile ⚠ 3d',fs:10,hidden:true},
+    {id:'p2',x:380,y:90,w:140,h:70,label:'GM reviews',hidden:true},
+    {id:'out',kind:'out',x:540,y:150,w:96,h:64,label:'paid on time',fs:10,hidden:true},
+  ],
+  links:[['trig','p1'],['p1','p2'],['p2','out']]
+});
+document.getElementById('addNode').onclick=()=> sBoard.addNode({id:'n'+Date.now(),x:260,y:250,w:130,h:60,label:'new phase'});
+
+const sFeed=document.getElementById('s-feed');
+function sMsg(cls,html,d){ setTimeout(()=>{ const el=document.createElement('div'); el.className='m '+cls; el.innerHTML=html; sFeed.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); sFeed.scrollTop=9e9; },d); }
+
+function playSurface(){
+  sFeed.innerHTML='';
+  sBoard.redraw();
+  sMsg('user','when an invoice comes in someone handles it, we do the processing, then it gets approved & paid. reconcile is a nightmare ~3 days.',300);
+  sMsg('ai','🖊️ Structuring it now — watch the map build →',1500);
+  setTimeout(()=> sBoard.reveal(['p1','p1m','p2','out']), 2200);
+  sMsg('ai','Got the spine. But <b>"someone"</b> isn\'t a persona, and there\'s no <b>intent</b> yet — those are thin to hand over. Who actually owns this, and <i>why</i> does it exist?',4600);
+  sMsg('user','OpCo GM owns it. Intent: suppliers paid on time, keep credit terms.',6400);
+  sMsg('ai','✓ better. Drag the boxes to lay it out how it really flows — I\'ll keep the arrows attached.',7600);
+}
+playSurface();
+
+/* resizable divider */
+(function(){
+  const div=document.getElementById('divider'), chat=document.getElementById('s-chat'), view=document.getElementById('surface');
+  let on=false;
+  div.addEventListener('pointerdown',e=>{on=true;div.setPointerCapture(e.pointerId);});
+  div.addEventListener('pointermove',e=>{ if(!on)return; const r=view.getBoundingClientRect();
+    let pct=(e.clientX-r.left)/r.width*100; pct=Math.max(22,Math.min(62,pct)); chat.style.flex='0 0 '+pct+'%'; });
+  div.addEventListener('pointerup',()=>on=false);
+})();
+
+/* ============ Rebuild ============ */
+const rBoard = makeBoard(document.getElementById('r-canvas'),{
+  vb:[820,420],
+  nodes:[
+    {id:'trig',kind:'trigger',x:30,y:185,w:104,h:70,label:'invoice arrives',fs:11},
+    {id:'agent',kind:'agent',x:210,y:150,w:240,h:120,label:'⚡ Payments agent',fs:14},
+    {id:'gm',kind:'keep',x:560,y:130,w:150,h:74,label:'👤 GM >£10k',fs:12},
+    {id:'comp',kind:'keep',x:560,y:240,w:150,h:66,label:'⚖ compliance',fs:12},
+  ],
+  links:[['trig','agent'],['agent','gm'],['agent','comp']]
+});
+// annotate agent multi-line after draw
+setTimeout(()=>{ const t=document.querySelector('#r-canvas text'); },10);
+
+const rFeed=document.getElementById('r-feed');
+function rMsg(cls,html,d){ setTimeout(()=>{ const el=document.createElement('div'); el.className='m '+cls; el.innerHTML=html; rFeed.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); rFeed.scrollTop=9e9; },d); }
+function playRebuild(){
+  rFeed.innerHTML='';
+  rMsg('ai','No old steps — design from the <b>need</b>. Build the boxes; I\'ll test each one: real constraint, or just HOW?',300);
+  rMsg('user','One agent validates + runs compliance + auto-pays the clean ones.',2200);
+  rMsg('ai','You kept <b>GM approval</b> — does he <i>decide</i>, or just need to be <i>informed</i>?',3600);
+  rMsg('user','Accountable for >£10k by policy.',5200);
+  rMsg('ai','✓ sold — that\'s a real constraint. Now: where did the <b>clerk</b> land? "Freed up" won\'t fly.',6300);
+}
+let rebuiltOnce=false;
+
+/* ============ tabs ============ */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); const v=document.getElementById(t.dataset.v); v.classList.add('on');
+  if(t.dataset.v==='surface') playSurface();
+  if(t.dataset.v==='rebuild'){ rBoard.redraw(); playRebuild(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Capture v2 (brain-dump + thought-check)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1140px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-family:'Fraunces';font-size:24px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:780px;line-height:1.5;margin:0 0 14px;font-size:14px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#ffd24a;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  /* act strip */
+  .acts{display:flex;gap:8px;padding:10px 18px;border-bottom:2px dashed #d9cfb3;flex-wrap:wrap}
+  .acts .a{font-family:'Patrick Hand';font-size:12.5px;color:#a99;border:2px solid #d9cfb3;border-radius:999px;padding:3px 12px;transition:.3s}
+  .acts .a.on{color:#21314f;border-color:#21314f;background:#fff}
+
+  .cols{display:grid;grid-template-columns:0.85fr 1.15fr;gap:0}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+
+  /* LEFT — brain dump */
+  .dump{padding:16px;border-right:2px dashed #b9b094;display:flex;flex-direction:column;min-height:520px}
+  .dump .h{font-family:'Caveat';font-weight:700;font-size:19px;margin-bottom:4px}
+  .dump .note{font-size:12px;color:#8a8a8a;margin-bottom:9px;line-height:1.4}
+  .pad{flex:1;background:#fff;border:2px solid #c7cdda;border-radius:10px;padding:12px 13px;font-size:13.5px;line-height:1.6;color:#1d2433;white-space:pre-wrap;min-height:200px}
+  .cursor{display:inline-block;width:2px;height:1em;background:#21314f;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .coachline{margin-top:10px;font-family:'Patrick Hand';font-size:13.5px;color:#21314f;display:flex;gap:8px;align-items:flex-start;opacity:0;transition:.4s}
+  .coachline.show{opacity:1}
+
+  /* RIGHT — map + thought-check */
+  .canvas{padding:14px 16px 16px;position:relative}
+  .canvas .h{font-family:'Caveat';font-weight:700;font-size:19px;margin:0 0 6px}
+  .gov{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .gov .g{font-family:'Patrick Hand';font-size:12px;border:2px solid #d9cfb3;border-radius:999px;padding:2px 10px;color:#a99;background:#fff;transition:.4s}
+  .gov .g.thin{border-color:#d9920b;color:#b3760b;background:#fff6e3}
+  .gov .g.ok{border-color:#2e7d52;color:#2e7d52;background:#e6f4ec}
+  .rv{opacity:0;transition:.55s}
+  .rv.show{opacity:1}
+  .shallow,.rich{transition:.5s}
+  .rich{opacity:0}
+  .fixed .shallow{opacity:0}
+  .fixed .rich{opacity:1}
+  .squig{opacity:0;transition:.4s}
+  .squig.show{opacity:1}
+  .squig path{stroke:#e23b3b;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-dasharray:200;stroke-dashoffset:200;}
+  .squig.show path{animation:draw 1s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+
+  /* thought-check panel */
+  .tc{margin-top:12px;border:2px dashed #d9cfb3;border-radius:12px;padding:10px 12px;background:#fffdf6;min-height:64px}
+  .tc .th{font-family:'Caveat';font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px;color:#21314f}
+  .tc .th .em{font-size:18px}
+  .tcitem{display:flex;gap:9px;align-items:flex-start;margin-top:8px;font-size:12.8px;line-height:1.4;opacity:0;transform:translateY(5px);transition:.4s}
+  .tcitem.show{opacity:1;transform:none}
+  .tcitem .sq{color:#e23b3b;font-weight:700}
+  .tcitem.done{opacity:.5}
+  .tcitem.done .what{text-decoration:line-through}
+  .tcitem .why{color:#b3261e;font-style:italic}
+  .tcempty{font-size:12.5px;color:#999;font-style:italic;margin-top:6px}
+
+  /* redesign-ready overlay */
+  .ready{position:absolute;inset:0;background:#f4efe2ee;display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:.5s;z-index:30}
+  .ready.show{opacity:1}
+  .readycard{width:min(440px,86%);background:#fffdf6;border:2.5px solid #21314f;border-radius:16px;padding:18px 20px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .readycard h3{font-family:'Caveat';font-weight:700;font-size:23px;margin:0 0 3px}
+  .readycard .who{font-size:12px;color:#888;margin-bottom:10px}
+  .rchk{display:flex;gap:9px;align-items:flex-start;margin:7px 0;font-size:13px;line-height:1.4;opacity:0;transform:translateX(-6px);transition:.4s}
+  .rchk.show{opacity:1;transform:none}
+  .rchk .i{font-weight:700}
+  .rchk.ok .i{color:#2e7d52}.rchk.warn .i{color:#d9920b}
+  .swapbtn{margin-top:14px;width:100%;font-family:'Permanent Marker';font-size:16px;color:#fff;background:#e02d2d;border:3px solid #1a1a1a;border-radius:8px;padding:10px;box-shadow:3px 3px 0 #1a1a1a;transform:rotate(-1deg);opacity:0;transition:.4s}
+  .swapbtn.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Capture v2 — brain-dump in, structured map out, thin spots flagged</h1>
+  <p class="sub">Because of the <b>swap</b>, this map is the <em>only</em> context the next team gets. So the AI doesn't just check for blanks — it flags anything <b>too thin for a stranger to redesign</b>, then runs a "redesign-ready?" check before the swap.</p>
+  <div class="controls"><button class="btn" id="replay">↻ Replay</button><span class="hint" id="hint">playing…</span></div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span><span class="pill">capture · part 1</span>
+      <span class="timer">⏱ 14:08</span>
+    </div>
+    <div class="acts">
+      <span class="a" data-act="1">① brain-dump</span>
+      <span class="a" data-act="2">② AI structures it</span>
+      <span class="a" data-act="3">③ thought-check (too thin?)</span>
+      <span class="a" data-act="4">④ you sharpen it</span>
+      <span class="a" data-act="5">⑤ redesign-ready?</span>
+    </div>
+
+    <div class="cols">
+      <!-- BRAIN DUMP -->
+      <div class="dump">
+        <div class="h">Just tell me how it works ✍</div>
+        <div class="note">No form. Dump it however it spills out — messy is fine. I'll structure it.</div>
+        <div class="pad" id="pad"></div>
+        <div class="coachline" id="coachline">
+          <span>🖊️</span><span id="coachtext"></span>
+        </div>
+      </div>
+
+      <!-- MAP + THOUGHT-CHECK -->
+      <div class="canvas">
+        <div class="h">Live map</div>
+        <div class="gov" id="gov">
+          <span class="g" data-k="persona">persona</span><span class="g" data-k="trigger">trigger</span>
+          <span class="g" data-k="input">input</span><span class="g" data-k="phases">phases</span>
+          <span class="g" data-k="intent">intent</span><span class="g" data-k="outcome">outcome</span>
+        </div>
+        <svg id="map" viewBox="0 0 520 300" width="100%">
+          <defs><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.5"/></filter></defs>
+          <g filter="url(#r)" font-family="'Patrick Hand'">
+            <!-- persona -->
+            <g class="rv" data-at="2">
+              <rect x="14" y="12" width="172" height="42" rx="10" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+              <g class="shallow"><text x="100" y="38" text-anchor="middle" font-size="12" fill="#5b21b6">👤 "the team"</text></g>
+              <g class="rich"><text x="100" y="30" text-anchor="middle" font-size="11" fill="#5b21b6">👤 OpCo GM (owner)</text><text x="100" y="46" text-anchor="middle" font-size="11" fill="#5b21b6">👤 RO Finance</text></g>
+            </g>
+            <!-- trigger -->
+            <g class="rv" data-at="2">
+              <ellipse cx="52" cy="150" rx="42" ry="33" fill="#cfe0d2" stroke="#21314f" stroke-width="2.5"/>
+              <text x="52" y="146" text-anchor="middle" font-size="11" fill="#21314f">invoice</text><text x="52" y="161" text-anchor="middle" font-size="11" fill="#21314f">arrives</text>
+            </g>
+            <!-- input (added at act5) -->
+            <g class="rv" data-at="5b"><text x="52" y="200" text-anchor="middle" font-size="9.5" fill="#66708a">inputs: invoice·PO·ledger</text></g>
+            <!-- phase1 -->
+            <g class="rv" data-at="2">
+              <path d="M96 150 C118 142,130 158,152 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M145 144 L154 150 L145 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="156" y="78" width="158" height="150" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+              <g class="shallow"><text x="235" y="120" text-anchor="middle" font-size="14" fill="#21314f">Processing</text><text x="235" y="150" text-anchor="middle" font-size="22" fill="#cbbf9f">?</text></g>
+              <g class="rich">
+                <text x="235" y="98" text-anchor="middle" font-size="12.5" fill="#21314f">OpCo drafts AP</text>
+                <rect x="170" y="110" width="130" height="34" rx="8" fill="#dbe6ff" stroke="#21314f" stroke-width="1.6"/><text x="235" y="131" text-anchor="middle" font-size="10" fill="#21314f">GM reviews figures</text>
+                <rect x="170" y="150" width="130" height="44" rx="8" fill="#ffe3e3" stroke="#21314f" stroke-width="1.6"/><text x="235" y="169" text-anchor="middle" font-size="10" fill="#21314f">manual reconcile</text><text x="235" y="184" text-anchor="middle" font-size="8.5" fill="#21314f">3 days ⚠ pain</text>
+              </g>
+            </g>
+            <!-- phase2 -->
+            <g class="rv" data-at="2">
+              <path d="M314 150 C336 142,348 158,370 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M363 144 L372 150 L363 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="374" y="104" width="132" height="92" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+              <text x="440" y="126" text-anchor="middle" font-size="12.5" fill="#21314f">approve & pay</text>
+              <rect x="386" y="138" width="108" height="34" rx="8" fill="#dbe6ff" stroke="#21314f" stroke-width="1.6"/><text x="440" y="159" text-anchor="middle" font-size="10" fill="#21314f">RO schedules pay</text>
+            </g>
+            <!-- intent/outcome band -->
+            <g class="rv" data-at="2">
+              <rect x="156" y="246" width="350" height="46" rx="10" fill="#fff7df" stroke="#b8860b" stroke-width="2"/>
+              <g class="shallow"><text x="331" y="274" text-anchor="middle" font-size="12" fill="#8a6d1b">INTENT → "monthly payments report"</text></g>
+              <g class="rich">
+                <text x="166" y="264" font-size="10" fill="#8a6d1b">INTENT → suppliers paid on time, credit terms kept</text>
+                <text x="166" y="282" font-size="10" fill="#8a6d1b">OUTCOME → no late-payment penalties, trusted suppliers</text>
+              </g>
+            </g>
+            <!-- squiggles (sus signals) -->
+            <g class="squig" data-sq="persona"><path d="M40 50 q8 -5 16 0 t16 0 t16 0 t16 0"/></g>
+            <g class="squig" data-sq="phase"><path d="M198 126 q8 -5 16 0 t16 0 t16 0 t16 0"/></g>
+            <g class="squig" data-sq="intent"><path d="M236 280 q8 -5 16 0 t16 0 t16 0 t16 0 t16 0"/></g>
+          </g>
+        </svg>
+
+        <div class="tc" id="tc">
+          <div class="th"><span class="em">🤨</span> Thought-check <span style="font-family:'Inter';font-size:11px;font-weight:500;color:#999">— would a stranger be able to redesign this?</span></div>
+          <div class="tcempty" id="tcempty">scanning for thin spots…</div>
+          <div class="tcitem" data-i="persona"><span class="sq">〰</span><span><b class="what">"the team"</b> — <span class="why">who actually owns this? a stranger needs a real role, not "the team."</span></span></div>
+          <div class="tcitem" data-i="phase"><span class="sq">〰</span><span><b class="what">"Processing"</b> — <span class="why">black box. what actually happens here? nobody could redesign this blind.</span></span></div>
+          <div class="tcitem" data-i="intent"><span class="sq">〰</span><span><b class="what">"a monthly report"</b> — <span class="why">a report isn't a reason. what decision does it drive?</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- redesign-ready overlay -->
+    <div class="ready" id="ready">
+      <div class="readycard">
+        <h3>Redesign-ready?</h3>
+        <div class="who">— checked through the eyes of the team about to receive this —</div>
+        <div class="rchk ok" data-r="1"><span class="i">✓</span> Owner is a real role (OpCo GM), not "the team"</div>
+        <div class="rchk ok" data-r="2"><span class="i">✓</span> Every phase has concrete moments — no black boxes</div>
+        <div class="rchk ok" data-r="3"><span class="i">✓</span> Intent is a decision, not an artifact</div>
+        <div class="rchk warn" data-r="4"><span class="i">⚠</span> Inputs weren't listed — added invoice · PO · ledger</div>
+        <div class="rchk ok" data-r="5"><span class="i">✓</span> A stranger could redesign this. Safe to hand over.</div>
+        <button class="swapbtn" id="swapbtn">READY — SWAP TO NEXT TEAM →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const dumpText = `ok so when an invoice comes in someone on the team handles it.\nwe do the processing, then it gets approved and paid.\nwe need the monthly report.\nhonestly the reconcile is a nightmare — like 3 days.`;
+  const pad=document.getElementById('pad');
+  const hint=document.getElementById('hint');
+  let timers=[];
+  const T=(fn,d)=>timers.push(setTimeout(fn,d));
+  const act=n=>document.querySelectorAll('.acts .a').forEach(a=>a.classList.toggle('on',+a.dataset.act===n));
+  const reveal=at=>document.querySelectorAll(`.rv[data-at="${at}"]`).forEach(e=>e.classList.add('show'));
+  const gov=(k,cls)=>{const g=document.querySelector(`.gov .g[data-k="${k}"]`);if(g){g.classList.remove('thin','ok');g.classList.add(cls);}};
+  const squig=(k,on=true)=>document.querySelector(`.squig[data-sq="${k}"]`).classList.toggle('show',on);
+  const tcitem=(k,on=true)=>document.querySelector(`.tcitem[data-i="${k}"]`).classList.toggle('show',on);
+
+  function typeDump(txt,done){
+    let i=0; pad.innerHTML='<span class="cursor"></span>';
+    (function step(){
+      if(i<=txt.length){
+        pad.innerHTML=txt.slice(0,i).replace(/\n/g,'<br>')+'<span class="cursor"></span>';
+        i+=2; T(step,28);
+      } else { pad.innerHTML=txt.replace(/\n/g,'<br>'); done&&done(); }
+    })();
+  }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[];
+    // reset
+    pad.innerHTML=''; act(1);
+    document.querySelectorAll('.rv').forEach(e=>e.classList.remove('show'));
+    document.querySelectorAll('.squig').forEach(e=>e.classList.remove('show'));
+    document.querySelectorAll('.tcitem').forEach(e=>{e.classList.remove('show','done');});
+    document.getElementById('tcempty').style.display='';
+    document.querySelectorAll('.gov .g').forEach(g=>g.classList.remove('thin','ok'));
+    document.getElementById('map').classList.remove('fixed');
+    document.getElementById('ready').classList.remove('show');
+    document.querySelectorAll('.rchk').forEach(r=>r.classList.remove('show'));
+    document.getElementById('swapbtn').classList.remove('show');
+    document.getElementById('coachline').classList.remove('show');
+    hint.textContent='playing…';
+
+    // ACT 1 — brain dump types in
+    typeDump(dumpText, ()=>{
+      // ACT 2 — AI structures it
+      T(()=>{ act(2); ['2'].forEach(reveal);
+        gov('persona','thin'); gov('trigger','ok'); gov('phases','thin'); gov('intent','thin');
+        document.getElementById('coachline').classList.add('show');
+        document.getElementById('coachtext').textContent='Structured. But three things are too thin to hand over…';
+      }, 600);
+
+      // ACT 3 — thought-check
+      T(()=>{ act(3); document.getElementById('tcempty').style.display='none';
+        squig('persona'); tcitem('persona'); }, 2100);
+      T(()=>{ squig('phase'); tcitem('phase'); }, 2900);
+      T(()=>{ squig('intent'); tcitem('intent'); }, 3700);
+
+      // ACT 4 — sharpen (fix)
+      T(()=>{ act(4);
+        document.getElementById('map').classList.add('fixed');
+        ['persona','phase','intent'].forEach(k=>squig(k,false));
+        document.querySelectorAll('.tcitem').forEach(e=>e.classList.add('done'));
+        gov('persona','ok'); gov('phases','ok'); gov('intent','ok'); gov('outcome','ok');
+        document.getElementById('coachtext').textContent='Better. Now a stranger could actually read this.';
+      }, 5200);
+
+      // ACT 5 — redesign-ready
+      T(()=>{ act(5); reveal('5b'); gov('input','ok');
+        document.getElementById('ready').classList.add('show'); }, 6800);
+      [1,2,3,4,5].forEach((n,idx)=> T(()=>document.querySelector(`.rchk[data-r="${n}"]`).classList.add('show'), 7200+idx*600));
+      T(()=>{ document.getElementById('swapbtn').classList.add('show'); hint.textContent='done — hit replay'; }, 10600);
+    });
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

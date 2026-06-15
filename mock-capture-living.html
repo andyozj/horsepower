@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Living Capture & Orphans (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1140px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-family:'Fraunces';font-size:24px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:790px;line-height:1.5;margin:0 0 14px;font-size:14px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#ffd24a;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  .cols{display:grid;grid-template-columns:0.82fr 1.18fr;gap:0}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+
+  .dump{padding:16px;border-right:2px dashed #b9b094;display:flex;flex-direction:column;min-height:540px}
+  .dump .h{font-family:'Caveat';font-weight:700;font-size:19px;margin-bottom:4px}
+  .dump .note{font-size:12px;color:#8a8a8a;margin-bottom:9px;line-height:1.4}
+  .pad{flex:1;background:#fff;border:2px solid #c7cdda;border-radius:10px;padding:12px 13px;font-size:13px;line-height:1.65;min-height:220px}
+  .pad .old{color:#9aa3b8}
+  .pad .new{color:#1d2433;font-weight:500}
+  .cursor{display:inline-block;width:2px;height:1em;background:#21314f;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .coachline{margin-top:10px;font-family:'Patrick Hand';font-size:14px;color:#21314f;display:flex;gap:8px;align-items:flex-start;min-height:42px;opacity:0;transition:.35s}
+  .coachline.show{opacity:1}
+
+  .canvas{padding:14px 16px 16px;position:relative}
+  .canvas .h{font-family:'Caveat';font-weight:700;font-size:19px;margin:0 0 8px}
+  .rv{opacity:0;transform:scale(.9);transition:.5s}
+  .rv.show{opacity:1;transform:none}
+  .branch{opacity:0;transition:.5s}.branch.show{opacity:1}
+
+  /* orphan tray */
+  .tray{margin-top:10px;border:2px dashed #cbb48f;border-radius:12px;background:#fffaf0;padding:9px 11px;min-height:62px}
+  .tray .th{font-family:'Caveat';font-weight:700;font-size:16px;display:flex;align-items:center;gap:7px}
+  .tray .th .cnt{font-family:'Inter';font-size:11px;font-weight:600;color:#b3760b;background:#fff1cf;border-radius:999px;padding:1px 8px}
+  .trayrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px;min-height:8px}
+  .trayempty{font-size:12px;color:#9a9a8a;font-style:italic;margin-top:6px}
+  .orphan{font-family:'Patrick Hand';font-size:12.5px;background:#fff3c4;border:2px solid #d9920b;border-radius:9px 7px 11px 6px;padding:7px 10px;max-width:230px;
+    box-shadow:0 3px 7px rgba(0,0,0,.12);transform:rotate(-2deg);opacity:0;transition:.4s;animation:wig 1.6s ease-in-out infinite}
+  .orphan.show{opacity:1}
+  .orphan.fly{opacity:0;transform:translate(160px,-120px) rotate(8deg) scale(.6)}
+  @keyframes wig{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+  .orphan .q{display:block;color:#b3261e;font-size:11px;margin-top:3px}
+
+  .swapbar{margin-top:10px;display:flex;align-items:center;gap:10px;font-size:13px;font-family:'Patrick Hand'}
+  .swapstate{padding:3px 10px;border-radius:999px;border:2px solid;transition:.4s}
+  .swapstate.blocked{color:#b3261e;border-color:#e6a3a3;background:#fff3f3}
+  .swapstate.ready{color:#2e7d52;border-color:#86c9a3;background:#e6f4ec}
+  .swapbtn{margin-left:auto;font-family:'Permanent Marker';font-size:14px;color:#fff;background:#e02d2d;border:3px solid #1a1a1a;border-radius:7px;padding:7px 14px;box-shadow:3px 3px 0 #1a1a1a;transform:rotate(-1deg);transition:.4s}
+  .swapbtn.off{opacity:.32;filter:grayscale(.6)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Living capture — the flow re-routes as info arrives, and orphans stay visible</h1>
+  <p class="sub">Information lands at <b>any juncture</b>, in any order. The AI re-places it and the map re-routes. When a blurb has <b>no link to the spine</b>, it doesn't get dropped — it sits in the <b>orphan tray</b>, and the AI chases it until it's placed. Unresolved orphans block the swap.</p>
+  <div class="controls"><button class="btn" id="replay">↻ Replay</button><span class="hint" id="hint">playing…</span></div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span><span class="pill">capture · live</span>
+      <span class="timer">⏱ 11:36</span>
+    </div>
+
+    <div class="cols">
+      <!-- DUMP -->
+      <div class="dump">
+        <div class="h">Keep talking — add anything, anytime ✍</div>
+        <div class="note">Order doesn't matter. Drop a thought whenever it hits you; I'll fit it in.</div>
+        <div class="pad" id="pad"></div>
+        <div class="coachline" id="coachline"><span>🖊️</span><span id="coachtext"></span></div>
+      </div>
+
+      <!-- MAP + TRAY -->
+      <div class="canvas">
+        <div class="h">Live map</div>
+        <svg id="map" viewBox="0 0 540 250" width="100%">
+          <defs><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter></defs>
+          <g filter="url(#r)" font-family="'Patrick Hand'">
+            <!-- persona -->
+            <rect x="14" y="10" width="172" height="40" rx="10" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+            <text x="100" y="27" text-anchor="middle" font-size="11" fill="#5b21b6">👤 OpCo GM (owner)</text>
+            <text x="100" y="43" text-anchor="middle" font-size="11" fill="#5b21b6">👤 RO Finance</text>
+            <!-- trigger -->
+            <ellipse cx="46" cy="150" rx="40" ry="32" fill="#cfe0d2" stroke="#21314f" stroke-width="2.5"/>
+            <text x="46" y="146" text-anchor="middle" font-size="11" fill="#21314f">invoice</text><text x="46" y="161" text-anchor="middle" font-size="11" fill="#21314f">arrives</text>
+            <path d="M88 150 C108 142,120 158,146 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M139 144 L148 150 L139 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+            <!-- PHASE 1 -->
+            <rect x="150" y="62" width="172" height="176" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+            <text x="236" y="82" text-anchor="middle" font-size="12.5" fill="#21314f">OpCo drafts AP</text>
+            <!-- new PO moment -->
+            <g class="rv" data-at="po"><rect x="164" y="92" width="144" height="30" rx="7" fill="#e3f6e8" stroke="#2e7d52" stroke-width="1.6"/><text x="236" y="111" text-anchor="middle" font-size="9.5" fill="#21314f">✓ PO match check</text></g>
+            <rect x="164" y="128" width="144" height="30" rx="7" fill="#dbe6ff" stroke="#21314f" stroke-width="1.6"/><text x="236" y="147" text-anchor="middle" font-size="9.5" fill="#21314f">GM reviews figures</text>
+            <rect x="164" y="164" width="144" height="40" rx="7" fill="#ffe3e3" stroke="#21314f" stroke-width="1.6"/><text x="236" y="182" text-anchor="middle" font-size="9.5" fill="#21314f">manual reconcile</text><text x="236" y="196" text-anchor="middle" font-size="8" fill="#21314f">3 days ⚠ pain</text>
+            <path d="M322 150 C342 142,354 158,378 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M371 144 L380 150 L371 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+            <!-- PHASE 2 -->
+            <rect x="382" y="86" width="150" height="128" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+            <text x="457" y="106" text-anchor="middle" font-size="12.5" fill="#21314f">approve &amp; pay</text>
+            <!-- new legal moment (conditional) -->
+            <g class="rv" data-at="legal">
+              <rect x="394" y="116" width="126" height="40" rx="7" fill="#fff1cf" stroke="#d9920b" stroke-width="1.8"/>
+              <text x="457" y="133" text-anchor="middle" font-size="9.5" fill="#7a5a0b">⚖ legal review</text><text x="457" y="147" text-anchor="middle" font-size="8" fill="#7a5a0b">only if &gt; £10k</text>
+            </g>
+            <rect x="394" y="162" width="126" height="30" rx="7" fill="#dbe6ff" stroke="#21314f" stroke-width="1.6"/><text x="457" y="181" text-anchor="middle" font-size="9.5" fill="#21314f">RO schedules pay</text>
+          </g>
+        </svg>
+
+        <!-- ORPHAN TRAY -->
+        <div class="tray">
+          <div class="th">🧷 Orphans <span style="font-family:'Inter';font-size:11px;font-weight:500;color:#999">— said, but not yet placed</span> <span class="cnt" id="cnt">0</span></div>
+          <div class="trayrow" id="trayrow"></div>
+          <div class="trayempty" id="trayempty">nothing floating — every blurb is linked.</div>
+        </div>
+
+        <div class="swapbar">
+          <span>Swap gate:</span>
+          <span class="swapstate ready" id="swapstate">✓ redesign-ready</span>
+          <button class="swapbtn" id="swapbtn">SWAP →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const pad=document.getElementById('pad'), coach=document.getElementById('coachline'), coachT=document.getElementById('coachtext');
+  const trayrow=document.getElementById('trayrow'), cnt=document.getElementById('cnt'), trayempty=document.getElementById('trayempty');
+  const swapstate=document.getElementById('swapstate'), swapbtn=document.getElementById('swapbtn');
+  let timers=[]; const T=(fn,d)=>timers.push(setTimeout(fn,d));
+  const base = `<span class="old">invoice comes in → OpCo drafts AP → GM reviews figures →\nmanual reconcile (3 days, painful) → RO approves & pays.\nintent: suppliers paid on time, keep credit terms.</span>`;
+
+  function say(t){ coach.classList.add('show'); coachT.textContent=t; }
+  function gate(state,label){ swapstate.className='swapstate '+state; swapstate.textContent=label;
+    swapbtn.classList.toggle('off', state==='blocked'); }
+  function setCnt(n){ cnt.textContent=n; trayempty.style.display=n?'none':''; }
+
+  function appendNew(txt,done){
+    const span=document.createElement('span'); span.className='new'; span.innerHTML='<br>▸ ';
+    pad.appendChild(span);
+    let i=0; const cur='<span class="cursor"></span>';
+    (function step(){
+      if(i<=txt.length){ span.innerHTML='<br>▸ '+txt.slice(0,i)+cur; i+=2; T(step,30); }
+      else { span.innerHTML='<br>▸ '+txt; done&&done(); }
+    })();
+  }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[];
+    pad.innerHTML=base;
+    document.querySelectorAll('.rv,.branch').forEach(e=>e.classList.remove('show'));
+    trayrow.innerHTML=''; setCnt(0); gate('ready','✓ redesign-ready'); swapbtn.classList.remove('off');
+    coach.classList.remove('show'); document.getElementById('hint').textContent='playing…';
+
+    // 1 — a clean late fragment: places itself
+    T(()=> say('Map\'s looking solid. Add whatever else comes to mind…'), 500);
+    T(()=> appendNew('actually we also check the PO matches before drafting', ()=>{
+        T(()=>{ document.querySelector('.rv[data-at="po"]').classList.add('show');
+                say('Easy — slotted "PO match check" into Phase 1.'); }, 500);
+    }), 1400);
+
+    // 2 — a fragment that can't be placed → ORPHAN
+    T(()=> appendNew('oh — and legal sometimes reviews the high-value ones before we pay', ()=>{
+        T(()=>{
+          const o=document.createElement('div'); o.className='orphan'; o.id='orph1';
+          o.innerHTML='legal reviews high-value invoices<span class="q">⟶ which phase does this attach to?</span>';
+          trayrow.appendChild(o); requestAnimationFrame(()=>o.classList.add('show'));
+          setCnt(1);
+          say('Hm — I can\'t link "legal review" to anything yet. Parking it. Where does it sit?');
+          gate('blocked','✕ 1 orphan — a stranger won\'t know where this fits');
+        }, 500);
+    }), 4600);
+
+    // 3 — team clarifies → orphan integrates, flow re-routes
+    T(()=> appendNew('it\'s a checkpoint inside "approve & pay", only for invoices over £10k', ()=>{
+        T(()=>{
+          const o=document.getElementById('orph1'); o.classList.add('fly');
+          say('Got it — linking it as a conditional moment in "approve & pay".');
+        }, 600);
+        T(()=>{ document.querySelector('.rv[data-at="legal"]').classList.add('show');
+                setCnt(0); }, 1200);
+        T(()=>{ gate('ready','✓ redesign-ready — every blurb is placed');
+                say('Re-routed. Now a stranger could redesign this without guessing.');
+                document.getElementById('hint').textContent='done — hit replay'; }, 1700);
+    }), 8200);
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

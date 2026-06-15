@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horsepower — Surface + Rebuild (true-to-design)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:'Inter',sans-serif;color:#21314f;background:#e4e0d6;display:flex;flex-direction:column;overflow:hidden}
+  .app{flex:1;display:flex;flex-direction:column;min-height:0;background:#f4efe2;background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:20px 20px}
+  .bar{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:23px}
+  .tabs{display:flex;gap:6px;margin-left:6px}
+  .tab{font-family:'Patrick Hand';font-size:13px;border:2px solid #21314f;border-radius:10px 10px 0 0;padding:5px 15px;background:#e7ddc6;cursor:pointer;position:relative;top:2px}
+  .tab.on{background:#fffaf0;border-bottom-color:#fffaf0}
+  .tab small{display:block;font-size:8.5px;color:#8a7;font-family:'Inter';font-weight:600}
+  .code{font-family:'Patrick Hand';font-size:12px;background:#ffd24a;border:2px solid #21314f;border-radius:11px;padding:2px 10px;transform:rotate(-1.2deg)}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:20px}
+  .view{flex:1;display:none;min-height:0}.view.on{display:flex}
+  #surface{flex-direction:row}#rebuild{flex-direction:column}
+  .pane{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .chat{background:#fffaf0;flex:0 0 34%}
+  .ch-h{font-family:'Caveat';font-weight:700;font-size:17px;padding:10px 13px 4px;display:flex;align-items:center;gap:7px}
+  .feed{flex:1;overflow-y:auto;padding:8px 13px;display:flex;flex-direction:column;gap:7px}
+  .m{max-width:92%;padding:7px 10px;font-size:13px;line-height:1.4;border-radius:12px;opacity:0;transform:translateY(6px);transition:.35s}
+  .m.show{opacity:1;transform:none}
+  .m.ai{background:#fff;border:2px solid #e23b3b;border-radius:12px 12px 12px 3px;font-family:'Patrick Hand';font-size:13.5px}
+  .m.user{align-self:flex-end;background:#dbe6ff;border:2px solid #21314f;border-radius:12px 12px 3px 12px}
+  .composer{display:flex;gap:6px;padding:9px 12px;border-top:2px dashed #d9cfb3}
+  .composer input{flex:1;font:inherit;font-size:12.5px;border:1.5px solid #c7cdda;border-radius:9px;padding:7px 9px}
+  .composer button{font-family:'Patrick Hand';background:#21314f;color:#fff;border:none;border-radius:9px;padding:7px 12px;cursor:pointer}
+  .divider{width:8px;cursor:col-resize;background:repeating-linear-gradient(#b9b094 0 6px,transparent 6px 12px);flex:0 0 8px}
+  .cwrap{flex:1;display:flex;flex-direction:column;min-height:0;background:#fffaf0}
+  .toolbar{display:flex;align-items:center;gap:5px;padding:7px 10px;border-bottom:2px dashed #d9cfb3;flex-wrap:wrap}
+  .tool{display:flex;align-items:center;gap:5px;font-family:'Patrick Hand';font-size:12px;border:2px solid #21314f;border-radius:8px;padding:4px 9px;background:#fff;cursor:pointer;user-select:none}
+  .tool .sw{width:12px;height:12px;border-radius:3px;border:2px solid}
+  .tool.on{box-shadow:0 0 0 3px #ffd24a;background:#fffaf0}
+  .tool.persona .sw{background:#f3e8ff;border-color:#7c3aed}.tool.trigger .sw{background:#cfe0d2;border-color:#21314f;border-radius:50%}
+  .tool.input .sw{background:#f1f1ec;border-color:#9a9a8a}.tool.phase .sw{background:#fff9ec;border-color:#21314f}
+  .tool.moment .sw{background:#dbe6ff;border-color:#21314f}.tool.intent .sw{background:#fff7df;border-color:#b8860b}
+  .tool.outcome .sw{background:#ffd24a;border-color:#21314f}.tool.agent .sw{background:#e7f0ff;border-color:#2b3a55}
+  .tool.text .sw{border:none;font-weight:700;width:auto}.tool.text .sw::before{content:'T';font-family:Georgia,serif}
+  .tool.arrow .sw{border:none;width:16px;height:0;border-top:2px solid #21314f;position:relative}
+  .tool.arrow .sw::after{content:'▶';position:absolute;right:-3px;top:-7px;font-size:8px}
+  .tool.select{background:#cfe0d2}
+  .hintbar{margin-left:auto;font-family:'Patrick Hand';font-size:12px;color:#7a5c3e;background:#fff3cf;border:1.5px solid #e0b87a;border-radius:7px;padding:3px 9px}
+  .cv{flex:1;min-height:0;position:relative}
+  svg.board{width:100%;height:100%;display:block;touch-action:none}
+  svg.board.placing{cursor:copy}svg.board.connecting{cursor:crosshair}
+  .node{cursor:grab}.node text{pointer-events:none;user-select:none}.ring{display:none}.node.sel .ring{display:block}
+  .linkhit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer}
+  .midhandle{fill:#ffd24a;stroke:#21314f;stroke-width:2;cursor:grab}.resizehandle{fill:#fff;stroke:#21314f;stroke-width:1.8}
+  .inlineedit{width:100%;height:100%;border:none;background:#fff;font-family:'Patrick Hand';text-align:center;color:#21314f;outline:2px solid #ffd24a;border-radius:6px;padding:0 4px}
+  .gov{display:flex;gap:5px;flex-wrap:wrap;padding:6px 12px;border-top:2px dashed #d9cfb3}
+  .gv{font-family:'Patrick Hand';font-size:11px;border:2px solid #d9cfb3;border-radius:999px;padding:2px 9px;color:#a99;background:#fff}
+  .gv.ok{border-color:#2e7d52;color:#2e7d52;background:#e6f4ec}.gv.thin{border-color:#d9920b;color:#b3760b;background:#fff6e3}
+  .brief{display:flex;gap:8px;padding:8px 14px;border-bottom:2px dashed #d9cfb3;background:#faf5ff;flex-wrap:wrap;font-size:11px}
+  .bc{background:#fff;border:1.5px solid #c4a3f0;border-radius:8px;padding:3px 9px;color:#5b21b6;line-height:1.3}.bc b{color:#3a1d6e}
+  .rb-body{flex:1;position:relative;min-height:0;display:flex;flex-direction:column}
+  .coachdock{position:absolute;right:14px;bottom:14px;width:290px;max-height:58%;background:#fffaf0;border:2px solid #21314f;border-radius:13px;box-shadow:0 12px 30px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:20}
+  .cd-h{font-family:'Caveat';font-weight:700;font-size:15px;padding:7px 11px;border-bottom:2px dashed #d9cfb3;display:flex;align-items:center;gap:6px}
+  .cd-h .dot{width:8px;height:8px;border-radius:50%;background:#2e7d52}
+  .cd-feed{flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <span class="logo">🐎 Horsepower</span>
+    <div class="tabs"><div class="tab on" data-v="surface">Surface<small>capture what is</small></div><div class="tab" data-v="rebuild">Rebuild<small>reinvent it</small></div></div>
+    <span class="code">team · K7PD</span><span class="timer">⏱ 17:42</span>
+  </div>
+  <div class="view on" id="surface">
+    <div class="pane chat" id="s-chat">
+      <div class="ch-h">🖊️ the Coach · digging for the key pieces</div>
+      <div class="feed" id="s-feed"></div>
+      <div class="composer"><input placeholder="dump a thought, any order…"><button>Send</button></div>
+    </div>
+    <div class="divider" id="divider"></div>
+    <div class="pane cwrap" id="s-mount" style="flex:1"></div>
+  </div>
+  <div class="view" id="rebuild">
+    <div class="brief">
+      <span class="bc"><b>NEED</b> invoice → suppliers paid on time</span>
+      <span class="bc"><b>WANT</b> no late penalties · trusted suppliers</span>
+      <span class="bc"><b>⚠ AREAS</b> slow · manual · error-prone</span>
+      <span class="bc"><b>🔒 CANDIDATE CONSTRAINTS</b> GM accountable &gt;£10k? · compliance?</span>
+    </div>
+    <div class="rb-body">
+      <div class="cwrap" id="r-mount" style="flex:1"></div>
+      <div class="coachdock">
+        <div class="cd-h"><span class="dot"></span> the Coach · spurring the rebuild</div>
+        <div class="cd-feed" id="r-feed"></div>
+        <div class="composer"><input placeholder="ask, or just build…"><button>Send</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let activeCanvas=null;
+const TYPEFILL={persona:'#f3e8ff',trigger:'#cfe0d2',input:'#f1f1ec',phase:'#fff9ec',moment:'#dbe6ff',intent:'#fff7df',outcome:'#ffd24a',agent:'#e7f0ff',text:'transparent'};
+const TYPESTROKE={persona:'#7c3aed',trigger:'#21314f',input:'#9a9a8a',phase:'#21314f',moment:'#21314f',intent:'#b8860b',outcome:'#21314f',agent:'#2b3a55',text:'none'};
+const LABELS={select:'✋ Select',persona:'👤 Persona',trigger:'Trigger',input:'Input',phase:'Phase',moment:'Moment',intent:'💡 Intent',outcome:'Outcome',agent:'⚡ Agent',text:'Text',arrow:'Arrow'};
+const DEF={persona:{w:160,h:46,label:'👤 persona'},trigger:{w:120,h:74,label:'trigger'},input:{w:120,h:38,label:'input'},phase:{w:190,h:120,label:'Phase'},moment:{w:144,h:44,label:'moment'},intent:{w:210,h:50,label:'intent: why?'},outcome:{w:140,h:62,label:'outcome'},agent:{w:230,h:104,label:'⚡ agent'},text:{w:120,h:30,label:'text'}};
+const CUR={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
+
+function makeCanvas(mount, seedNodes, seedLinks, tools){
+  mount.innerHTML=`<div class="toolbar">${tools.map(t=>`<div class="tool ${t} ${t==='select'?'on':''}" data-tool="${t}">${['select','persona','intent','agent','text'].includes(t)?'':'<span class="sw"></span>'}${t==='text'?'<span class="sw"></span>':''}${LABELS[t]}</div>`).join('')}<div class="hintbar">pick a block, click to drop</div></div><div class="cv"><svg class="board" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"></svg></div>`;
+  const board=mount.querySelector('.board'), hint=mount.querySelector('.hintbar');
+  const K='k'+Math.floor(performance.now()*1000%1e7);
+  let nodes=seedNodes.slice(),links=seedLinks.slice(),uid=200,lid=200;
+  let tool='select',selNode=null,selLink=null,connectFrom=null,drag=null,dragMid=null,dragResize=null;
+  const byId=id=>nodes.find(n=>n.id===id),byLid=id=>links.find(l=>l.id===id),ctr=n=>[n.x+n.w/2,n.y+n.h/2];
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])),escA=s=>String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  function sp(e){const p=board.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(board.getScreenCTM().inverse());}
+  function clip(n,tx,ty){const[cx,cy]=ctr(n);let dx=tx-cx,dy=ty-cy;if(!dx&&!dy)return[cx,cy];const t=Math.min((n.w/2)/Math.abs(dx||1e-6),(n.h/2)/Math.abs(dy||1e-6));return[cx+dx*t,cy+dy*t];}
+  function geom(l){const a=byId(l.from),b=byId(l.to);if(!a||!b)return null;
+    if(l.mid){const s=clip(a,l.mid.x,l.mid.y),e=clip(b,l.mid.x,l.mid.y);return{d:`M${s[0]} ${s[1]} L${l.mid.x} ${l.mid.y} L${e[0]} ${e[1]}`,h:[l.mid.x,l.mid.y]};}
+    const[bx,by]=ctr(b),[ax,ay]=ctr(a),s=clip(a,bx,by),e=clip(b,ax,ay),mx=(s[0]+e[0])/2,my=(s[1]+e[1])/2;
+    return{d:`M${s[0]} ${s[1]} C${mx} ${s[1]}, ${mx} ${e[1]}, ${e[0]} ${e[1]}`,h:[mx,my]};}
+  function setTool(t){tool=t;connectFrom=null;mount.querySelectorAll('.tool').forEach(el=>el.classList.toggle('on',el.dataset.tool===t));
+    board.classList.toggle('placing',!!DEF[t]);board.classList.toggle('connecting',t==='arrow');
+    hint.textContent=DEF[t]?`click to drop a ${t}`:t==='arrow'?'click the FROM block':'drag · dbl-click to type · drag corners to resize';}
+  function render(){
+    let lh='';links.forEach(l=>{const g=geom(l);if(!g)return;const s=l.id===selLink;
+      lh+=`<path class="linkhit" data-lid="${l.id}" d="${g.d}"/><path d="${g.d}" stroke="${s?'#21314f':'#9aa3b8'}" stroke-width="${s?2.8:2.4}" fill="none" marker-end="url(#ar${K})"/>`;
+      if(s)lh+=`<circle class="midhandle" data-lid="${l.id}" cx="${g.h[0]}" cy="${g.h[1]}" r="6"/>`;});
+    let nh='';nodes.forEach(n=>{const sel=n.id===selNode?'sel':'';const fs=n.fontSize||(n.type==='phase'||n.type==='agent'?13:12);
+      const isText=n.type==='text';const stk=n.locked?'#7c3aed':TYPESTROKE[n.type];const dash=n.locked?' stroke-dasharray="6 4"':'';
+      const shape=isText?`<rect width="${n.w}" height="${n.h}" fill="transparent"/>`
+        :n.type==='trigger'?`<ellipse cx="${n.w/2}" cy="${n.h/2}" rx="${n.w/2}" ry="${n.h/2}" fill="${TYPEFILL[n.type]}" stroke="${stk}" stroke-width="2.6"${dash} filter="url(#ruf${K})"/>`
+        :`<rect width="${n.w}" height="${n.h}" rx="12" fill="${TYPEFILL[n.type]}" stroke="${stk}" stroke-width="2.6"${dash} filter="url(#ruf${K})"/>`;
+      const ring=n.type==='trigger'?`<ellipse class="ring" cx="${n.w/2}" cy="${n.h/2}" rx="${n.w/2+5}" ry="${n.h/2+5}" fill="none" stroke="#ffd24a" stroke-width="2.2" stroke-dasharray="5 4"/>`
+        :`<rect class="ring" x="-5" y="-5" width="${n.w+10}" height="${n.h+10}" rx="14" fill="none" stroke="#ffd24a" stroke-width="2.2" stroke-dasharray="5 4"/>`;
+      const ty=(n.type==='phase'||n.type==='agent')?fs+9:n.h/2+fs/3;
+      const body=`<text x="${n.w/2}" y="${ty}" text-anchor="middle" font-size="${fs}" font-family="Patrick Hand" fill="#21314f">${esc(n.label)}</text>`;
+      nh+=`<g class="node ${sel}" data-id="${n.id}" transform="translate(${n.x},${n.y})">${ring}${shape}${body}</g>`;});
+    let rh='';if(selNode){const n=byId(selNode);if(n&&!n.locked){const H=[['nw',n.x,n.y],['n',n.x+n.w/2,n.y],['ne',n.x+n.w,n.y],['e',n.x+n.w,n.y+n.h/2],['se',n.x+n.w,n.y+n.h],['s',n.x+n.w/2,n.y+n.h],['sw',n.x,n.y+n.h],['w',n.x,n.y+n.h/2]];
+      rh=H.map(([d,hx,hy])=>`<rect class="resizehandle" data-dir="${d}" data-id="${n.id}" x="${hx-4.5}" y="${hy-4.5}" width="9" height="9" rx="2" style="cursor:${CUR[d]}"/>`).join('');}}
+    board.innerHTML=`<defs><filter id="ruf${K}"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter>
+      <marker id="ar${K}" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#9aa3b8"/></marker></defs>${lh}${nh}${rh}`;
+  }
+  function startEdit(id){const n=byId(id);if(!n||n.locked)return;selNode=id;selLink=null;render();
+    const ctm=board.getScreenCTM();const sx=ctm.a*n.x+ctm.e,sy=ctm.d*n.y+ctm.f,sw=n.w*ctm.a,sh=n.h*ctm.d;
+    const inp=document.createElement('input');inp.value=n.label;
+    inp.style.cssText=`position:fixed;left:${sx}px;top:${sy+sh/2-15}px;width:${Math.max(60,sw)}px;height:30px;font-family:'Patrick Hand';font-size:${(n.fontSize||12)*ctm.a}px;text-align:center;border:2px solid #ffd24a;border-radius:6px;background:#fff;color:#21314f;z-index:9999;outline:none`;
+    document.body.appendChild(inp);inp.focus();inp.select();let gone=false;
+    const done=esc=>{if(gone)return;gone=true;if(!esc)n.label=inp.value;inp.remove();render();};
+    inp.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter')done();else if(ev.key==='Escape')done(true);};
+    inp.onblur=()=>done();}
+
+  board.addEventListener('pointerdown',e=>{ const p=sp(e);
+    const mh=e.target.closest('.midhandle');if(mh){dragMid=byLid(mh.dataset.lid);board.setPointerCapture(e.pointerId);return;}
+    const rhEl=e.target.closest('.resizehandle');if(rhEl){const n=byId(rhEl.dataset.id);dragResize={n,dir:rhEl.dataset.dir,x1:n.x+n.w,y1:n.y+n.h};board.setPointerCapture(e.pointerId);return;}
+    if(DEF[tool]){const d=DEF[tool];const n={id:'n'+(uid++),type:tool,x:p.x-d.w/2,y:p.y-d.h/2,w:d.w,h:d.h,label:d.label};nodes.push(n);selLink=null;if(tool==='text'){setTool('select');startEdit(n.id);}else{selNode=n.id;setTool('select');render();}return;}
+    const g=e.target.closest('.node');
+    if(tool==='arrow'){if(g){const id=g.dataset.id;if(!connectFrom){connectFrom=id;selNode=id;hint.textContent='now click the TO block';render();}else if(id!==connectFrom){links.push({id:'l'+(lid++),from:connectFrom,to:id,mid:null});connectFrom=null;setTool('select');render();}}return;}
+    if(g){selNode=g.dataset.id;selLink=null;const n=byId(selNode);drag={n,dx:p.x-n.x,dy:p.y-n.y};g.setPointerCapture(e.pointerId);render();return;}
+    const lp=e.target.closest('.linkhit');if(lp){selLink=lp.dataset.lid;selNode=null;render();return;}
+    selNode=null;selLink=null;render();});
+  board.addEventListener('pointermove',e=>{const p=sp(e);
+    if(drag){drag.n.x=p.x-drag.dx;drag.n.y=p.y-drag.dy;render();}
+    else if(dragMid){dragMid.mid={x:p.x,y:p.y};render();}
+    else if(dragResize){const {n,dir,x1,y1}=dragResize,minW=n.type==='phase'||n.type==='agent'?100:40,minH=28;
+      if(dir.includes('e'))n.w=Math.max(minW,p.x-n.x);
+      if(dir.includes('s'))n.h=Math.max(minH,p.y-n.y);
+      if(dir.includes('w')){n.x=Math.min(p.x,x1-minW);n.w=x1-n.x;}
+      if(dir.includes('n')){n.y=Math.min(p.y,y1-minH);n.h=y1-n.y;}
+      render();}});
+  board.addEventListener('pointerup',()=>{drag=null;dragMid=null;dragResize=null;});
+  board.addEventListener('dblclick',e=>{const g=e.target.closest('.node');if(g){startEdit(g.dataset.id);return;}
+    const lp=e.target.closest('.linkhit');if(lp){const l=byLid(lp.dataset.lid);const gm=geom(l);if(!l.mid)l.mid={x:gm.h[0],y:gm.h[1]};selLink=l.id;selNode=null;hint.textContent='drag the gold dot to adjust the angle';render();}});
+  board.addEventListener('pointerenter',()=>{activeCanvas={bump:d=>{if(selNode){const n=byId(selNode);n.fontSize=Math.max(8,(n.fontSize||12)+d);render();}},del:()=>{if(selNode){const n=byId(selNode);if(n&&n.locked)return;nodes=nodes.filter(n=>n.id!==selNode);links=links.filter(l=>l.from!==selNode&&l.to!==selNode);selNode=null;render();}else if(selLink){links=links.filter(l=>l.id!==selLink);selLink=null;render();}}};});
+  mount.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));
+  render();
+}
+document.addEventListener('keydown',e=>{ if(/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName))return; if(!activeCanvas)return;
+  if(e.key==='+'||e.key==='='){activeCanvas.bump(1);}else if(e.key==='-'||e.key==='_'){activeCanvas.bump(-1);}
+  else if(e.key==='Delete'||e.key==='Backspace'){activeCanvas.del();}});
+
+makeCanvas(document.getElementById('s-mount'),
+  [{id:'n1',type:'persona',x:36,y:18,w:160,h:46,label:'👤 OpCo GM'},
+   {id:'n2',type:'trigger',x:46,y:210,w:120,h:74,label:'invoice arrives'},
+   {id:'n3',type:'input',x:40,y:330,w:140,h:38,label:'inputs: PO·ledger'},
+   {id:'n4',type:'phase',x:300,y:160,w:200,h:140,label:'OpCo drafts AP'},
+   {id:'n5',type:'moment',x:330,y:330,w:150,h:44,label:'GM reviews ⚠'},
+   {id:'n6',type:'intent',x:300,y:430,w:240,h:50,label:'intent: paid on time, terms kept'},
+   {id:'n7',type:'outcome',x:770,y:200,w:150,h:64,label:'no late penalties'}],
+  [{id:'l1',from:'n2',to:'n4',mid:null},{id:'l2',from:'n4',to:'n7',mid:null}],
+  ['select','persona','trigger','input','phase','moment','intent','outcome','text','arrow']);
+
+makeCanvas(document.getElementById('r-mount'),
+  [{id:'r0',type:'persona',x:130,y:46,w:200,h:48,label:'🔒 OpCo GM (accountable)',locked:true},
+   {id:'r1',type:'trigger',x:560,y:70,w:120,h:74,label:'invoice arrives',locked:true},
+   {id:'r5',type:'input',x:740,y:380,w:160,h:38,label:'🔒 inputs: PO·ledger',locked:true},
+   {id:'r2',type:'intent',x:60,y:380,w:260,h:52,label:'🔒 paid on time, terms kept',locked:true},
+   {id:'r3',type:'outcome',x:430,y:440,w:170,h:66,label:'🔒 no late penalties',locked:true}],
+  [],
+  ['select','persona','trigger','phase','moment','intent','outcome','agent','text','arrow']);
+
+function feed(el,msgs){el.innerHTML='';msgs.forEach((m,i)=>setTimeout(()=>{const d=document.createElement('div');d.className='m '+m[0];d.innerHTML=m[1];el.appendChild(d);requestAnimationFrame(()=>d.classList.add('show'));el.scrollTop=9e9;},600+i*1500));}
+feed(document.getElementById('s-feed'),[
+  ['user','invoice comes in, someone handles it, then approved & paid. reconcile ~3 days.'],
+  ['ai','🖊️ I\'ve started the canvas. Let\'s pin the key pieces — who <b>owns</b> it? <i>(persona ✓ added)</i>'],
+  ['ai','What\'s the <b>intent</b> — why does it exist? Not "a report" — the decision it drives.'],
+  ['ai','Any <b>moments that matter</b> inside "drafts AP"? Flag the painful ones ⚠.'],
+  ['ai','Add blocks by hand on the right anytime — I keep the arrows attached.']]);
+feed(document.getElementById('r-feed'),[
+  ['ai','I\'ve <b>scattered the locked pieces</b> (persona · intent · outcome · trigger · inputs) — no old structure. Make sense of them, then build the new HOW.'],
+  ['ai','No old steps — build from the need. What <b>capability</b> gets you invoice → paid?'],
+  ['ai','You kept GM — does he <b>decide</b>, or just need to be <b>informed</b>?'],
+  ['ai','Push it: could the <b>agent</b> auto-pay the clean ones and escalate only exceptions?']]);
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));t.classList.add('on');document.getElementById(t.dataset.v).classList.add('on');});
+(function(){const div=document.getElementById('divider'),chat=document.getElementById('s-chat'),view=document.getElementById('surface');let on=false;
+  div.addEventListener('pointerdown',e=>{on=true;div.setPointerCapture(e.pointerId);});
+  div.addEventListener('pointermove',e=>{if(!on)return;const r=view.getBoundingClientRect();let p=(e.clientX-r.left)/r.width*100;p=Math.max(22,Math.min(60,p));chat.style.flex='0 0 '+p+'%';});
+  div.addEventListener('pointerup',()=>on=false);})();
+</script>
+</body>
+</html>

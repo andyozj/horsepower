@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Redesign v2 (constraint-vs-HOW facilitation)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1160px;margin:0 auto;padding:26px 20px 90px}
+  h1{font-family:'Fraunces';font-size:23px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:820px;line-height:1.5;margin:0 0 12px;font-size:13.5px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#ffd24a;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .pill.phase{background:#0f172a;color:#fff;transform:none;border-color:#0f172a}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  /* abstract brief — NO old steps */
+  .brief{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:12px 18px;border-bottom:2px dashed #d9cfb3;background:#faf7f0}
+  @media(max-width:760px){.brief{grid-template-columns:1fr}}
+  .bcard{border:2px solid #c9bfa6;border-radius:10px;padding:8px 11px;background:#fff}
+  .bcard .t{font-family:'Permanent Marker';font-size:10px;letter-spacing:.05em;color:#7a5c3e;margin-bottom:3px}
+  .bcard .v{font-size:12px;line-height:1.4;color:#3a4a6a}
+  .bcard.warn{border-color:#e0b87a;background:#fff7e9}
+  .nohow{padding:6px 18px;font-size:11.5px;color:#9a7;font-style:italic;border-bottom:2px dashed #d9cfb3;background:#f4f8f1}
+
+  /* steps */
+  .steps{display:flex;gap:8px;padding:9px 18px;border-bottom:2px dashed #d9cfb3;flex-wrap:wrap}
+  .steps .s{font-family:'Patrick Hand';font-size:12.5px;color:#a99;border:2px solid #d9cfb3;border-radius:999px;padding:3px 12px;transition:.3s}
+  .steps .s.on{color:#21314f;border-color:#21314f;background:#fff}
+
+  .cols{display:grid;grid-template-columns:1fr 0.95fr;gap:0}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+
+  /* dialogue */
+  .feedwrap{padding:14px 15px;border-right:2px dashed #b9b094;min-height:480px;display:flex;flex-direction:column}
+  .feedwrap .h{font-family:'Caveat';font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .feed{flex:1;display:flex;flex-direction:column;gap:8px}
+  .m{opacity:0;transform:translateY(7px);transition:.38s;max-width:90%}
+  .m.show{opacity:1;transform:none}
+  .ask{background:#fff;border:2px solid #e23b3b;border-radius:13px 13px 13px 4px;padding:8px 11px;font-family:'Patrick Hand';font-size:14px}
+  .ask .tag{display:block;font-family:'Permanent Marker';font-size:9px;color:#e02d2d;margin-bottom:2px;letter-spacing:.04em}
+  .team{align-self:flex-end;background:#dbe6ff;border:2px solid #21314f;border-radius:13px 13px 4px 13px;padding:8px 11px;font-family:'Patrick Hand';font-size:13.5px}
+  .verdict{border-radius:11px;padding:7px 11px;font-family:'Patrick Hand';font-size:13.5px}
+  .verdict.sold{background:#e6f4ec;border:2px solid #2e7d52;color:#1f5c3c}
+  .verdict.killed{background:#fdeaea;border:2px solid #e02d2d;color:#a31d1d}
+  .verdict .tag{font-family:'Permanent Marker';font-size:9px;letter-spacing:.04em}
+
+  /* ledger + map */
+  .right{padding:14px 16px 16px}
+  .right .h{font-family:'Caveat';font-weight:700;font-size:18px;margin:0 0 8px}
+  .ledger{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .col .ct{font-family:'Permanent Marker';font-size:10px;letter-spacing:.04em;margin-bottom:5px}
+  .col.keep .ct{color:#2e7d52}.col.kill .ct{color:#e02d2d}
+  .led{font-size:11.5px;border-radius:8px;padding:5px 8px;margin-bottom:5px;opacity:0;transform:translateX(-5px);transition:.4s;line-height:1.3}
+  .led.show{opacity:1;transform:none}
+  .led .ty{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
+  .led.keep{background:#eaf6ee;border:1.5px solid #9cc9ad;color:#1f5c3c}
+  .led.kill{background:#fdecec;border:1.5px solid #e3a3a3;color:#a31d1d;text-decoration:line-through}
+  .map{border-top:2px dashed #d9cfb3;padding-top:10px}
+  .rv{opacity:0;transform:scale(.94);transition:.5s}.rv.show{opacity:1;transform:none}
+  .doneband{opacity:0;transition:.5s;margin:8px 16px 16px;text-align:center;font-family:'Permanent Marker';color:#2e7d52;border:3px solid #2e7d52;border-radius:8px;padding:9px;transform:rotate(-1deg)}
+  .doneband.show{opacity:.95}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Redesign v2 — the team designs; the AI tests every piece "constraint, or HOW?"</h1>
+  <p class="sub">No old steps are shown (swap stripped the HOW). The AI guides the team through <b>absorb → identify areas → design</b>, and is a <b>fair skeptic</b>: it challenges every phase / moment / person, gets <b>sold</b> on the real constraints and <b>demolishes</b> the HOW. It never hands over the answer.</p>
+  <div class="controls"><button class="btn" id="replay">↻ Replay</button><span class="hint" id="hint">playing…</span></div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span><span class="pill phase">REDESIGN</span>
+      <span class="timer">⏱ 24:50</span>
+    </div>
+
+    <div class="brief">
+      <div class="bcard"><div class="t">NEED</div><div class="v">An invoice arrives → suppliers must be <b>paid on time</b>, credit terms kept.</div></div>
+      <div class="bcard"><div class="t">WANT</div><div class="v">No late-payment penalties · a trusted supplier base.</div></div>
+      <div class="bcard warn"><div class="t">PROBLEMS TODAY</div><div class="v">Slow, manual, error-prone — payments often late. <i>(symptoms, not steps)</i></div></div>
+    </div>
+    <div class="nohow">🚫 the old phases &amp; steps are hidden on purpose — there's nothing to retrofit.</div>
+
+    <div class="steps">
+      <span class="s" data-s="1">① absorb the brief</span>
+      <span class="s" data-s="2">② identify the areas</span>
+      <span class="s" data-s="3">③ design the HOW</span>
+    </div>
+
+    <div class="cols">
+      <div class="feedwrap">
+        <div class="h">
+          <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="21" r="14" fill="#fff" stroke="#21314f" stroke-width="2.2"/><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/></svg>
+          The Coach · fair skeptic
+        </div>
+        <div class="feed" id="feed"></div>
+      </div>
+
+      <div class="right">
+        <div class="h">Constraint vs HOW</div>
+        <div class="ledger">
+          <div class="col keep"><div class="ct">✓ REAL CONSTRAINTS — keep</div><div id="keep"></div></div>
+          <div class="col kill"><div class="ct">✕ HOW — demolish</div><div id="kill"></div></div>
+        </div>
+        <div class="map">
+          <div style="font-family:'Caveat';font-weight:700;font-size:16px;margin-bottom:4px">The redesign (theirs)</div>
+          <svg viewBox="0 0 480 150" width="100%">
+            <defs><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.3"/></filter></defs>
+            <g filter="url(#r)" font-family="'Patrick Hand'">
+              <g class="rv" data-at="map">
+                <ellipse cx="40" cy="75" rx="34" ry="28" fill="#cfe0d2" stroke="#21314f" stroke-width="2.4"/>
+                <text x="40" y="72" text-anchor="middle" font-size="10" fill="#21314f">invoice</text><text x="40" y="86" text-anchor="middle" font-size="10" fill="#21314f">arrives</text>
+                <path d="M76 75 C96 67,106 83,128 75" stroke="#21314f" stroke-width="2.3" fill="none"/><path d="M121 69 L130 75 L121 81" stroke="#21314f" stroke-width="2.3" fill="none"/>
+                <rect x="132" y="40" width="172" height="72" rx="13" fill="#e7f0ff" stroke="#2b3a55" stroke-width="2.6"/>
+                <text x="218" y="60" text-anchor="middle" font-size="12" fill="#1d2b4a" font-weight="bold">⚡ Payments agent</text>
+                <text x="218" y="77" text-anchor="middle" font-size="9" fill="#3a4a6a">validates · runs compliance ·</text>
+                <text x="218" y="91" text-anchor="middle" font-size="9" fill="#3a4a6a">auto-pays the clean ones</text>
+                <text x="218" y="105" text-anchor="middle" font-size="9" fill="#3a4a6a">(no human draft, no report)</text>
+                <path d="M304 75 C324 67,334 83,356 75" stroke="#21314f" stroke-width="2.3" fill="none"/><path d="M349 69 L358 75 L349 81" stroke="#21314f" stroke-width="2.3" fill="none"/>
+                <rect x="360" y="48" width="112" height="56" rx="12" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2.4"/>
+                <text x="416" y="70" text-anchor="middle" font-size="9.5" fill="#5b21b6">👤 GM approves</text><text x="416" y="86" text-anchor="middle" font-size="9.5" fill="#5b21b6">only &gt; £10k</text>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="doneband" id="done">✓ REDESIGN, NOT RETROFIT — within the real constraints, every old step gone</div>
+  </div>
+</div>
+
+<script>
+  const feed=document.getElementById('feed'), hint=document.getElementById('hint');
+  let timers=[]; const T=(fn,d)=>timers.push(setTimeout(fn,d));
+  const step=n=>document.querySelectorAll('.steps .s').forEach(s=>s.classList.toggle('on',+s.dataset.s===n));
+
+  function msg(kind,html){
+    const el=document.createElement('div'); el.className='m';
+    if(kind==='ask') el.innerHTML=`<div class="ask"><span class="tag">✋ CHALLENGE</span>${html}</div>`;
+    else if(kind==='team') el.innerHTML=`<div class="team">${html}</div>`;
+    else if(kind==='sold') el.innerHTML=`<div class="verdict sold"><span class="tag">✓ SOLD — </span>${html}</div>`;
+    else el.innerHTML=`<div class="verdict killed"><span class="tag">✕ HOW — </span>${html}</div>`;
+    feed.appendChild(el); requestAnimationFrame(()=>el.classList.add('show'));
+    while(feed.children.length>7) feed.removeChild(feed.firstChild);
+  }
+  function led(side,type,label){
+    const el=document.createElement('div'); el.className='led '+(side==='keep'?'keep':'kill');
+    el.innerHTML=`<span class="ty">${type}</span><br>${label}`;
+    document.getElementById(side).appendChild(el); requestAnimationFrame(()=>el.classList.add('show'));
+  }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[]; feed.innerHTML='';
+    document.getElementById('keep').innerHTML=''; document.getElementById('kill').innerHTML='';
+    document.querySelector('.rv').classList.remove('show'); document.getElementById('done').classList.remove('show');
+    step(1); hint.textContent='playing…';
+
+    T(()=>{ step(2); msg('ask',"You've got the need and the want — no old steps, on purpose. From invoice → paid, what's actually needed? I'll test every piece: real constraint, or just how it's done today?"); }, 500);
+
+    // a PHASE -> HOW
+    T(()=>msg('team',"There's a reconcile step to catch errors."), 2400);
+    T(()=>msg('ask',"Is <b>reconcile</b> a need, or how it's done today? Why does the phase exist?"), 3500);
+    T(()=>msg('team',"…to make sure the numbers are correct before paying."), 5000);
+    T(()=>{ msg('killed',"the need is <b>correctness</b>, not a reconcile phase. An agent validates continuously — the phase is HOW."); led('kill','phase','“reconcile” phase'); }, 6100);
+
+    // a PERSON (accountable) -> SOLD
+    T(()=>msg('team',"We keep GM approval."), 7900);
+    T(()=>msg('ask',"Does the GM <b>decide</b>, or just need to be <b>informed</b>?"), 8900);
+    T(()=>msg('team',"He's legally accountable for anything over £10k."), 10300);
+    T(()=>{ msg('sold',"accountability is a hard constraint. Keep an accountable approval for >£10k."); led('keep','person · accountable','GM approves >£10k'); }, 11400);
+
+    // a PERSON (data) -> HOW
+    T(()=>msg('team',"And Sarah pulls the supplier data."), 13100);
+    T(()=>msg('ask',"If all Sarah does is add <b>data she holds</b> — do you need her, or can the system hold it?"), 14100);
+    T(()=>msg('team',"…honestly it's all in the system now. Don't need her in the loop."), 15600);
+    T(()=>{ msg('killed',"data-access artifact. The agent reads it directly — Sarah's out of the flow."); led('kill','person · data','Sarah, data-gatherer'); }, 16700);
+
+    // a CHECK (regulatory) -> SOLD
+    T(()=>msg('team',"There's a compliance check — regulator-required."), 18500);
+    T(()=>msg('ask',"Hard external boundary, or internal habit?"), 19500);
+    T(()=>msg('team',"Regulator-mandated and audited."), 20800);
+    T(()=>{ msg('sold',"real constraint. The AI can run it, but it stays."); led('keep','check · legal','regulator compliance'); }, 21900);
+
+    // design
+    T(()=>{ step(3); msg('ask',"Now design within just the real constraints. What's the HOW?"); }, 23800);
+    T(()=>{ msg('team',"One agent: validates, runs compliance, auto-pays clean ones — routes only >£10k to the GM. No report."); document.querySelector('.rv').classList.add('show'); }, 25400);
+    T(()=>{ msg('sold',"pays on time ✓ · GM accountability ✓ · compliance ✓ · every old step gone. That's a redesign."); document.getElementById('done').classList.add('show'); hint.textContent='done — hit replay'; }, 27600);
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

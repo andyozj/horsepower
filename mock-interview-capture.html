@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Interview-led Capture (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1120px;margin:0 auto;padding:30px 20px 90px}
+  h1{font-family:'Fraunces';font-size:25px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:760px;line-height:1.5;margin:0 0 16px;font-size:14px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#cfe0d2;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .btn.replay{background:#ffd24a}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  /* app frame — A vibe */
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  .cols{display:grid;grid-template-columns:0.92fr 1.08fr;gap:0}
+  @media(max-width:840px){.cols{grid-template-columns:1fr}}
+
+  /* LEFT — interview */
+  .chat{padding:16px 16px 14px;border-right:2px dashed #b9b094;min-height:460px;display:flex;flex-direction:column}
+  .chat .head{font-family:'Caveat';font-weight:700;font-size:20px;display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .feed{flex:1;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+  .msg{max-width:88%;padding:9px 12px;font-size:13.5px;line-height:1.46;border-radius:14px;opacity:0;transform:translateY(8px);transition:.4s}
+  .msg.show{opacity:1;transform:none}
+  .msg.ai{align-self:flex-start;background:#fff;border:2px solid #e23b3b;font-family:'Patrick Hand';font-size:14.5px;border-radius:15px 15px 15px 4px}
+  .msg.user{align-self:flex-end;background:#dbe6ff;border:2px solid #21314f;border-radius:15px 15px 4px 15px}
+  .msg.flag{align-self:flex-start;background:#fff3f3;border:2px dashed #e23b3b;color:#b3261e;font-family:'Caveat';font-weight:700;font-size:16px;border-radius:12px}
+  .composer{margin-top:10px;display:flex;gap:8px;align-items:center;border-top:2px dashed #d9cfb3;padding-top:10px}
+  .composer .inp{flex:1;font-family:'Inter';font-size:13px;color:#9aa3b8;background:#fff;border:1.5px solid #c7cdda;border-radius:9px;padding:8px 11px}
+  .composer .send{font-family:'Patrick Hand';font-size:13px;background:#21314f;color:#fff;border:none;border-radius:9px;padding:8px 14px}
+
+  /* RIGHT — living map + governance */
+  .canvas{padding:14px 16px 16px;position:relative}
+  .canvas .head{font-family:'Caveat';font-weight:700;font-size:20px;margin:0 0 6px}
+  .gov{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .gov .g{font-family:'Patrick Hand';font-size:12px;border:2px solid #c7bfa6;border-radius:999px;padding:2px 10px;color:#a99;background:#fff;transition:.4s}
+  .gov .g.ok{border-color:#2e7d52;color:#2e7d52;background:#e6f4ec}
+  .rv{opacity:0;transform:translateY(6px);transition:.55s}
+  .rv.show{opacity:1;transform:none}
+  .redpen{opacity:0;transition:.4s}
+  .redpen.show{opacity:1}
+  .doneband{opacity:0;transition:.5s;margin:10px 16px 16px;text-align:center;font-family:'Permanent Marker';color:#e02d2d;border:3px solid #e02d2d;border-radius:8px;padding:9px;transform:rotate(-1deg)}
+  .doneband.show{opacity:.92}
+  .legend{font-size:12px;color:#777;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Interview-led Capture — the AI builds the map as the team answers</h1>
+  <p class="sub">Typed, not spoken. The AI owns the framework (persona → trigger → input → phases/moments → intent → outcome), so completeness happens <b>by construction</b>. Watch the red pen when the team tries to say "a report."</p>
+  <div class="controls">
+    <button class="btn replay" id="replay">↻ Replay</button>
+    <span class="hint" id="hint">playing…</span>
+  </div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span>
+      <span class="pill">capture · part 1</span>
+      <span class="timer">⏱ 17:42</span>
+    </div>
+    <div class="cols">
+      <!-- INTERVIEW -->
+      <div class="chat">
+        <div class="head">
+          <svg width="28" height="28" viewBox="0 0 40 40"><circle cx="20" cy="21" r="14" fill="#fff" stroke="#21314f" stroke-width="2.2"/><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/></svg>
+          The Coach is interviewing you
+        </div>
+        <div class="feed" id="feed"></div>
+        <div class="composer">
+          <div class="inp" id="inp">type your answer…</div>
+          <button class="send">Send</button>
+        </div>
+      </div>
+
+      <!-- LIVING MAP -->
+      <div class="canvas">
+        <div class="head">Live map — building itself</div>
+        <div class="gov" id="gov">
+          <span class="g" data-k="persona">persona</span>
+          <span class="g" data-k="trigger">trigger</span>
+          <span class="g" data-k="input">input</span>
+          <span class="g" data-k="phases">phases</span>
+          <span class="g" data-k="intent">intent</span>
+          <span class="g" data-k="outcome">outcome</span>
+        </div>
+        <svg viewBox="0 0 520 300" width="100%">
+          <defs><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/></filter></defs>
+          <g filter="url(#r)" font-family="'Patrick Hand'">
+            <!-- personas (step1) -->
+            <g class="rv" data-at="1">
+              <rect x="14" y="14" width="150" height="40" rx="10" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+              <text x="89" y="32" text-anchor="middle" font-size="11" fill="#5b21b6">👤 OpCo GM</text>
+              <text x="89" y="46" text-anchor="middle" font-size="11" fill="#5b21b6">👤 RO Finance</text>
+            </g>
+            <!-- trigger (step2) -->
+            <g class="rv" data-at="2">
+              <ellipse cx="52" cy="150" rx="42" ry="34" fill="#cfe0d2" stroke="#21314f" stroke-width="2.5"/>
+              <text x="52" y="146" text-anchor="middle" font-size="11" fill="#21314f">invoice</text>
+              <text x="52" y="161" text-anchor="middle" font-size="11" fill="#21314f">arrives</text>
+            </g>
+            <!-- input (step3) -->
+            <g class="rv" data-at="3">
+              <text x="52" y="205" text-anchor="middle" font-size="10" fill="#66708a">inputs:</text>
+              <text x="52" y="218" text-anchor="middle" font-size="10" fill="#66708a">invoice · PO · ledger</text>
+            </g>
+            <!-- arrow + phase1 (step4) -->
+            <g class="rv" data-at="4">
+              <path d="M96 150 C118 142,130 158,152 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M145 144 L154 150 L145 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="156" y="78" width="158" height="150" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+              <text x="235" y="100" text-anchor="middle" font-size="13" fill="#21314f">OpCo drafts AP</text>
+            </g>
+            <!-- moments inside phase1 (step5) -->
+            <g class="rv" data-at="5">
+              <rect x="170" y="112" width="130" height="36" rx="8" fill="#dbe6ff" stroke="#21314f" stroke-width="1.8"/><text x="235" y="134" text-anchor="middle" font-size="10.5" fill="#21314f">GM reviews figures</text>
+              <rect x="170" y="156" width="130" height="44" rx="8" fill="#ffe3e3" stroke="#21314f" stroke-width="1.8"/><text x="235" y="176" text-anchor="middle" font-size="10.5" fill="#21314f">manual reconcile</text><text x="235" y="191" text-anchor="middle" font-size="9" fill="#21314f">3 days ⚠ pain</text>
+            </g>
+            <!-- arrow + phase2 (step6) -->
+            <g class="rv" data-at="6">
+              <path d="M314 150 C336 142,348 158,370 150" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M363 144 L372 150 L363 156" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="374" y="100" width="132" height="104" rx="14" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+              <text x="440" y="122" text-anchor="middle" font-size="13" fill="#21314f">RO approves</text>
+              <rect x="386" y="134" width="108" height="38" rx="8" fill="#dbe6ff" stroke="#21314f" stroke-width="1.8"/><text x="440" y="158" text-anchor="middle" font-size="10.5" fill="#21314f">schedule payment</text>
+            </g>
+            <!-- intent + outcome band (step8) -->
+            <g class="rv" data-at="8">
+              <rect x="156" y="244" width="350" height="46" rx="10" fill="#fff7df" stroke="#b8860b" stroke-width="2"/>
+              <text x="166" y="262" font-size="10.5" fill="#8a6d1b">INTENT → suppliers paid on time, credit terms kept</text>
+              <text x="166" y="280" font-size="10.5" fill="#8a6d1b">OUTCOME → no late-payment penalties, trusted supplier base</text>
+            </g>
+          </g>
+          <!-- RED PEN on the bad 'report' intent (step7) -->
+          <g class="redpen" data-at="7">
+            <path d="M168 256 C150 250,150 286,250 282 C320 279,330 256,316 248" fill="none" stroke="#e23b3b" stroke-width="2.6" stroke-linecap="round"/>
+            <text x="360" y="270" font-family="'Caveat'" font-weight="700" font-size="20" fill="#e23b3b" transform="rotate(-7 360 270)">why a report??</text>
+          </g>
+        </svg>
+        <div class="legend">The grey chips up top are the AI's <b>governance checklist</b> — they go green only when a real answer lands. It won't let you swap with a gap.</div>
+      </div>
+    </div>
+    <div class="doneband" id="done">✓ MAP COMPLETE — READY TO SWAP →</div>
+  </div>
+</div>
+
+<script>
+  // scripted interview turns -> reveal step on the map
+  const turns = [
+    {who:'ai',   t:"Let's start with who. Whose process is this — who owns it?"},
+    {who:'user', t:"Our OpCo GM, and the RO finance team.", step:1, gov:'persona'},
+    {who:'ai',   t:"Good — owner first, always. What kicks it off? The trigger."},
+    {who:'user', t:"A supplier invoice lands in the shared inbox.", step:2, gov:'trigger'},
+    {who:'ai',   t:"And what does it consume — the inputs?"},
+    {who:'user', t:"The invoice, the matching PO, and last month's ledger.", step:3, gov:'input'},
+    {who:'ai',   t:"Walk me through it. What happens first?"},
+    {who:'user', t:"OpCo drafts the AP.", step:4},
+    {who:'ai',   t:"Any moments that matter inside that — and who touches them?"},
+    {who:'user', t:"GM reviews the figures. The reconcile is manual — eats 3 days.", step:5, gov:'phases'},
+    {who:'ai',   t:"Noted that as a pain point. Then?"},
+    {who:'user', t:"RO approves and schedules the payment.", step:6},
+    {who:'ai',   t:"Now the why. What's the intent here — and don't tell me 'a report.'"},
+    {who:'user', t:"We want a monthly payments report.", step:7},
+    {who:'flag', t:"↜ a report isn't a reason. WHY do you need it — what decision does it drive?"},
+    {who:'user', t:"…so suppliers are paid on time and we keep our credit terms.", step:8, gov:'intent', gov2:'outcome'},
+    {who:'ai',   t:"That's an intent. Map's complete — owner, trigger, phases, intent, outcome. Ready to swap."},
+  ];
+
+  const feed = document.getElementById('feed');
+  const hint = document.getElementById('hint');
+  let timers = [];
+
+  function setStep(n){
+    document.querySelectorAll('.rv,.redpen').forEach(el=>{
+      if(+el.dataset.at <= n) el.classList.add('show');
+    });
+  }
+  function setGov(k){ if(!k) return; const g=document.querySelector(`.gov .g[data-k="${k}"]`); if(g) g.classList.add('ok'); }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[];
+    feed.innerHTML='';
+    document.querySelectorAll('.rv,.redpen').forEach(el=>el.classList.remove('show'));
+    document.querySelectorAll('.gov .g').forEach(el=>el.classList.remove('ok'));
+    document.getElementById('done').classList.remove('show');
+    hint.textContent='playing…';
+
+    let delay=500;
+    turns.forEach((turn,i)=>{
+      timers.push(setTimeout(()=>{
+        const m=document.createElement('div');
+        m.className='msg '+turn.who;
+        m.textContent=turn.t;
+        feed.appendChild(m);
+        requestAnimationFrame(()=>m.classList.add('show'));
+        // keep feed scrolled
+        while(feed.children.length>7) feed.removeChild(feed.firstChild);
+        if(turn.step!==undefined) setStep(turn.step);
+        if(turn.gov) setGov(turn.gov);
+        if(turn.gov2) setGov(turn.gov2);
+        if(i===turns.length-1){
+          timers.push(setTimeout(()=>{document.getElementById('done').classList.add('show'); hint.textContent='done — hit replay';},900));
+        }
+      }, delay));
+      delay += (turn.who==='ai'?1500 : turn.who==='flag'?1700 : 1700);
+    });
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

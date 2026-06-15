@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Vibe Explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
+<style>
+  :root{ font-family:'Inter',sans-serif; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0c0d10;color:#e7e9ee}
+  .page{max-width:1180px;margin:0 auto;padding:40px 24px 120px}
+  .intro h1{font-family:'Space Grotesk';font-size:30px;margin:0 0 6px}
+  .intro p{color:#9aa3b8;max-width:680px;line-height:1.55;margin:0 0 4px}
+  .nav{position:sticky;top:0;z-index:50;display:flex;gap:8px;flex-wrap:wrap;padding:14px 0;background:linear-gradient(#0c0d10,#0c0d10ee 70%,#0c0d1000);margin:18px 0 8px}
+  .nav a{font-size:13px;font-weight:600;color:#cbd2e0;text-decoration:none;padding:7px 13px;border:1px solid #2a2d36;border-radius:999px}
+  .nav a:hover{background:#1a1d24;border-color:#3a3f4d}
+  .vibe{margin:54px 0;border:1px solid #20232b;border-radius:20px;overflow:hidden;background:#101116}
+  .vibe > .label{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:20px 24px;border-bottom:1px solid #20232b}
+  .vibe > .label .n{font-family:'Space Grotesk';font-size:21px;font-weight:700}
+  .vibe > .label .tag{font-size:12px;color:#7f8a9e}
+  .vibe > .label .feel{flex:1;min-width:260px;color:#aeb6c6;font-size:13.5px;line-height:1.5}
+  .stage{padding:26px}
+  .cap{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6b7689;margin:0 0 12px}
+
+  /* ============ shared mock frame ============ */
+  .mock{border-radius:16px;overflow:hidden;border:1px solid rgba(0,0,0,.08)}
+  .mock .bar{display:flex;align-items:center;gap:12px;padding:12px 18px}
+  .mock .map{padding:22px}
+  .mock .coach{position:relative;margin:0 18px 18px;border-radius:14px;padding:12px 14px}
+  .bubble{max-width:78%;padding:9px 12px;font-size:13px;line-height:1.45;margin:6px 0;border-radius:13px}
+
+  /* ============ VIBE 1 — Living Whiteboard ============ */
+  #v1 .mock{background:#f4efe2;color:#241f17;
+    background-image:radial-gradient(rgba(150,135,105,.10) 1px,transparent 1px);background-size:20px 20px}
+  #v1 .bar{border-bottom:2px dashed #cbbf9f}
+  #v1 .bar .logo{font-family:'Caveat';font-weight:700;font-size:26px;color:#1a1712}
+  #v1 .pill{font-family:'Patrick Hand';font-size:15px;padding:3px 12px;border:2px solid #241f17;border-radius:14px 11px 16px 10px;background:#ffe08a;transform:rotate(-1.5deg)}
+  #v1 .pill.code{background:#bfe3c0;transform:rotate(1deg)}
+  #v1 .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:24px}
+  #v1 .map{font-family:'Patrick Hand'}
+  #v1 .coach{background:#fffaf0;border:2px solid #241f17;border-radius:18px 16px 20px 14px}
+  #v1 .coach .who{font-family:'Caveat';font-weight:700;font-size:19px;display:flex;align-items:center;gap:7px}
+  #v1 .coach .who .dot{width:10px;height:10px;border-radius:50%;background:#2e9e5b;border:1.5px solid #241f17}
+  #v1 .bubble{font-family:'Patrick Hand';font-size:14.5px}
+  #v1 .bubble.ai{background:#eaf3ff;border:2px solid #2b3a55;border-radius:16px 16px 16px 4px}
+  #v1 .bubble.user{margin-left:auto;background:#ffe08a;border:2px solid #241f17;border-radius:16px 16px 4px 16px}
+
+  /* ============ VIBE 2 — Expressive Abstract ============ */
+  #v2 .mock{background:#0a0a0d;color:#f0eef5;position:relative}
+  #v2 .blobwrap{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  #v2 .blob{position:absolute;border-radius:50%;filter:blur(38px);opacity:.55}
+  #v2 .b1{width:280px;height:240px;left:-60px;top:-60px;background:radial-gradient(circle,#6d5cff,#3b2bd6)}
+  #v2 .b2{width:320px;height:300px;right:-80px;top:30px;background:radial-gradient(circle,#ff5c8a,#ff8a3b)}
+  #v2 .b3{width:260px;height:220px;left:40%;bottom:-90px;background:radial-gradient(circle,#2ee6a8,#10b4d6)}
+  #v2 .bar,#v2 .map,#v2 .coach{position:relative;z-index:2}
+  #v2 .bar{border-bottom:1px solid #ffffff14}
+  #v2 .logo{font-family:'Fraunces';font-weight:600;font-size:21px;letter-spacing:-.01em}
+  #v2 .pill{font-family:'Space Grotesk';font-size:12px;font-weight:500;padding:4px 12px;border-radius:999px;background:#ffffff14;border:1px solid #ffffff22;backdrop-filter:blur(6px)}
+  #v2 .pill.code{background:linear-gradient(90deg,#6d5cff,#ff5c8a);border:none;color:#fff;font-weight:700;letter-spacing:.12em}
+  #v2 .timer{margin-left:auto;font-family:'Space Grotesk';font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+  #v2 .coach{background:#15131d99;border:1px solid #ffffff1f;backdrop-filter:blur(10px)}
+  #v2 .coach .who{font-family:'Fraunces';font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}
+  #v2 .coach .who .dot{width:9px;height:9px;border-radius:50%;background:#2ee6a8;box-shadow:0 0 10px #2ee6a8}
+  #v2 .bubble.ai{background:#ffffff12;border:1px solid #ffffff1c}
+  #v2 .bubble.user{margin-left:auto;background:linear-gradient(90deg,#6d5cff,#8b5cff);color:#fff}
+
+  /* ============ VIBE 3 — Sketchbook Noir (the blend) ============ */
+  #v3 .mock{background:#14131a;color:#ece8df;position:relative}
+  #v3 .grain{position:absolute;inset:0;opacity:.05;pointer-events:none;
+    background-image:radial-gradient(#fff 1px,transparent 1px);background-size:18px 18px}
+  #v3 .wash{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(700px 320px at 80% -10%,#ff6b9a22,transparent),radial-gradient(600px 300px at 0% 120%,#5ce0c022,transparent)}
+  #v3 .bar,#v3 .map,#v3 .coach{position:relative;z-index:2}
+  #v3 .bar{border-bottom:1.5px solid #ffffff14}
+  #v3 .logo{font-family:'Caveat';font-weight:700;font-size:26px;color:#fff}
+  #v3 .pill{font-family:'Patrick Hand';font-size:14px;padding:3px 12px;border:1.5px solid #ece8df;border-radius:13px 10px 15px 9px;transform:rotate(-1deg)}
+  #v3 .pill.code{color:#14131a;background:#ffd24a;border-color:#ffd24a;transform:rotate(1deg);font-weight:400}
+  #v3 .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:24px;color:#ffd24a}
+  #v3 .coach{background:#1c1b24cc;border:1.5px solid #ffffff22;border-radius:16px 14px 18px 12px}
+  #v3 .coach .who{font-family:'Caveat';font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px;color:#fff}
+  #v3 .coach .who .dot{width:9px;height:9px;border-radius:50%;background:#5ce0c0;box-shadow:0 0 10px #5ce0c0}
+  #v3 .bubble{font-family:'Patrick Hand';font-size:14.5px}
+  #v3 .bubble.ai{background:#23222e;border:1.5px solid #ffffff1f;border-radius:15px 15px 15px 4px}
+  #v3 .bubble.user{margin-left:auto;background:#ffd24a;color:#14131a;border-radius:15px 15px 4px 15px}
+
+  .note{font-size:12.5px;color:#7f8a9e;margin-top:14px;line-height:1.5}
+  footer{margin-top:80px;color:#6b7689;font-size:13px;border-top:1px solid #20232b;padding-top:24px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Workflow Studio — Vibe Explorations</h1>
+    <p>The same app — header, live workflow map, and AI coach — rendered in three artsy directions. This is about <em>feel</em>, not final pixels. Squint, react, tell me which one makes you go "yes, that."</p>
+  </div>
+
+  <div class="nav">
+    <a href="#v1">① Living Whiteboard</a>
+    <a href="#v2">② Expressive Abstract</a>
+    <a href="#v3">③ Sketchbook Noir (blend)</a>
+  </div>
+
+  <!-- ===================== VIBE 1 ===================== -->
+  <section class="vibe" id="v1">
+    <div class="label">
+      <span class="n">① Living Whiteboard</span>
+      <span class="tag">crayon · marker · paper</span>
+      <span class="feel">Warm, hand-made, zero-stakes. Everything looks drawn by hand on butcher paper. Disarms the room — "you can't draw this wrong." Reads <b>playground</b>, not boardroom.</span>
+    </div>
+    <div class="stage">
+      <p class="cap">The app, in this vibe</p>
+      <div class="mock">
+        <div class="bar">
+          <span class="logo">✱ Workflow Studio</span>
+          <span class="pill code">K7PD</span>
+          <span class="pill">capture</span>
+          <span class="timer">⏱ 6:00</span>
+        </div>
+        <div class="map">
+          <svg viewBox="0 0 860 230" width="100%">
+            <defs>
+              <filter id="r1"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter>
+            </defs>
+            <g filter="url(#r1)" font-family="'Patrick Hand'">
+              <!-- trigger -->
+              <ellipse cx="64" cy="115" rx="52" ry="40" fill="#bfe3c0" stroke="#241f17" stroke-width="2.5"/>
+              <text x="64" y="110" text-anchor="middle" font-size="13" fill="#241f17">invoice</text>
+              <text x="64" y="128" text-anchor="middle" font-size="13" fill="#241f17">arrives</text>
+              <!-- arrow -->
+              <path d="M120 115 C150 105, 165 125, 196 115" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <path d="M188 108 L198 115 L188 122" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <!-- phase 1 -->
+              <rect x="200" y="40" width="180" height="150" rx="16" fill="#fff9ec" stroke="#241f17" stroke-width="2.5"/>
+              <text x="290" y="64" text-anchor="middle" font-size="16" fill="#241f17">OpCo drafts AP</text>
+              <rect x="216" y="78" width="148" height="40" rx="9" fill="#eaf3ff" stroke="#2b3a55" stroke-width="2"/>
+              <text x="290" y="103" text-anchor="middle" font-size="13" fill="#241f17">pull figures</text>
+              <rect x="216" y="128" width="148" height="44" rx="9" fill="#ffd9d9" stroke="#b91c1c" stroke-width="2"/>
+              <text x="290" y="148" text-anchor="middle" font-size="13" fill="#241f17">manual reconcile ⚠</text>
+              <text x="290" y="164" text-anchor="middle" font-size="11" fill="#9a6">painful!</text>
+              <!-- arrow -->
+              <path d="M384 115 C414 105, 429 125, 460 115" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <path d="M452 108 L462 115 L452 122" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <!-- phase 2 -->
+              <rect x="464" y="40" width="180" height="150" rx="16" fill="#fff9ec" stroke="#241f17" stroke-width="2.5"/>
+              <text x="554" y="64" text-anchor="middle" font-size="16" fill="#241f17">GM reviews</text>
+              <rect x="480" y="92" width="148" height="40" rx="9" fill="#eaf3ff" stroke="#2b3a55" stroke-width="2"/>
+              <text x="554" y="117" text-anchor="middle" font-size="13" fill="#241f17">approve / reject</text>
+              <!-- arrow -->
+              <path d="M648 115 C678 105, 693 125, 724 115" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <path d="M716 108 L726 115 L716 122" stroke="#241f17" stroke-width="2.5" fill="none"/>
+              <!-- outcome -->
+              <rect x="728" y="78" width="120" height="74" rx="16" fill="#ffe08a" stroke="#241f17" stroke-width="2.5"/>
+              <text x="788" y="108" text-anchor="middle" font-size="13" fill="#241f17">supplier</text>
+              <text x="788" y="126" text-anchor="middle" font-size="13" fill="#241f17">paid on time</text>
+            </g>
+          </svg>
+        </div>
+        <div class="coach">
+          <div class="who"><span class="dot"></span> AI Coach <span style="font-family:'Patrick Hand';font-size:13px;color:#8a7">· devil's advocate</span></div>
+          <div class="bubble ai">Why does the GM need to review every invoice? What would break if they didn't?</div>
+          <div class="bubble user">…honestly? Probably nothing under £5k.</div>
+        </div>
+      </div>
+      <p class="note">Hand-drawn fonts (Caveat / Patrick Hand), wobbly marker strokes via an SVG roughen filter, sticky-note phases, butcher-paper grid. Idle motion would make the lines gently "boil."</p>
+    </div>
+  </section>
+
+  <!-- ===================== VIBE 2 ===================== -->
+  <section class="vibe" id="v2">
+    <div class="label">
+      <span class="n">② Expressive Abstract</span>
+      <span class="tag">gradient · paint · big serif</span>
+      <span class="feel">Bold, art-directed, gallery-grade. Color and light do the talking. Beautiful on a projector, "serious creative tool." Reads <b>statement</b>, not worksheet.</span>
+    </div>
+    <div class="stage">
+      <p class="cap">The app, in this vibe</p>
+      <div class="mock">
+        <div class="blobwrap"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+        <div class="bar">
+          <span class="logo">Workflow Studio</span>
+          <span class="pill code">K7PD</span>
+          <span class="pill">capture</span>
+          <span class="timer">6:00</span>
+        </div>
+        <div class="map">
+          <svg viewBox="0 0 860 230" width="100%" font-family="'Space Grotesk'">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5cff"/><stop offset="1" stop-color="#3b2bd6"/></linearGradient>
+              <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2ee6a8"/><stop offset="1" stop-color="#10b4d6"/></linearGradient>
+            </defs>
+            <!-- trigger -->
+            <circle cx="60" cy="115" r="44" fill="url(#g1)"/>
+            <text x="60" y="111" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">invoice</text>
+            <text x="60" y="128" text-anchor="middle" font-size="12" fill="#fff">arrives</text>
+            <line x1="112" y1="115" x2="196" y2="115" stroke="#ffffff44" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+            <!-- phase 1 -->
+            <rect x="200" y="46" width="180" height="138" rx="20" fill="#ffffff0e" stroke="#ffffff22"/>
+            <text x="290" y="72" text-anchor="middle" font-size="15" fill="#fff" font-weight="700">OpCo drafts AP</text>
+            <rect x="218" y="86" width="144" height="38" rx="12" fill="#ffffff14"/>
+            <text x="290" y="110" text-anchor="middle" font-size="12" fill="#dfe3f0">pull figures</text>
+            <rect x="218" y="132" width="144" height="40" rx="12" fill="#ff5c8a2e" stroke="#ff5c8a"/>
+            <text x="290" y="156" text-anchor="middle" font-size="12" fill="#ffd0dd">manual reconcile ⚠</text>
+            <line x1="384" y1="115" x2="460" y2="115" stroke="#ffffff44" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+            <!-- phase 2 -->
+            <rect x="464" y="46" width="180" height="138" rx="20" fill="#ffffff0e" stroke="#ffffff22"/>
+            <text x="554" y="72" text-anchor="middle" font-size="15" fill="#fff" font-weight="700">GM reviews</text>
+            <rect x="482" y="100" width="144" height="38" rx="12" fill="#ffffff14"/>
+            <text x="554" y="124" text-anchor="middle" font-size="12" fill="#dfe3f0">approve / reject</text>
+            <line x1="648" y1="115" x2="724" y2="115" stroke="#ffffff44" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+            <!-- outcome -->
+            <rect x="728" y="80" width="120" height="70" rx="20" fill="url(#g2)"/>
+            <text x="788" y="110" text-anchor="middle" font-size="12" fill="#04201a" font-weight="700">supplier</text>
+            <text x="788" y="128" text-anchor="middle" font-size="12" fill="#04201a" font-weight="700">paid on time</text>
+          </svg>
+        </div>
+        <div class="coach">
+          <div class="who"><span class="dot"></span> AI Coach <span style="font-family:'Space Grotesk';font-size:12px;color:#9aa3b8;font-weight:500">· devil's advocate</span></div>
+          <div class="bubble ai">Why does the GM need to review every invoice? What would break if they didn't?</div>
+          <div class="bubble user">…honestly? Probably nothing under £5k.</div>
+        </div>
+      </div>
+      <p class="note">Fraunces serif headlines, Space Grotesk for data, soft blurred gradient blobs drifting behind glassy cards. Pain points glow magenta; the outcome literally radiates.</p>
+    </div>
+  </section>
+
+  <!-- ===================== VIBE 3 ===================== -->
+  <section class="vibe" id="v3">
+    <div class="label">
+      <span class="n">③ Sketchbook Noir</span>
+      <span class="tag">the blend — dark canvas + hand-drawn on top</span>
+      <span class="feel">My pick. The <b>gallery confidence</b> of #2 with the <b>hand-made warmth</b> of #1. Marker scrawl glowing on a dark, washed canvas — looks expensive on a projector, still unmistakably a sketchbook.</span>
+    </div>
+    <div class="stage">
+      <p class="cap">The app, in this vibe</p>
+      <div class="mock">
+        <div class="grain"></div><div class="wash"></div>
+        <div class="bar">
+          <span class="logo">✱ Workflow Studio</span>
+          <span class="pill code">K7PD</span>
+          <span class="pill">capture</span>
+          <span class="timer">⏱ 6:00</span>
+        </div>
+        <div class="map">
+          <svg viewBox="0 0 860 230" width="100%">
+            <defs>
+              <filter id="r3"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter>
+            </defs>
+            <g filter="url(#r3)" font-family="'Patrick Hand'">
+              <ellipse cx="64" cy="115" rx="52" ry="40" fill="none" stroke="#5ce0c0" stroke-width="2.5"/>
+              <text x="64" y="110" text-anchor="middle" font-size="13" fill="#5ce0c0">invoice</text>
+              <text x="64" y="128" text-anchor="middle" font-size="13" fill="#5ce0c0">arrives</text>
+              <path d="M120 115 C150 105, 165 125, 196 115" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <path d="M188 108 L198 115 L188 122" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <rect x="200" y="40" width="180" height="150" rx="16" fill="#ffffff08" stroke="#cfc8dd" stroke-width="2"/>
+              <text x="290" y="64" text-anchor="middle" font-size="16" fill="#fff">OpCo drafts AP</text>
+              <rect x="216" y="78" width="148" height="40" rx="9" fill="#ffffff10" stroke="#9fb8ff" stroke-width="2"/>
+              <text x="290" y="103" text-anchor="middle" font-size="13" fill="#dfe3f0">pull figures</text>
+              <rect x="216" y="128" width="148" height="44" rx="9" fill="#ff6b9a22" stroke="#ff6b9a" stroke-width="2"/>
+              <text x="290" y="148" text-anchor="middle" font-size="13" fill="#ffd0dd">manual reconcile ⚠</text>
+              <text x="290" y="164" text-anchor="middle" font-size="11" fill="#ff9ab8">painful!</text>
+              <path d="M384 115 C414 105, 429 125, 460 115" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <path d="M452 108 L462 115 L452 122" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <rect x="464" y="40" width="180" height="150" rx="16" fill="#ffffff08" stroke="#cfc8dd" stroke-width="2"/>
+              <text x="554" y="64" text-anchor="middle" font-size="16" fill="#fff">GM reviews</text>
+              <rect x="480" y="92" width="148" height="40" rx="9" fill="#ffffff10" stroke="#9fb8ff" stroke-width="2"/>
+              <text x="554" y="117" text-anchor="middle" font-size="13" fill="#dfe3f0">approve / reject</text>
+              <path d="M648 115 C678 105, 693 125, 724 115" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <path d="M716 108 L726 115 L716 122" stroke="#9a93a6" stroke-width="2.5" fill="none"/>
+              <rect x="728" y="78" width="120" height="74" rx="16" fill="#ffd24a" stroke="#ffd24a" stroke-width="2.5"/>
+              <text x="788" y="108" text-anchor="middle" font-size="13" fill="#14131a">supplier</text>
+              <text x="788" y="126" text-anchor="middle" font-size="13" fill="#14131a">paid on time</text>
+            </g>
+          </svg>
+        </div>
+        <div class="coach">
+          <div class="who"><span class="dot"></span> AI Coach <span style="font-family:'Patrick Hand';font-size:13px;color:#8f8aa0">· devil's advocate</span></div>
+          <div class="bubble ai">Why does the GM need to review every invoice? What would break if they didn't?</div>
+          <div class="bubble user">…honestly? Probably nothing under £5k.</div>
+        </div>
+      </div>
+      <p class="note">Dark washed paper, faint grain, marker strokes that glow in accent colors, one gold "outcome" that pops. Pain points bleed magenta. Idle "boiling line" motion sells the hand-made feel.</p>
+    </div>
+  </section>
+
+  <footer>
+    Three directions, same app. Tell me which one to push further — or mix elements (e.g. #3's canvas with #2's serif headlines). Fonts load from Google Fonts, so view online for the full effect.
+  </footer>
+</div>
+</body>
+</html>

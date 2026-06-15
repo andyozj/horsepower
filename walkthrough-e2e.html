@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — End-to-End Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e4e0d6;color:#21314f}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px 18px 60px}
+  .top{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+  .top h1{font-family:'Fraunces';font-size:20px;margin:0;color:#222}
+  .top .meta{font-size:12px;color:#777}
+
+  /* step rail */
+  .rail{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .rail .r{font-family:'Patrick Hand';font-size:12.5px;color:#9a8;border:2px solid #cdc3aa;border-radius:999px;padding:4px 11px;cursor:pointer;background:#fbf8f1;transition:.2s;white-space:nowrap}
+  .rail .r.on{color:#fff;background:#21314f;border-color:#21314f}
+  .rail .r.done{color:#2e7d52;border-color:#9cc9ad}
+
+  /* device frame */
+  .device{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;min-height:430px;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 18px 50px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:22px}
+  .pill{font-family:'Patrick Hand';font-size:12px;padding:2px 10px;border:2px solid #21314f;border-radius:11px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .pill.phase{background:#0f172a;color:#fff;transform:none;border-color:#0f172a;text-transform:uppercase;letter-spacing:.05em}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:20px}
+  .body{padding:18px}
+
+  .role{position:absolute;top:10px;right:12px;font-family:'Permanent Marker';font-size:9px;letter-spacing:.04em;color:#b3760b;background:#fff3cf;border:1.5px solid #e0b87a;border-radius:5px;padding:2px 7px;z-index:5}
+
+  /* how-to-use caption */
+  .how{margin-top:12px;background:#fffdf6;border:2px solid #21314f;border-radius:12px;padding:11px 14px;display:flex;gap:11px;align-items:flex-start}
+  .how .k{font-family:'Permanent Marker';font-size:11px;color:#e02d2d;white-space:nowrap;padding-top:1px}
+  .how .v{font-size:13px;line-height:1.5}
+  .how .v b{color:#21314f}
+
+  .nav{display:flex;gap:10px;margin-top:16px;align-items:center}
+  .btn{font-family:'Patrick Hand';font-size:15px;border:2px solid #21314f;border-radius:10px;padding:8px 20px;cursor:pointer;background:#ffd24a;color:#21314f}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .count{margin-left:auto;font-size:12.5px;color:#777}
+
+  /* shared bits */
+  .card{background:#fffaf0;border:2px solid #21314f;border-radius:12px;padding:14px}
+  .h3{font-family:'Caveat';font-weight:700;font-size:20px;margin:0 0 8px}
+  .field{font-family:'Inter';font-size:13.5px;background:#fff;border:1.5px solid #c7cdda;border-radius:9px;padding:8px 11px;color:#1d2433;line-height:1.5}
+  label{display:block;font-family:'Patrick Hand';font-size:14px;color:#5a6b88;margin:9px 0 4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .chip{display:inline-block;font-size:11px;border-radius:999px;padding:3px 10px;margin:2px}
+  .chip.lock{background:#f3e8ff;color:#5b21b6;border:1.5px solid #c4a3f0}
+  .chip.ok{background:#e6f4ec;color:#2e7d52;border:2px solid #9cc9ad;font-family:'Patrick Hand'}
+  .chip.thin{background:#fff6e3;color:#b3760b;border:2px solid #e0c98c;font-family:'Patrick Hand'}
+  .bubble{max-width:88%;padding:8px 11px;font-size:13px;line-height:1.45;border-radius:13px;margin:5px 0;font-family:'Patrick Hand'}
+  .bubble.ai{background:#fff;border:2px solid #e23b3b;border-radius:13px 13px 13px 4px}
+  .bubble.user{margin-left:auto;background:#dbe6ff;border:2px solid #21314f;border-radius:13px 13px 4px 13px}
+  .stamp{display:inline-block;font-family:'Permanent Marker';color:#e02d2d;border:4px solid #e02d2d;border-radius:8px;padding:10px 20px;font-size:26px;text-align:center;line-height:1.05;transform:rotate(-7deg)}
+  .stamp small{display:block;font-size:12px;letter-spacing:.1em;color:#1a1a1a;margin-top:3px}
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:300px;gap:12px}
+  .bigcode{font-size:40px;font-weight:800;letter-spacing:.18em;color:#7c3aed}
+  .mini{font-size:12.5px;color:#66708a}
+  .ledrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .led{font-size:11.5px;border-radius:8px;padding:6px 9px;margin-bottom:5px;line-height:1.3}
+  .led.keep{background:#eaf6ee;border:1.5px solid #9cc9ad;color:#1f5c3c}
+  .led.kill{background:#fdecec;border:1.5px solid #e3a3a3;color:#a31d1d;text-decoration:line-through}
+  .land{border:2px solid #cbb;border-radius:10px;padding:8px 10px;margin-bottom:7px;font-size:12px;line-height:1.4}
+  .land.stay{border-color:#9fb8ff;background:#f3f7ff}.land.trans{border-color:#9cc9ad;background:#eef8f1}.land.rem{border-color:#ccc;background:#f6f6f6;color:#777}
+  .land b{font-family:'Patrick Hand';font-size:14px}
+  svg.map{width:100%;height:auto;display:block}
+  .twoup{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.twoup{grid-template-columns:1fr}}
+  .pagelabel{font-family:'Permanent Marker';font-size:10px;color:#7a5c3e;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>✱ Workflow Studio — End-to-End Walkthrough</h1>
+    <span class="meta">the full user journey, one step at a time · A-"Critic's Notebook" direction</span>
+  </div>
+  <div class="rail" id="rail"></div>
+
+  <div class="device">
+    <span class="role" id="role"></span>
+    <div id="screen"></div>
+  </div>
+
+  <div class="how">
+    <span class="k">HOW YOU USE IT ▸</span>
+    <span class="v" id="how"></span>
+  </div>
+
+  <div class="nav">
+    <button class="btn ghost" id="prev">‹ Back</button>
+    <button class="btn" id="next">Next ›</button>
+    <span class="count" id="count"></span>
+  </div>
+</div>
+
+<script>
+const MAP = (phases, opts={}) => {
+  // tiny reusable hand-drawn map
+  const o = Object.assign({trigger:'invoice', outcome:'paid on time', accent:'#21314f'}, opts);
+  let x=110, boxes='';
+  phases.forEach((p,i)=>{
+    boxes += `<path d="M${x-18} 70 C${x-2} 62,${x-8} 78,${x} 70" stroke="#9aa3b8" stroke-width="2" fill="none"/>
+      <rect x="${x}" y="34" width="92" height="74" rx="11" fill="#fff9ec" stroke="${o.accent}" stroke-width="2.4"/>
+      <text x="${x+46}" y="74" text-anchor="middle" font-size="10" font-family="Patrick Hand" fill="#21314f">${p}</text>`;
+    x += 110;
+  });
+  return `<svg class="map" viewBox="0 0 ${x+120} 150"><g filter="url(#rg)">
+    <ellipse cx="50" cy="71" rx="36" ry="30" fill="#cfe0d2" stroke="#21314f" stroke-width="2.4"/>
+    <text x="50" y="74" text-anchor="middle" font-size="10" font-family="Patrick Hand" fill="#21314f">${o.trigger}</text>
+    ${boxes}
+    <rect x="${x}" y="44" width="104" height="54" rx="12" fill="#ffd24a" stroke="#21314f" stroke-width="2.4"/>
+    <text x="${x+52}" y="74" text-anchor="middle" font-size="9.5" font-family="Patrick Hand" fill="#21314f">${o.outcome}</text>
+  </g><defs><filter id="rg"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter></defs></svg>`;
+};
+
+const STEPS = [
+  { tag:'Join', role:'TEAM · one device', phase:'',
+    body:`<div class="center">
+      <div class="card" style="width:min(360px,90%);text-align:left">
+        <div class="h3">Join the session</div>
+        <label>Session code</label><div class="field" style="letter-spacing:.2em;font-weight:700">K7PD</div>
+        <label>Team name</label><div class="field">OpCo AP Squad</div>
+        <div style="margin-top:12px"><span class="btn">Join session →</span></div>
+      </div></div>`,
+    how:`The facilitator puts a <b>4-letter code</b> on the projector. Each team joins on <b>one shared device</b> and names themselves. No logins, no install — just the code.` },
+
+  { tag:'Lobby', role:'TEAM', phase:'lobby',
+    body:`<div class="center">
+      <div class="bigcode">K7PD</div>
+      <div class="h3">You're in, OpCo AP Squad.</div>
+      <div class="mini" style="max-width:360px">Waiting for the facilitator to start. You'll document one of <b>your</b> real workflows — then another team will redesign it.</div>
+      <div class="chip lock">facilitator controls the phases ▸</div>
+    </div>`,
+    how:`Teams land here and wait. The <b>facilitator</b> (their own view) sees every team join and starts Capture when the room's ready.` },
+
+  { tag:'Capture', role:'TEAM', phase:'capture',
+    body:`<div class="grid2">
+      <div class="card">
+        <div class="h3">Just tell me how it works ✍</div>
+        <div class="mini" style="margin-bottom:6px">No form. Dump it messy — I'll structure it.</div>
+        <div class="field" style="min-height:96px">when an invoice comes in someone on the team handles it… we do the processing, then it's approved &amp; paid. we need the monthly report. reconcile is a nightmare, ~3 days.</div>
+        <div style="margin-top:8px"><span class="bubble ai" style="display:inline-block">🖊️ Structured it — but "the team", "processing" &amp; "a report" are too thin to hand over.</span></div>
+      </div>
+      <div class="card">
+        <div class="h3">Live map</div>
+        ${MAP(['OpCo<tspan>drafts</tspan>','GM<tspan>reviews</tspan>'],{trigger:'invoice',outcome:'paid on time'})}
+        <div style="margin-top:8px">
+          <span class="chip ok">trigger ✓</span><span class="chip thin">persona ～</span><span class="chip thin">intent ～</span>
+        </div>
+        <div class="mini" style="margin-top:6px">🧷 1 orphan: "legal sometimes reviews" — where does it go?</div>
+      </div></div>`,
+    how:`Team <b>brain-dumps</b> their current process; the AI builds the <b>living map</b> as they talk. Thin bits ("the team", "a report") get a <b>squiggle</b>; unplaceable blurbs become <b>orphans</b>. Nothing swaps until a stranger could redesign it.` },
+
+  { tag:'Swap', role:'FACILITATOR triggers', phase:'redesign',
+    body:`<div class="center">
+      <div class="stamp">REDESIGN<small>DON'T RETROFIT</small></div>
+      <div class="h3" style="margin-top:14px">Canvases swapped.</div>
+      <div class="mini" style="max-width:400px">You now hold <b>Team A's</b> workflow — but only the <b>need, want &amp; constraints</b>. The old steps are hidden on purpose. Nothing to retrofit.</div>
+    </div>`,
+    how:`The facilitator hits <b>Swap</b>. The AI <b>distills each captured workflow into an abstract brief and strips the HOW</b>, then rotates it to the next team. The stamp marks the moment.` },
+
+  { tag:'Redesign', role:'TEAM', phase:'redesign',
+    body:`<div class="grid2">
+      <div class="card">
+        <div class="pagelabel">🔒 THE BRIEF — no old steps</div>
+        <div class="mini"><b>Need:</b> invoice → suppliers paid on time, credit terms kept<br><b>Want:</b> no late penalties, trusted suppliers<br><b>Problems today:</b> slow, manual, error-prone</div>
+        <div style="margin-top:10px">
+          <span class="bubble ai" style="display:inline-block">You kept "reconcile" — is that a <b>need</b>, or how it's done? Why does it exist?</span>
+          <span class="bubble user" style="display:block">…to catch errors before paying.</span>
+          <span class="bubble ai" style="display:inline-block">Then the need is <b>correctness</b>, not a reconcile phase. That's HOW.</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="h3">Constraint vs HOW</div>
+        <div class="ledrow">
+          <div><div class="pagelabel" style="color:#2e7d52">✓ KEEP</div>
+            <div class="led keep">GM approves &gt;£10k <i>(accountable)</i></div>
+            <div class="led keep">compliance check <i>(regulator)</i></div></div>
+          <div><div class="pagelabel" style="color:#e02d2d">✕ DEMOLISH</div>
+            <div class="led kill">"reconcile" phase</div>
+            <div class="led kill">data-gatherer</div></div>
+        </div>
+      </div></div>`,
+    how:`The team designs the new HOW themselves. The AI is a <b>fair skeptic</b>: for every phase / person / check it asks <b>"real constraint, or just HOW?"</b> — gets <b>sold</b> on the genuine ones, <b>demolishes</b> the rest. It never hands over the answer.` },
+
+  { tag:'People land', role:'TEAM', phase:'redesign',
+    body:`<div class="card">
+      <div class="h3">Where did the people land?</div>
+      <div class="mini" style="margin-bottom:8px">The pipeline does the work now — every human must land. "Freed up for higher-value work" is rejected.</div>
+      <div class="land stay"><b>OpCo GM → STAYS</b> · accountable approver for &gt;£10k. Never the thing automated.</div>
+      <div class="land trans"><b>Invoice clerk → TRANSFORMS</b> · exception judge: owns the matching rules, handles the ~18 ambiguous of 100, audits misses.</div>
+      <div class="land rem"><b>Sarah (data) → REMOVED</b> · agent reads the supplier system directly. Justified by the design. SME — flag for redeployment.</div>
+      <div class="mini" style="margin-top:8px;color:#7a5c3e">💼 these cards = your SME pitch — more leverage, not "redundant".</div>
+    </div>`,
+    how:`Before the redesign counts as done, the AI runs the <b>completeness gate</b>: each person <b>stays / transforms / is removed-with-justification</b>. This is the honesty + recruitment test — it's what wins over the SMEs you need.` },
+
+  { tag:'Share + Export', role:'TEAM · present', phase:'share',
+    body:`<div class="twoup">
+      <div class="card"><div class="pagelabel">PAGE 1 · ORIGINAL</div>
+        ${MAP(['draft','review','reconcile','approve'],{trigger:'invoice',outcome:'paid (slow)',accent:'#9aa3b8'})}
+        <div class="mini" style="margin-top:4px">4 human phases · manual · ~days</div></div>
+      <div class="card"><div class="pagelabel" style="color:#2e7d52">PAGE 2 · AI-NATIVE REDESIGN</div>
+        ${MAP(['⚡ agent'],{trigger:'invoice',outcome:'paid on time',accent:'#2b3a55'})}
+        <div class="mini" style="margin-top:4px">1 agent + human-on-exceptions · the stack collapsed</div>
+        <div style="margin-top:8px"><span class="btn" style="font-size:13px;padding:6px 14px">⬇ Export 2-page card</span></div></div>
+    </div>`,
+    how:`Teams <b>present before → after</b> to the room: what they killed, what AI now does, where the people landed. Each team <b>exports a 2-page card</b> (original → redesign) to take away and show their boss.` },
+];
+
+let i=0;
+const screen=document.getElementById('screen'), how=document.getElementById('how'),
+  rail=document.getElementById('rail'), role=document.getElementById('role'),
+  prev=document.getElementById('prev'), next=document.getElementById('next'), count=document.getElementById('count');
+
+function render(){
+  const s=STEPS[i];
+  screen.innerHTML = `<div class="bar"><span class="logo">✱ Workflow Studio</span>
+    <span class="pill code">K7PD</span>${s.phase?`<span class="pill phase">${s.phase}</span>`:''}
+    <span class="timer">⏱ ${['—','—','17:42','—','24:50','29:40','08:00'][i]}</span></div>
+    <div class="body">${s.body}</div>`;
+  how.innerHTML=s.how; role.textContent=s.role;
+  rail.innerHTML=STEPS.map((st,j)=>`<span class="r ${j===i?'on':j<i?'done':''}" data-j="${j}">${j+1}. ${st.tag}</span>`).join('');
+  count.textContent=`${i+1} / ${STEPS.length}`;
+  prev.disabled=i===0; next.disabled=i===STEPS.length-1;
+}
+rail.onclick=e=>{ const r=e.target.closest('.r'); if(r){ i=+r.dataset.j; render(); } };
+prev.onclick=()=>{ if(i>0){i--;render();} };
+next.onclick=()=>{ if(i<STEPS.length-1){i++;render();} };
+document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight')next.click(); if(e.key==='ArrowLeft')prev.click(); });
+render();
+</script>
+</body>
+</html>

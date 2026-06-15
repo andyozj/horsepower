@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horsepower — the Farrier's console (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e4e0d6;color:#21314f}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 60px}
+  .sub{color:#666;font-size:13px;margin:0 0 12px}
+
+  .console{background:#f4efe2;border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18);
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:20px 20px}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .code{font-family:'Patrick Hand';font-size:14px;background:#ffd24a;border:2px solid #21314f;border-radius:11px;padding:3px 12px;transform:rotate(-1.2deg)}
+  .farrier{font-size:11px;color:#7a5c3e;background:#fff3cf;border:1.5px solid #e0b87a;border-radius:6px;padding:3px 8px;font-family:'Patrick Hand'}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:24px;font-variant-numeric:tabular-nums}
+  .timer.low{color:#e02d2d}
+
+  .phasebar{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:2px dashed #d9cfb3;flex-wrap:wrap}
+  .ph{font-family:'Patrick Hand';font-size:13px;color:#9a8;border:2px solid #cdc3aa;border-radius:999px;padding:4px 12px;background:#fbf8f1}
+  .ph.on{color:#fff;background:#0f172a;border-color:#0f172a}
+  .ph.done{color:#2e7d52;border-color:#9cc9ad}
+  .arrow{color:#bbb}
+  .act{margin-left:auto;display:flex;gap:7px;align-items:center}
+  .btn{font-family:'Patrick Hand';font-size:13px;border:2px solid #21314f;border-radius:9px;padding:6px 13px;cursor:pointer;background:#cfe0d2}
+  .btn.primary{background:#e02d2d;color:#fff;border-color:#1a1a1a;font-family:'Permanent Marker';font-size:12px}
+  .btn.t{background:#fff;font-size:12px;padding:5px 10px}
+
+  .teams{padding:12px 18px 18px}
+  .thead,.trow{display:grid;grid-template-columns:1.6fr .8fr 1.5fr 1.3fr 1fr 28px;gap:10px;align-items:center}
+  .thead{font-family:'Permanent Marker';font-size:9.5px;letter-spacing:.04em;color:#8a7c5e;padding:0 10px 6px}
+  .trow{background:#fffaf0;border:2px solid #21314f;border-radius:11px;padding:9px 10px;margin-bottom:8px;cursor:pointer;transition:.15s}
+  .trow:hover{background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.1)}
+  .tn{font-family:'Patrick Hand';font-size:15px;display:flex;align-items:center;gap:7px}
+  .mem{font-size:12px;color:#66708a}
+  .prog{height:8px;background:#e7ddc6;border-radius:99px;overflow:hidden;border:1px solid #d3c8ad}
+  .prog i{display:block;height:100%;background:#7c3aed}
+  .flags{display:flex;gap:5px;flex-wrap:wrap}
+  .fl{font-family:'Patrick Hand';font-size:11px;border-radius:999px;padding:1px 8px;border:1.5px solid}
+  .fl.thin{color:#b3760b;border-color:#e0c98c;background:#fff6e3}
+  .fl.orph{color:#a31d1d;border-color:#e3a3a3;background:#fdecec}
+  .fl.clean{color:#2e7d52;border-color:#9cc9ad;background:#e6f4ec}
+  .status{font-family:'Patrick Hand';font-size:12px;border-radius:999px;padding:2px 10px;border:2px solid;text-align:center}
+  .status.ready{color:#2e7d52;border-color:#86c9a3;background:#e6f4ec}
+  .status.work{color:#b3760b;border-color:#e0c98c;background:#fff6e3}
+  .status.block{color:#a31d1d;border-color:#e3a3a3;background:#fdecec}
+  .caret{text-align:center;color:#9aa3b8;font-size:13px;transition:.2s}
+  .trow.open .caret{transform:rotate(90deg)}
+
+  .detail{display:none;background:#fff;border:2px dashed #b9b094;border-radius:11px;margin:-2px 0 8px;padding:12px 14px}
+  .detail.show{display:block}
+  .detail .dh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .detail .dh b{font-family:'Caveat';font-size:19px}
+  .detail .da{margin-left:auto;display:flex;gap:6px}
+  .board{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
+  @media(max-width:680px){.board{grid-template-columns:1fr}}
+  .typed .lbl{font-family:'Permanent Marker';font-size:9.5px;letter-spacing:.04em;color:#8a7c5e;margin-bottom:5px}
+  .dumpbox{font-size:12px;line-height:1.55;background:#fff;border:1.5px solid #e3dcc8;border-radius:9px;padding:8px 11px;color:#1d2433}
+  .chatmini{margin-top:7px;display:flex;flex-direction:column;gap:5px}
+  .cm{font-size:11.5px;line-height:1.4;padding:5px 9px;border-radius:11px;max-width:94%;font-family:'Patrick Hand'}
+  .cm.user{align-self:flex-end;background:#dbe6ff;border:1.5px solid #21314f;border-radius:11px 11px 3px 11px}
+  .cm.ai{background:#fff;border:1.5px solid #e23b3b;border-radius:11px 11px 11px 3px}
+  svg.mini{width:100%;height:auto;display:block;background:#fffaf0;border:1.5px solid #e3dcc8;border-radius:9px}
+  .govlist .gv{font-family:'Patrick Hand';font-size:12px;border-radius:8px;padding:4px 9px;margin-bottom:5px;line-height:1.3}
+  .gv.thin{background:#fff6e3;border:1.5px solid #e0c98c;color:#7a5a0b}
+  .gv.orph{background:#fdecec;border:1.5px solid #e3a3a3;color:#a31d1d}
+  .gv.ok{background:#e6f4ec;border:1.5px solid #9cc9ad;color:#1f5c3c}
+  .ro{font-size:10px;color:#9a8;font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="sub">🐎 Horsepower — <b>the Farrier's console</b>. Compact monitoring; click a team to expand their board. (interactive mock)</p>
+
+  <div class="console">
+    <div class="bar">
+      <span class="logo">🐎 Horsepower</span>
+      <span class="code">workshop · HRSE</span>
+      <span class="farrier">⚒ you are the Farrier</span>
+      <span class="timer" id="timer">—:—</span>
+    </div>
+
+    <div class="phasebar">
+      <span class="ph done">Lobby</span><span class="arrow">›</span>
+      <span class="ph on">Surface</span><span class="arrow">›</span>
+      <span class="ph">Swap</span><span class="arrow">›</span>
+      <span class="ph">Rebuild</span><span class="arrow">›</span>
+      <span class="ph">Share</span>
+      <span class="act">
+        <span class="mem" style="margin-right:4px">timer:</span>
+        <button class="btn t" onclick="setTimer(6)">6</button>
+        <button class="btn t" onclick="setTimer(10)">10</button>
+        <button class="btn t" onclick="setTimer(20)">20</button>
+        <button class="btn t" onclick="setTimer(0)">clear</button>
+        <button class="btn primary" title="needs all teams redesign-ready">SWAP → REBUILD</button>
+      </span>
+    </div>
+
+    <div class="teams">
+      <div class="thead"><div>Team</div><div>Members</div><div>Progress</div><div>Flags</div><div>Status</div><div></div></div>
+      <div id="rows"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEAMS = [
+  {id:'ap', name:'AP Squad', members:5, prog:70, status:'work', flags:[['thin','2 thin'],['orph','1 orphan']],
+    dump:`when an invoice comes in someone on the team handles it, we do the processing, then it's approved & paid. we need the monthly report. honestly the reconcile is a nightmare — like 3 days.`,
+    chat:[['user','OpCo GM owns it i think'],['ai','“the team” isn’t a persona — who actually owns each step?'],['ai','“a monthly report” isn’t a reason — what decision does it drive?']],
+    gov:[['thin','“the team” — name a real owner'],['thin','“a report” — what decision?'],['orph','“legal reviews” — which phase?']],
+    map:['OpCo drafts','GM reviews','reconcile ⚠']},
+  {id:'etl', name:'ETL Crew', members:4, prog:100, status:'ready', flags:[['clean','clean']],
+    dump:`ingest raw asset feeds nightly, validate the schema, publish to the warehouse. owner is the data lead. intent: analysts trust the numbers the next morning and don’t re-pull manually.`,
+    chat:[['ai','Clean — owner is real, intent is a decision, every phase has moments. Redesign-ready ✓']],
+    gov:[['ok','owner real · phases have moments · intent is a decision · 0 orphans']],
+    map:['ingest','validate','publish']},
+  {id:'dem', name:'Demand Gang', members:6, prog:45, status:'work', flags:[['thin','1 thin']],
+    dump:`we pull sales data and build a forecast each month for the planning meeting.`,
+    chat:[['ai','“forecasting” has no moments yet — what actually happens inside it? who touches it?']],
+    gov:[['thin','“forecasting” phase — no moments yet']],
+    map:['pull data','forecast']},
+  {id:'nda', name:'NDA Ninjas', members:3, prog:30, status:'block', flags:[['orph','3 orphans']],
+    dump:`legal does NDAs. counterparty risk. renewals come up sometimes.`,
+    chat:[['ai','I can’t place “counterparty risk” or “renewal” — which phase do they attach to? (3 orphans block the swap)']],
+    gov:[['orph','“legal sign-off” — unplaced'],['orph','“counterparty risk” — unplaced'],['orph','“renewal” — unplaced']],
+    map:['intake','review']},
+];
+
+function miniMap(m){
+  let x=70, boxes='';
+  m.forEach(p=>{ const pain=/⚠/.test(p);
+    boxes+=`<rect x="${x}" y="26" width="80" height="44" rx="9" fill="${pain?'#ffe3e3':'#fff9ec'}" stroke="${pain?'#b91c1c':'#21314f'}" stroke-width="2"/>
+      <text x="${x+40}" y="52" text-anchor="middle" font-size="9" font-family="Patrick Hand" fill="#21314f">${p}</text>`; x+=92;});
+  return `<svg class="mini" viewBox="0 0 ${x+90} 96"><g filter="url(#rf)">
+    <ellipse cx="34" cy="48" rx="26" ry="22" fill="#cfe0d2" stroke="#21314f" stroke-width="2"/><text x="34" y="51" text-anchor="middle" font-size="8" font-family="Patrick Hand">trigger</text>
+    ${boxes}
+    <rect x="${x}" y="30" width="78" height="38" rx="9" fill="#ffd24a" stroke="#21314f" stroke-width="2"/><text x="${x+39}" y="53" text-anchor="middle" font-size="8" font-family="Patrick Hand">outcome</text>
+    </g><defs><filter id="rf"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.8"/></filter></defs></svg>`;
+}
+
+const rows=document.getElementById('rows');
+rows.innerHTML = TEAMS.map(t=>`
+  <div class="trow" data-id="${t.id}" onclick="toggle('${t.id}')">
+    <div class="tn">👥 ${t.name}</div>
+    <div class="mem">${t.members} online</div>
+    <div><div class="prog"><i style="width:${t.prog}%"></i></div></div>
+    <div class="flags">${t.flags.map(f=>`<span class="fl ${f[0]}">${f[1]}</span>`).join('')}</div>
+    <div class="status ${t.status}">${t.status==='ready'?'✓ ready':t.status==='block'?'✕ blocked':'…building'}</div>
+    <div class="caret">▸</div>
+  </div>
+  <div class="detail" id="d-${t.id}">
+    <div class="dh"><b>${t.name}'s board</b> <span class="ro">read-only mirror — exactly what the team sees &amp; typed</span>
+      <span class="da"><button class="btn t">nudge</button><button class="btn t">re-seat</button><button class="btn t">remove</button></span></div>
+    <div class="board">
+      <div class="typed">
+        <div class="lbl">💬 what they've typed</div>
+        <div class="dumpbox">${t.dump}</div>
+        <div class="chatmini">${t.chat.map(c=>`<div class="cm ${c[0]}">${c[0]==='ai'?'🖊️ ':''}${c[1]}</div>`).join('')}</div>
+      </div>
+      <div>
+        ${miniMap(t.map)}
+        <div class="govlist" style="margin-top:8px">${t.gov.map(g=>`<div class="gv ${g[0]}">${g[0]==='ok'?'✓':g[0]==='orph'?'🧷':'〰'} ${g[1]}</div>`).join('')}</div>
+      </div>
+    </div>
+  </div>`).join('');
+
+function toggle(id){
+  const row=document.querySelector(`.trow[data-id="${id}"]`), d=document.getElementById('d-'+id);
+  row.classList.toggle('open'); d.classList.toggle('show');
+}
+
+/* timer */
+let tEnd=null, tInt=null;
+function setTimer(min){
+  clearInterval(tInt);
+  if(!min){ document.getElementById('timer').textContent='—:—'; document.getElementById('timer').classList.remove('low'); return; }
+  tEnd=Date.now()+min*60000; tick(); tInt=setInterval(tick,1000);
+}
+function tick(){
+  const el=document.getElementById('timer'); const ms=tEnd-Date.now();
+  if(ms<=0){ el.textContent='⏰ 0:00'; el.classList.add('low'); clearInterval(tInt); return; }
+  const m=Math.floor(ms/60000), s=Math.floor(ms%60000/1000);
+  el.textContent=`⏱ ${m}:${String(s).padStart(2,'0')}`; el.classList.toggle('low',ms<60000);
+}
+// open the stuck team by default to show the drill-down
+toggle('nda');
+</script>
+</body>
+</html>

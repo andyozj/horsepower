@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horsepower — The map, explained (Farrier-side ontology guide)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,WONK@0,9..144,300..900,0..1;1,9..144,300..900,0..1&family=Inter:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4efe2; --card:#fffaf0; --ink:#21314f; --muted:#66708a;
+    --line:#b9b094; --red-pen:#e23b3b; --loud-red:#e02d2d; --highlighter:#ffd24a;
+    --lock:#7c3aed; --agent:#2b3a55; --pain:#b91c1c; --ok:#2e7d52; --thin:#b3760b;
+    --wash-lock:   color-mix(in srgb, #7c3aed 9%,  var(--paper));
+    --wash-blue:   color-mix(in srgb, #9fb8ff 16%, var(--paper));
+    --wash-agent:  color-mix(in srgb, #2b3a55 8%,  var(--paper));
+    --wash-trigger:color-mix(in srgb, #2e7d52 10%, var(--paper));
+    --wash-phase:  color-mix(in srgb, #b8860b 6%,  var(--paper));
+    --wash-pain:   color-mix(in srgb, #e23b3b 10%, var(--paper));
+    --wash-outcome:color-mix(in srgb, #ffd24a 38%, var(--paper));
+    --wash-thin:   color-mix(in srgb, #d9920b 14%, var(--paper));
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--paper); color:var(--ink);
+       font-family:Inter,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  body::after{content:""; position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:9999;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='11'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wrap{max-width:880px; margin:0 auto; padding:48px 28px 96px}
+  h1{font-family:Fraunces,serif; font-variation-settings:"opsz" 72,"WONK" 1; font-weight:600;
+     font-size:40px; line-height:1.1; letter-spacing:-.02em; margin:0 0 6px}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 8px; max-width:64ch}
+  .warn{display:inline-block; font-size:12.5px; color:var(--pain); border:1.5px dashed var(--pain);
+        border-radius:8px 6px 9px 7px; padding:4px 10px; margin:6px 0 36px}
+  .coach{font-family:Caveat,cursive; font-size:19px; color:var(--muted)}
+
+  /* legend */
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin:0 0 8px}
+  .chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:500;
+        border-radius:999px; padding:4px 12px; border:1.5px solid}
+  .chip svg{width:13px; height:13px}
+  .chip.locked{color:var(--lock); border-color:var(--lock); background:var(--wash-lock)}
+  .chip.free{color:var(--ok); border-color:var(--ok); background:var(--wash-trigger)}
+  .chip.flagc{color:var(--thin); border-color:var(--thin); background:var(--wash-thin)}
+  .chip.rebuild{color:var(--agent); border-color:var(--agent); background:var(--wash-agent)}
+  .litmus{background:var(--card); border:1.5px solid var(--ink); border-radius:13px 11px 14px 10px;
+          padding:16px 20px; font-size:14.5px; margin:18px 0 44px}
+  .litmus b{font-family:Fraunces,serif; font-size:16px}
+
+  /* element cards */
+  .el{background:var(--card); border:1.5px solid var(--ink); border-radius:14px 11px 15px 12px;
+      padding:22px 24px 18px; margin:0 0 22px}
+  .el header{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 12px}
+  .el header svg.g{width:26px; height:26px; flex:none}
+  .el h2{font-family:Fraunces,serif; font-variation-settings:"opsz" 36; font-weight:600;
+         font-size:23px; letter-spacing:-.01em; margin:0; flex:1}
+  .demo{border:1.5px dashed var(--line); border-radius:10px; padding:16px;
+        background-image:radial-gradient(var(--line) .8px, transparent .8px); background-size:20px 20px;
+        display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:0 0 14px}
+  .block{border:1.7px solid var(--ink); border-radius:12px 10px 13px 11px; background:var(--card);
+         padding:9px 15px; display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500}
+  .block svg{width:17px; height:17px; flex:none}
+  .block small{display:block; font-weight:400; font-size:11.5px; color:var(--muted)}
+  .block.locked{border-style:dashed; border-color:var(--lock)}
+  .phasebox{border:1.7px solid var(--ink); border-radius:13px; background:var(--wash-phase);
+            padding:12px 14px 14px; min-width:230px}
+  .phasebox .ph-title{font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--muted); margin:0 0 8px}
+  .phasebox .block{margin:0 0 8px} .phasebox .block:last-child{margin:0}
+  .sticky{border:1.7px solid #d9920b; background:var(--wash-thin); border-radius:18px 15px 20px 13px;
+          padding:10px 14px; font-size:13.5px; max-width:230px; transform:rotate(-1.5deg)}
+  .what{font-size:15px; margin:0 0 12px; max-width:66ch}
+  .what b{font-weight:600}
+  ul.ex{list-style:none; margin:0; padding:0; font-size:14px}
+  ul.ex li{padding:5px 0 5px 26px; position:relative; max-width:70ch}
+  ul.ex li::before{position:absolute; left:2px; font-weight:600}
+  ul.ex li.y::before{content:"✓"; color:var(--ok)}
+  ul.ex li.n::before{content:"✗"; color:var(--red-pen)}
+  ul.ex li.n s{text-decoration-color:var(--red-pen)}
+  ul.ex li .why{color:var(--muted)}
+  .note{font-size:13px; color:var(--muted); border-top:1.5px dashed var(--line); margin-top:14px; padding-top:10px; max-width:70ch}
+
+  /* arrows demo */
+  .arrowrow{display:flex; gap:40px; flex-wrap:wrap; align-items:center}
+  .arrowrow figure{margin:0; text-align:center}
+  .arrowrow figcaption{font-size:12.5px; color:var(--muted); margin-top:6px}
+
+  h3.sectionhead{font-family:Fraunces,serif; font-variation-settings:"opsz" 36; font-weight:600;
+     font-size:26px; margin:48px 0 16px; letter-spacing:-.01em}
+  table.sum{border-collapse:collapse; width:100%; font-size:14px; background:var(--card);
+            border:1.5px solid var(--ink); border-radius:12px; overflow:hidden}
+  table.sum th, table.sum td{border-bottom:1.5px dashed var(--line); padding:9px 14px; text-align:left; vertical-align:top}
+  table.sum th{font-weight:600; font-size:13px}
+  table.sum tr:last-child td{border-bottom:none}
+
+  /* tabs */
+  .tabs{display:flex; gap:10px; margin:0 0 30px; flex-wrap:wrap}
+  .tab{font:inherit; font-size:14px; font-weight:500; padding:8px 18px; cursor:pointer;
+       border:1.5px solid var(--ink); border-radius:999px; background:var(--card); color:var(--ink)}
+  .tab.active{background:var(--highlighter); box-shadow:2px 2px 0 var(--ink)}
+  .tabpane{display:none} .tabpane.active{display:block}
+
+  /* map canvases */
+  .mapscroll{position:relative; left:50%; transform:translateX(-50%); width:min(96vw,1400px); overflow-x:auto; padding-bottom:8px}
+  .canvas{position:relative; background:var(--card); border:1.5px solid var(--ink); border-radius:16px;
+          background-image:radial-gradient(var(--line) .8px, transparent .8px); background-size:20px 20px}
+  .canvas .block{position:absolute}
+  .canvas .phasebox{position:absolute}
+  .canvas .block, .canvas .phasebox .block{font-size:13px}
+  .phasebox .block{position:static}
+  .overlay{position:absolute; inset:0; pointer-events:none}
+  .maplabel{font-size:11.5px; fill:#66708a; font-family:Inter,sans-serif}
+  .tray{position:absolute; border:1.5px dashed var(--thin); border-radius:12px; padding:12px 14px; background:color-mix(in srgb, #d9920b 4%, var(--card))}
+  .tray .ph-title{font-size:11px; font-weight:600; letter-spacing:.05em; color:var(--thin); margin:0 0 10px}
+  .tray .sticky{display:inline-block; margin:0 8px 8px 0; max-width:280px}
+  .assume{position:absolute; border:1.7px solid #6d87c9; background:var(--wash-blue); color:#3d5494;
+          border-radius:18px 15px 20px 13px; padding:9px 13px; font-size:12.5px; max-width:220px}
+  .assume b{font-family:Caveat,cursive; font-size:16px; margin-right:4px}
+  .ledger{position:absolute; background:var(--card); border:1.5px solid var(--ink); border-radius:12px; padding:12px 16px; font-size:12.5px}
+  .ledger .ph-title{font-size:11px; font-weight:600; letter-spacing:.05em; color:var(--muted); margin:0 0 8px}
+  .ledger div{padding:2px 0}
+  .ledger .kept{color:var(--ok)} .ledger .killed{color:var(--red-pen)}
+  .ledger .killed s{text-decoration-color:var(--red-pen)}
+  .landing{position:absolute; display:flex; gap:10px}
+  .landing .block{position:static; font-size:12.5px}
+  .canvas .notechip{position:absolute; font-size:12px; color:var(--muted); border:1.5px dashed var(--line); border-radius:8px; padding:5px 12px; background:var(--card)}
+</style>
+</head>
+<body>
+
+<!-- §18 glyph defs (canonical copy lives in craft-assets.html) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-persona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4.6 C13.9 4.5 15.4 6.1 15.3 8.1 C15.2 10.1 13.8 11.5 12 11.5 C10.2 11.5 8.8 10 8.7 8 C8.6 6.1 10.1 4.7 12 4.6 Z"/>
+      <path d="M5.2 19.8 C5.6 15.6 8.1 13.9 12 13.9 C15.9 13.9 18.5 15.7 18.8 19.6"/>
+    </symbol>
+    <symbol id="g-trigger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4.2 C8.8 4.3 7 6.6 6.9 9.8 C6.8 12.6 6.2 14.3 5.1 15.6 C4.7 16.1 4.9 16.8 5.6 16.8 L18.5 16.9 C19.1 16.9 19.4 16.2 19 15.7 C17.9 14.4 17.4 12.6 17.3 9.9 C17.2 6.6 15.2 4.1 12 4.2 Z"/>
+      <path d="M10.4 19.3 C10.9 20 11.4 20.3 12 20.3 C12.6 20.3 13.2 20 13.6 19.3"/>
+    </symbol>
+    <symbol id="g-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13.4 3.5 L7.2 13 L11.1 13.3 L9.6 20.5 L16.8 10.5 L12.5 10.2 Z"/>
+    </symbol>
+    <symbol id="g-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.1 10.9 V8.2 C8.1 5.5 9.7 3.9 12 3.9 C14.3 4 15.9 5.6 15.9 8.3 V10.9"/>
+      <path d="M6.5 11 H17.6 C18.1 11 18.4 11.4 18.4 11.9 L18.3 19 C18.3 19.6 17.9 20 17.4 20 L6.6 19.9 C6.1 19.9 5.7 19.5 5.7 18.9 L5.8 11.8 C5.8 11.3 6.1 11 6.5 11 Z"/>
+      <path d="M12 13.9 V16.6"/>
+    </symbol>
+    <symbol id="g-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.7 C15.6 3.7 17.9 6.3 17.8 9.3 C17.7 11.4 16.4 12.7 15.5 13.9 C14.9 14.6 14.7 15.3 14.6 16.2 L9.5 16.1 C9.4 15.2 9.1 14.6 8.5 13.8 C7.6 12.6 6.3 11.3 6.4 9.1 C6.5 6.1 8.6 3.7 12 3.7 Z"/>
+      <path d="M9.9 18.5 L14.2 18.6"/><path d="M10.6 20.7 L13.5 20.7"/>
+    </symbol>
+    <symbol id="g-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.3 3.9 L6 20.3"/>
+      <path d="M6.3 4.7 C8.4 3.7 10.4 3.8 12.4 4.7 C14.4 5.6 16.3 5.7 18.3 4.9 L18.1 12.1 C16.1 12.9 14.2 12.8 12.2 11.9 C10.3 11 8.3 10.9 6.2 11.9"/>
+    </symbol>
+    <symbol id="g-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13.6 10.2 L5.6 18.4"/><path d="M11.9 8.9 L14.9 11.9"/>
+      <path d="M16.6 4.9 C18.2 5 19.4 6.3 19.3 7.8 C19.2 9.3 17.9 10.4 16.4 10.3 C15 10.2 13.8 9 13.9 7.5 C14 6 15.2 4.8 16.6 4.9 Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="g-pain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.1 4.2 C12.4 4.2 12.7 4.4 12.9 4.8 L20.2 18.1 C20.6 18.8 20.2 19.6 19.4 19.6 L4.8 19.4 C4 19.4 3.6 18.7 4 18 L11.4 4.7 C11.5 4.4 11.8 4.2 12.1 4.2 Z"/>
+      <path d="M12.1 9.2 L12 13.9"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <h1>The map, explained</h1>
+  <p class="sub">One card per ontology element: what it is, whether the rebuild may touch it, and how to say it well. Running example: an OpCo accounts-payable workflow. <span class="coach">— keep this handy when a team asks "what goes in this box?"</span></p>
+  <div class="warn">Farrier-side reference — uses honest vocabulary (teardown, receiving team). Never project this.</div>
+
+  <div class="tabs">
+    <button class="tab active" data-pane="pane-elements">The elements</button>
+    <button class="tab" data-pane="pane-surface">Example map — Surface (as-is)</button>
+    <button class="tab" data-pane="pane-rebuild">Example map — Rebuild (to-be)</button>
+  </div>
+
+  <div class="tabpane active" id="pane-elements">
+  <div class="legend">
+    <span class="chip locked"><svg><use href="#g-lock"/></svg>LOCKED — survives the teardown, server-enforced</span>
+    <span class="chip free">HOW — yours to change in the rebuild</span>
+    <span class="chip rebuild">REBUILD — new build material</span>
+  </div>
+  <div class="litmus">
+    <b>The litmus test for anything locked:</b> could this sentence appear, unchanged, in two completely different designs? If yes, it's problem-space — lockable. If it names a mechanism, artifact, threshold, or step, it's HOW in disguise — and locking it smuggles the old design past the teardown.
+  </div>
+
+  <!-- TRIGGER -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-trigger"/></svg><h2>Trigger</h2><span class="chip locked"><svg><use href="#g-lock"/></svg>LOCKED</span></header>
+    <div class="demo"><div class="block" style="background:var(--wash-trigger); border-radius:999px; padding:9px 18px"><svg><use href="#g-trigger"/></svg><span>invoice arrives</span></div></div>
+    <p class="what">The event <b>in the world</b> that sets the workflow off. Not the first thing your team does — the thing that happens <b>to</b> you. The redesign still has to answer the same event, which is why it's locked.</p>
+    <ul class="ex">
+      <li class="y">"an invoice arrives" · "stock dips below safety level" · "a candidate applies"</li>
+      <li class="n"><s>"AP clerk checks the inbox each morning"</s> <span class="why">— that's your first step (HOW). The trigger is whatever put something in the inbox.</span></li>
+    </ul>
+  </section>
+
+  <!-- INPUT -->
+  <section class="el">
+    <header><h2>Inputs</h2><span class="chip locked"><svg><use href="#g-lock"/></svg>LOCKED as facts</span><span class="chip free">form is HOW</span></header>
+    <div class="demo"><div class="block" style="border-style:dotted; font-weight:400; color:var(--muted); font-size:13px">inputs: supplier master data · PO history · delivery confirmations</div></div>
+    <p class="what">What the world supplies that the work consumes. Captured as <b>facts</b>, never formats — the fact survives the teardown, the container doesn't.</p>
+    <ul class="ex">
+      <li class="y">"we know what we ordered (PO history)" · "supplier bank details exist, verified annually"</li>
+      <li class="n"><s>"the AP Excel tracker"</s> <span class="why">— that's the current container. The fact is "we track what's been paid"; the spreadsheet is HOW.</span></li>
+    </ul>
+  </section>
+
+  <!-- PERSONA -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-persona"/></svg><h2>Persona</h2><span class="chip locked"><svg><use href="#g-lock"/></svg>accountable / served LOCKED</span><span class="chip free">operators are HOW</span></header>
+    <div class="demo">
+      <div class="block" style="background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>OpCo GM<small>accountable — owns the outcome</small></span></div>
+      <div class="block" style="background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>suppliers<small>served — feel the outcome</small></span></div>
+      <div class="block"><svg><use href="#g-persona"/></svg><span>AP clerk<small>operator — does today's steps</small></span></div>
+    </div>
+    <p class="what">People in the workflow, in three flavours. <b>Accountable</b> (signs, answers for it) and <b>served</b> (benefits) are locked — the rebuild must keep serving the same people. <b>Operators</b> are part of today's HOW: the rebuild may re-imagine who (or what) does the steps, but every operator must land somewhere — stays / transforms / removed-justified-by-the-design. "Freed up for higher-value work" is rejected as a landing.</p>
+    <ul class="ex">
+      <li class="y">"the GM is accountable — she signs the payment run"</li>
+      <li class="n"><s>"the GM approves every invoice"</s> <span class="why">— that's an operator role + a rule. Lock the accountability, not the approval step.</span></li>
+    </ul>
+  </section>
+
+  <!-- PHASE + MOMENT + PAIN -->
+  <section class="el">
+    <header><h2>Phase &amp; Moments</h2><span class="chip free">HOW — stripped at the teardown</span><span class="chip flagc"><svg style="width:13px;height:13px"><use href="#g-pain"/></svg>pain travels as problems</span></header>
+    <div class="demo">
+      <div class="phasebox">
+        <p class="ph-title">PHASE · INVOICE PROCESSING</p>
+        <div class="block" style="background:var(--wash-blue)">match invoice to PO</div>
+        <div class="block" style="background:var(--wash-pain); color:var(--pain); border-color:var(--pain)"><svg><use href="#g-pain"/></svg><span>manual reconcile<small>3 days, every month-end</small></span></div>
+      </div>
+    </div>
+    <p class="what">A <b>phase</b> is a chapter of the work; <b>moments</b> are where time goes and things turn, nested inside. Both are pure HOW — they don't survive the teardown. A moment flagged <b>painful</b> ⚠ becomes an <b>area of concern</b>: the receiving team inherits the <i>problem</i> ("reconciliation regularly eats days"), never the steps. Put numbers on pain — quantified pain gives the brief its teeth.</p>
+    <ul class="ex">
+      <li class="y">"manual reconcile — 3 days at month-end, two people" <span class="why">(pain with a number)</span></li>
+      <li class="n"><s>"reconciling is annoying"</s> <span class="why">— no volume, no cost; too thin for a stranger to act on.</span></li>
+    </ul>
+  </section>
+
+  <!-- INTENT -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-bulb"/></svg><h2>Intent</h2><span class="chip locked"><svg><use href="#g-lock"/></svg>LOCKED</span></header>
+    <div class="demo"><div class="block locked" style="background:var(--wash-phase); border-color:#b8860b; color:#7a5a08"><svg><use href="#g-bulb"/></svg><span>decide which payments to release, and when<small>to protect the credit line</small></span></div></div>
+    <p class="what">The WHY — <b>the decision the workflow drives</b>. The most important block on the map and the most commonly faked. Two traps: <b>the artifact</b> ("produce the board pack" — a report isn't a reason) and <b>the restatement</b> — ask why a process exists and the default answer is the process restated ("why monthly reporting? to report monthly"). The push: <i>"what happens because of this?"</i> then <i>"what would you do differently if it said something else?"</i> No answer to the second = there is no decision — that's a finding, not a capture failure.</p>
+    <ul class="ex">
+      <li class="y">"decide which payments to release and when, to protect the credit line"</li>
+      <li class="y">"decide how much to brew and where to ship it, before the lead time decides for us"</li>
+      <li class="n"><s>"the GM needs to see cash flow"</s> <span class="why">— "seeing" is a dashboard in disguise. What does she <i>decide</i> with it?</span></li>
+      <li class="n"><s>"produce the monthly board pack"</s> <span class="why">— an artifact, not a reason.</span></li>
+    </ul>
+  </section>
+
+  <!-- OUTCOME -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-flag"/></svg><h2>Outcome</h2><span class="chip locked"><svg><use href="#g-lock"/></svg>LOCKED</span></header>
+    <div class="demo"><div class="block locked" style="background:var(--wash-outcome); border-color:#b8860b; font-weight:600"><svg><use href="#g-flag"/></svg><span>suppliers paid on time; credit terms intact</span></div></div>
+    <p class="what">The change in the world when the workflow has done its job. <b>Persona-free, mechanism-free</b> — a state of the world, not a description of who does what. (And outcome ≠ output: an output is an artifact, which is HOW.)</p>
+    <ul class="ex">
+      <li class="y">"suppliers paid on time; credit terms intact; cash position never surprises anyone"</li>
+      <li class="n"><s>"GM monitors the dashboard and approves anything over £100"</s> <span class="why">— a persona + a mechanism + a threshold. Three pieces of HOW wearing the outcome's hat.</span></li>
+    </ul>
+  </section>
+
+  <!-- AGENT -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-bolt"/></svg><h2>AI-native agent</h2><span class="chip rebuild"><svg><use href="#g-bolt"/></svg>REBUILD only</span></header>
+    <div class="demo">
+      <div class="block" style="background:var(--wash-agent); font-weight:600"><svg><use href="#g-bolt"/></svg><span>match &amp; flag agent<small>in: invoice+PO · decides: match? · out: queued payment · fails to: GM</small></span></div>
+    </div>
+    <p class="what">The rebuild's new build material — an agent doing real work, not a chatbot bolted on (the rabbit rule). An agent block must name <b>input · decision · output · failure-path</b>, and must <b>draw its escalation</b>: an ⚡ with no arrow to any human block fails the autonomy audit. Unicorn ≠ headless — somebody still answers for it.</p>
+    <ul class="ex">
+      <li class="y">"matches invoices to POs; mismatch &gt;2% → flags the GM with its working shown"</li>
+      <li class="n"><s>"AI handles invoicing"</s> <span class="why">— no decision, no failure path, nothing to audit. Over-simplification.</span></li>
+    </ul>
+  </section>
+
+  <!-- KEPT CONSTRAINT -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-lock"/></svg><h2>Kept constraint</h2><span class="chip rebuild"><svg><use href="#g-bolt"/></svg>REBUILD</span><span class="chip flagc">arrives as a candidate</span></header>
+    <div class="demo">
+      <div class="block locked" style="background:var(--wash-lock); color:var(--lock)"><svg><use href="#g-lock"/></svg><span>two-person approval on payment runs<small>kept — fiduciary requirement</small></span></div>
+      <div class="block" style="border-style:dashed; color:var(--muted)"><span>"GM approves everything &gt;£100"<small>candidate — pressure-test me</small></span></div>
+    </div>
+    <p class="what">Constraints arrive at the rebuild as <b>candidates</b>, not verdicts — each wearing <i>"candidate — pressure-test me."</i> The team and Coach interrogate every one: genuinely binding (legal, audit, physical) → <b>kept 🔒</b>; habit dressed as policy → <b>killed ✂️</b>, onto the constraint ledger. The ledger (held vs killed) is the star of the share-out.</p>
+    <ul class="ex">
+      <li class="y">"two-person approval — fiduciary requirement, confirmed → kept"</li>
+      <li class="n"><s>"GM approves >£100 — 'policy'"</s> <span class="why">— turned out to be a 2019 habit after a one-off fraud scare → ✂️ killed, and the ledger says why.</span></li>
+    </ul>
+  </section>
+
+  <!-- ORPHAN -->
+  <section class="el">
+    <header><svg class="g"><use href="#g-pin"/></svg><h2>Orphan</h2><span class="chip flagc"><svg style="width:13px;height:13px"><use href="#g-pin"/></svg>parked — blocks the gate</span></header>
+    <div class="demo"><div class="sticky"><svg style="width:15px;height:15px;vertical-align:-2px"><use href="#g-pin"/></svg> "finance sometimes rings the supplier directly to sort it out"</div></div>
+    <p class="what">A true thing that fits nowhere yet. It is <b>never deleted</b> — it's parked visibly in the tray and the Coach chases it ("where does this live?"). Orphans block the readiness gate: a map with homeless truths isn't ready for a newcomer. Most orphans turn out to be the interesting part — undocumented exception paths.</p>
+    <ul class="ex">
+      <li class="y">parked, chased, then placed — usually revealing a hidden exception path or a missing moment</li>
+      <li class="n"><s>quietly dropped because it didn't fit</s> <span class="why">— if it's true and homeless, the map is wrong, not the fact.</span></li>
+    </ul>
+  </section>
+
+  <!-- ARROWS -->
+  <section class="el">
+    <header><h2>Arrows</h2><span class="chip free">drawn by the team</span></header>
+    <div class="demo arrowrow">
+      <figure>
+        <svg width="120" height="26" viewBox="0 0 120 26"><path d="M4 14 C34 11 72 12 106 13" fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round"/><path d="M106 13 L96 8.5 M106 13 L96.5 18.5" fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round"/></svg>
+        <figcaption>flow — this then that</figcaption>
+      </figure>
+      <figure>
+        <svg width="120" height="26" viewBox="0 0 120 26"><path d="M4 14 C34 11 72 12 106 13" fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 5"/><path d="M106 13 L96 8.5 M106 13 L96.5 18.5" fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round"/></svg>
+        <figcaption>conditional — "&gt; £10k"</figcaption>
+      </figure>
+    </div>
+    <p class="what">Solid = flow. Dashed = conditional, labelled with the condition. In the rebuild, one arrow is load-bearing: <b>⚡ agent → 👤 human</b> is the drawn escalation path — its absence is what the autonomy audit flags, and it's checkable with no AI at all.</p>
+  </section>
+
+  <h3 class="sectionhead">The whole split, one table</h3>
+  <table class="sum">
+    <tr><th>Locked — problem space (WHAT / WHY)</th><th>Free — solution space (HOW)</th></tr>
+    <tr><td>Trigger — the world's event</td><td>Phases, moments, sequence</td></tr>
+    <tr><td>Inputs — as facts</td><td>The form / handling of inputs</td></tr>
+    <tr><td>Intent — the decision it drives</td><td>Outputs &amp; artifacts (reports, dashboards)</td></tr>
+    <tr><td>Outcome — the change in the world</td><td>Operators — who does the steps</td></tr>
+    <tr><td>Accountable &amp; served personas</td><td>Thresholds, rules, tools, escalation paths</td></tr>
+  </table>
+  <p class="note">Locks are server-enforced; the only way to change a locked field is a Farrier-approved amendment, logged on the brief. If a team is sure a locked thing is wrong, that's the escape hatch — not an argument with the Coach.</p>
+  </div><!-- /pane-elements -->
+
+  <!-- ============ SURFACE EXAMPLE ============ -->
+  <div class="tabpane" id="pane-surface">
+    <h3 class="sectionhead" style="margin-top:4px">Surface — the AP workflow, captured as-is</h3>
+    <p class="sub" style="max-width:74ch">Trigger and inputs on the left; four phases of HOW with pain flagged <i>and quantified</i>; operators tagged where they work; intent and outcome anchoring the why; the orphan tray holding homeless truths. This is roughly what "good enough for a stranger" looks like just before the Newcomer check goes green. <span class="coach">— note the backward arrow: real processes loop.</span></p>
+    <div class="mapscroll"><div class="canvas" style="width:1340px;height:790px">
+      <svg class="overlay" width="1340" height="790">
+        <defs><marker id="ahS" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M1 1 L9 5 L1 9" fill="none" stroke="#9aa3b8" stroke-width="1.8" stroke-linecap="round"/></marker></defs>
+        <g fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round" marker-end="url(#ahS)">
+          <path d="M178 362 C188 358 196 330 205 308"/>
+          <path d="M435 285 C450 290 462 315 475 328"/>
+          <path d="M705 330 C720 325 732 295 745 272"/>
+          <path d="M975 262 C990 265 1002 295 1015 308"/>
+          <path d="M1150 440 C1165 482 1180 520 1195 556"/>
+          <path d="M920 135 C920 124 919 114 918 106" stroke-dasharray="6 5"/>
+          <path d="M520 205 C490 180 470 178 437 194" stroke-dasharray="6 5"/>
+        </g>
+        <text x="934" y="120" class="maplabel">&gt;£10k</text>
+        <text x="448" y="170" class="maplabel">mismatch → back to intake</text>
+      </svg>
+
+      <div class="block" style="left:18px;top:336px;width:160px;background:var(--wash-trigger);border-radius:999px"><svg><use href="#g-trigger"/></svg><span>invoice arrives<small>email · post · portal</small></span></div>
+      <div class="block" style="left:14px;top:420px;width:215px;border-style:dotted;font-weight:400;font-size:12px;color:var(--muted)">inputs: supplier master · PO history · goods receipts · contract terms</div>
+
+      <div class="block" style="left:235px;top:56px;width:170px"><svg><use href="#g-persona"/></svg><span>AP clerks ×2<small>operators</small></span></div>
+      <div class="block" style="left:480px;top:70px;width:195px"><svg><use href="#g-persona"/></svg><span>procurement coord.<small>operator — chases POs</small></span></div>
+      <div class="block" style="left:745px;top:42px;width:190px"><svg><use href="#g-persona"/></svg><span>fin. controller<small>operator — 2nd signature</small></span></div>
+      <div class="block locked" style="left:975px;top:40px;width:195px;background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>OpCo GM<small>accountable — signs the run</small></span></div>
+      <div class="block locked" style="left:940px;top:478px;width:190px;background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>suppliers<small>served — 1,200 active</small></span></div>
+
+      <div class="phasebox" style="left:205px;top:150px;width:230px">
+        <p class="ph-title">PHASE · INTAKE &amp; CAPTURE</p>
+        <div class="block" style="background:var(--wash-blue)">receive &amp; log<small>email, post, supplier portal</small></div>
+        <div class="block" style="background:var(--wash-pain);color:var(--pain);border-color:var(--pain)"><svg><use href="#g-pain"/></svg><span>key into ERP by hand<small>~400/mo · 30 min each</small></span></div>
+        <div class="block" style="background:var(--wash-blue)">chase missing PO refs<small>email ping-pong</small></div>
+      </div>
+      <div class="phasebox" style="left:475px;top:205px;width:230px">
+        <p class="ph-title">PHASE · MATCH &amp; RECONCILE</p>
+        <div class="block" style="background:var(--wash-blue)">3-way match<small>invoice · PO · goods receipt</small></div>
+        <div class="block" style="background:var(--wash-pain);color:var(--pain);border-color:var(--pain)"><svg><use href="#g-pain"/></svg><span>manual reconcile in Excel<small>3 days, every month-end</small></span></div>
+        <div class="block" style="background:var(--wash-blue)">ring supplier on mismatch<small>AP clerk — no script</small></div>
+      </div>
+      <div class="phasebox" style="left:745px;top:135px;width:230px">
+        <p class="ph-title">PHASE · APPROVAL</p>
+        <div class="block" style="background:var(--wash-pain);color:var(--pain);border-color:var(--pain)"><svg><use href="#g-pain"/></svg><span>GM reviews every invoice<small>bottleneck — worse when travelling</small></span></div>
+        <div class="block" style="background:var(--wash-blue)">approval by email thread<small>no audit trail</small></div>
+        <div class="block" style="background:var(--wash-blue)">controller 2nd signature<small>only over £10k</small></div>
+      </div>
+      <div class="phasebox" style="left:1015px;top:195px;width:230px">
+        <p class="ph-title">PHASE · PAYMENT &amp; CLOSE</p>
+        <div class="block" style="background:var(--wash-blue)">weekly BACS run<small>Thursdays, batch</small></div>
+        <div class="block" style="background:var(--wash-blue)">remittance advice<small>manual PDFs, often skipped</small></div>
+        <div class="block" style="background:var(--wash-pain);color:var(--pain);border-color:var(--pain)"><svg><use href="#g-pain"/></svg><span>month-end accruals<small>guesswork — restated twice this year</small></span></div>
+      </div>
+
+      <div class="block locked" style="left:420px;top:670px;width:450px;background:var(--wash-phase);border-color:#b8860b;color:#7a5a08"><svg><use href="#g-bulb"/></svg><span>decide which payments to release, and when<small>to protect the credit line — LOCKED at the swap</small></span></div>
+      <div class="block locked" style="left:1085px;top:560px;width:235px;background:var(--wash-outcome);border-color:#b8860b;font-weight:600"><svg><use href="#g-flag"/></svg><span>suppliers paid on time; credit terms intact<small>LOCKED at the swap</small></span></div>
+
+      <div class="tray" style="left:20px;top:540px;width:400px">
+        <p class="ph-title"><svg style="width:12px;height:12px;vertical-align:-1px"><use href="#g-pin"/></svg> ORPHAN TRAY — homeless truths (gate-blocking)</p>
+        <div class="sticky" style="transform:rotate(-1.6deg)">"Pedro has a macro nobody else understands"</div>
+        <div class="sticky" style="transform:rotate(1.2deg)">"December is… different (year-end freeze?)"</div>
+        <div class="sticky" style="transform:rotate(-.8deg)">"finance sometimes rings the supplier directly"</div>
+      </div>
+    </div></div>
+  </div><!-- /pane-surface -->
+
+  <!-- ============ REBUILD EXAMPLE ============ -->
+  <div class="tabpane" id="pane-rebuild">
+    <h3 class="sectionhead" style="margin-top:4px">Rebuild — the receiving team's build, AI-native</h3>
+    <p class="sub" style="max-width:74ch">Same locked WHY/WHAT — delivered scrambled, dashed purple, untouchable. New HOW: straight-through agents, <b>one human desk where the judgment actually lives</b>, and the GM approving one proposed run instead of 400 invoices. Every ⚡ has a drawn escalation arrow (the autonomy audit checks exactly that), the constraint ledger shows what was kept vs killed, and every person from the inventory has landed.</p>
+    <div class="mapscroll"><div class="canvas" style="width:1340px;height:790px">
+      <svg class="overlay" width="1340" height="790">
+        <defs><marker id="ahR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M1 1 L9 5 L1 9" fill="none" stroke="#9aa3b8" stroke-width="1.8" stroke-linecap="round"/></marker></defs>
+        <g fill="none" stroke="#9aa3b8" stroke-width="2" stroke-linecap="round" marker-end="url(#ahR)">
+          <path d="M210 329 C225 330 240 331 255 332"/>
+          <path d="M495 330 C520 322 540 312 565 304"/>
+          <path d="M805 303 C822 325 832 350 845 370"/>
+          <path d="M1095 372 C1105 370 1115 367 1130 365"/>
+          <path d="M965 330 C962 270 960 210 958 156"/>
+          <path d="M375 365 C400 440 460 515 515 553" stroke-dasharray="6 5"/>
+          <path d="M685 338 C670 420 635 500 605 552" stroke-dasharray="6 5"/>
+          <path d="M710 600 C850 594 990 594 1120 599"/>
+          <path d="M1080 125 C1150 150 1205 240 1233 326"/>
+        </g>
+        <text x="978" y="245" class="maplabel">proposes — GM disposes</text>
+        <text x="392" y="455" class="maplabel">can't parse</text>
+        <text x="697" y="445" class="maplabel">mismatch &gt;2%</text>
+        <text x="800" y="585" class="maplabel">supplier care — a human voice</text>
+        <text x="1168" y="212" class="maplabel">signs the run</text>
+      </svg>
+
+      <div class="notechip" style="left:20px;top:14px"><svg style="width:12px;height:12px;vertical-align:-1px"><use href="#g-lock"/></svg> locked ingredients arrived scrambled — Coach-placed, never the original layout</div>
+
+      <div class="block locked" style="left:80px;top:90px;width:340px;background:var(--wash-phase);border-color:#b8860b;color:#7a5a08;transform:rotate(-1.2deg)"><svg><use href="#g-bulb"/></svg><span>decide which payments to release, and when<small>LOCKED · intent — to protect the credit line</small></span></div>
+      <div class="block locked" style="left:40px;top:300px;width:170px;background:var(--wash-trigger);border-radius:999px;border-color:var(--lock)"><svg><use href="#g-trigger"/></svg><span>invoice arrives<small>LOCKED · trigger</small></span></div>
+      <div class="block locked" style="left:46px;top:392px;width:215px;border-style:dashed;font-weight:400;font-size:12px;color:var(--lock)">LOCKED · inputs: supplier master · PO history · goods receipts · contract terms</div>
+      <div class="block locked" style="left:880px;top:88px;width:200px;background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>OpCo GM<small>LOCKED · accountable</small></span></div>
+      <div class="block locked" style="left:1120px;top:560px;width:190px;background:var(--wash-lock)"><svg><use href="#g-persona"/></svg><span>suppliers<small>LOCKED · served</small></span></div>
+      <div class="block locked" style="left:1130px;top:330px;width:210px;background:var(--wash-outcome);border-color:#b8860b;font-weight:600"><svg><use href="#g-flag"/></svg><span>suppliers paid on time; credit terms intact<small>LOCKED · outcome</small></span></div>
+
+      <div class="block locked" style="left:636px;top:148px;width:235px;background:var(--wash-lock);color:var(--lock)"><svg><use href="#g-lock"/></svg><span>two-person approval on runs<small>kept — fiduciary, pressure-tested</small></span></div>
+
+      <div class="block" style="left:255px;top:295px;width:240px;background:var(--wash-agent);font-weight:600"><svg><use href="#g-bolt"/></svg><span>capture agent<small>in: any format → out: structured record · fails to: exception desk</small></span></div>
+      <div class="block" style="left:565px;top:268px;width:240px;background:var(--wash-agent);font-weight:600"><svg><use href="#g-bolt"/></svg><span>match agent<small>3-way match · books clean matches · can't auto-book: desk</small></span></div>
+      <div class="block" style="left:845px;top:330px;width:250px;background:var(--wash-agent);font-weight:600"><svg><use href="#g-bolt"/></svg><span>payment scheduler agent<small>optimises run vs credit terms · proposes — never pays</small></span></div>
+
+      <div class="block" style="left:430px;top:555px;width:280px;border-color:var(--ok)"><svg><use href="#g-persona"/></svg><span>exception desk — AP specialists<small>transforms · judgment calls, supplier conversations, fraud nose</small></span></div>
+
+      <div class="assume" style="left:565px;top:48px;transform:rotate(1.5deg)"><b>?</b>we assume goods receipts are logged same-day</div>
+      <div class="assume" style="left:150px;top:565px;transform:rotate(-2deg)"><b>?</b>we assume suppliers can take e-remittance</div>
+
+      <div class="ledger" style="left:20px;top:628px;width:440px">
+        <p class="ph-title">CONSTRAINT LEDGER — the share-out star</p>
+        <div class="kept">kept — two-person approval on runs (fiduciary)</div>
+        <div class="kept">kept — bank-detail changes need a call-back (fraud)</div>
+        <div class="killed">killed — <s>GM approves everything &gt;£100</s> (a 2019 habit, post fraud-scare)</div>
+        <div class="killed">killed — <s>weekly-only payment runs</s> (a mainframe batch limit; the mainframe left in 2021)</div>
+      </div>
+
+      <div class="landing" style="left:485px;top:668px">
+        <div class="block" style="width:235px;border-color:var(--ok);background:var(--wash-trigger)">fin. controller<small>stays — the kept dual-signature gate</small></div>
+        <div class="block" style="width:265px;border-color:#6d87c9;background:var(--wash-blue)">AP clerks → exception desk<small>transforms — judgment + supplier care</small></div>
+        <div class="block" style="width:255px;color:var(--muted)"><s>data-entry temp role</s><small>removed — capture agent ingests; justified by the design</small></div>
+      </div>
+    </div></div>
+  </div><!-- /pane-rebuild -->
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('active', p.id === btn.dataset.pane));
+  }));
+</script>
+</body>
+</html>

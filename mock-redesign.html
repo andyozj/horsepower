@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Redesign phase (provoke + propose)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#21314f}
+  .page{max-width:1140px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-family:'Fraunces';font-size:24px;margin:0 0 4px;color:#222}
+  .sub{color:#666;max-width:800px;line-height:1.5;margin:0 0 14px;font-size:14px}
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .btn{font-family:'Patrick Hand';font-size:14px;border:2px solid #21314f;background:#ffd24a;border-radius:10px;padding:7px 16px;color:#21314f;cursor:pointer}
+  .hint{font-size:12.5px;color:#888;font-style:italic}
+
+  .app{background:#f4efe2;border-radius:16px;overflow:hidden;position:relative;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:19px 19px;
+    box-shadow:0 20px 55px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:2px dashed #b9b094}
+  .logo{font-family:'Caveat';font-weight:700;font-size:24px}
+  .pill{font-family:'Patrick Hand';font-size:13px;padding:3px 11px;border:2px solid #21314f;border-radius:12px;background:#cfe0d2;transform:rotate(-1.5deg)}
+  .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  .pill.phase{background:#0f172a;color:#fff;transform:none;border-color:#0f172a}
+  .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:22px}
+
+  /* locked strip */
+  .locked{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-bottom:2px dashed #d9cfb3;background:#faf5ff}
+  .locked .lab{font-family:'Patrick Hand';font-size:13px;color:#7c3aed;font-weight:700}
+  .lockchip{font-family:'Inter';font-size:11.5px;background:#f3e8ff;color:#5b21b6;border:1.5px solid #c4a3f0;border-radius:999px;padding:3px 10px}
+  .lockchip b{font-weight:700}
+
+  .cols{display:grid;grid-template-columns:0.92fr 1.08fr;gap:0}
+  @media(max-width:860px){.cols{grid-template-columns:1fr}}
+
+  /* LEFT — AI companion feed */
+  .feedwrap{padding:14px 15px;border-right:2px dashed #b9b094;min-height:520px;display:flex;flex-direction:column}
+  .feedwrap .h{font-family:'Caveat';font-weight:700;font-size:19px;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .feed{flex:1;display:flex;flex-direction:column;gap:9px}
+  .item{opacity:0;transform:translateY(8px);transition:.4s}
+  .item.show{opacity:1;transform:none}
+  .provoke{background:#fff;border:2px solid #e23b3b;border-radius:14px 14px 14px 4px;padding:9px 12px;font-family:'Patrick Hand';font-size:14px;color:#21314f}
+  .provoke .tag{display:block;font-family:'Permanent Marker';font-size:10px;color:#e02d2d;letter-spacing:.05em;margin-bottom:2px}
+  .propose{background:#fff7df;border:2px solid #d9920b;border-radius:14px;padding:10px 12px}
+  .propose .tag{font-family:'Permanent Marker';font-size:10px;color:#b3760b;letter-spacing:.05em}
+  .propose .idea{font-family:'Patrick Hand';font-size:14.5px;color:#21314f;margin:4px 0 8px;line-height:1.35}
+  .propose .acts{display:flex;gap:7px}
+  .mini{font-family:'Patrick Hand';font-size:12px;border:2px solid #21314f;border-radius:8px;padding:3px 10px;background:#cfe0d2}
+  .mini.ghost{background:transparent;color:#8a8a8a;border-color:#cbb}
+  .userbub{align-self:flex-end;max-width:80%;background:#dbe6ff;border:2px solid #21314f;border-radius:14px 14px 4px 14px;padding:8px 11px;font-family:'Patrick Hand';font-size:13.5px}
+
+  /* RIGHT — redesign canvas */
+  .canvas{padding:14px 16px 16px;position:relative}
+  .canvas .h{font-family:'Caveat';font-weight:700;font-size:19px;margin:0 0 4px}
+  .orig{font-size:11px;color:#999;margin-bottom:8px}
+  .origchip{display:inline-block;font-family:'Inter';font-size:11px;color:#9aa3b8;background:#eef0f4;border-radius:999px;padding:2px 9px;margin:2px;text-decoration:line-through}
+  .rv{opacity:0;transform:scale(.92);transition:.5s}.rv.show{opacity:1;transform:none}
+  .scrib{opacity:0;transition:.3s}.scrib.show{opacity:1}
+  .scrib path{stroke:#e02d2d;stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:420;stroke-dashoffset:420}
+  .scrib.show path{animation:draw 1.1s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .doneband{opacity:0;transition:.5s;margin:10px 16px 16px;text-align:center;font-family:'Permanent Marker';color:#2e7d52;border:3px solid #2e7d52;border-radius:8px;padding:9px;transform:rotate(-1deg)}
+  .doneband.show{opacity:.95}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Redesign phase — the AI provokes <em>and</em> proposes</h1>
+  <p class="sub">You've been handed <b>another team's</b> captured process. Intent / outcome / personas are <b>LOCKED</b>; the old phases must <b>not</b> survive. The AI flips from scribe to <b>provocateur</b> (kills retrofits, catches "AI makes my report") + <b>proposer</b> (throws unicorn ideas on the table).</p>
+  <div class="controls"><button class="btn" id="replay">↻ Replay</button><span class="hint" id="hint">playing…</span></div>
+
+  <div class="app">
+    <div class="bar">
+      <span class="logo">✱ Workflow Studio</span>
+      <span class="pill code">K7PD</span><span class="pill phase">REDESIGN</span>
+      <span class="pill">Team A's AP process</span>
+      <span class="timer">⏱ 22:15</span>
+    </div>
+    <div class="locked">
+      <span class="lab">🔒 LOCKED — your redesign must still serve these:</span>
+      <span class="lockchip"><b>Intent:</b> suppliers paid on time, credit terms kept</span>
+      <span class="lockchip"><b>Outcome:</b> no late penalties, trusted suppliers</span>
+      <span class="lockchip"><b>Personas:</b> OpCo GM · RO Finance</span>
+    </div>
+
+    <div class="cols">
+      <!-- AI COMPANION -->
+      <div class="feedwrap">
+        <div class="h">
+          <svg width="26" height="26" viewBox="0 0 40 40"><circle cx="20" cy="21" r="14" fill="#fff" stroke="#21314f" stroke-width="2.2"/><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/></svg>
+          The Coach · devil's advocate
+        </div>
+        <div class="feed" id="feed"></div>
+      </div>
+
+      <!-- CANVAS -->
+      <div class="canvas">
+        <div class="h">Your AI-native redesign</div>
+        <div class="orig">Original phases (do NOT recreate):
+          <span class="origchip">OpCo drafts AP</span><span class="origchip">GM reviews figures</span><span class="origchip">manual reconcile</span><span class="origchip">approve &amp; pay</span>
+        </div>
+        <svg viewBox="0 0 520 250" width="100%">
+          <defs><filter id="r"><feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter></defs>
+          <g filter="url(#r)" font-family="'Patrick Hand'">
+            <!-- trigger -->
+            <ellipse cx="46" cy="120" rx="40" ry="32" fill="#cfe0d2" stroke="#21314f" stroke-width="2.5"/>
+            <text x="46" y="116" text-anchor="middle" font-size="11" fill="#21314f">invoice</text><text x="46" y="131" text-anchor="middle" font-size="11" fill="#21314f">arrives</text>
+            <!-- retrofit box (gets killed) -->
+            <g class="rv" data-at="retro">
+              <path d="M88 120 C108 112,120 128,146 120" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M139 114 L148 120 L139 126" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="150" y="92" width="150" height="56" rx="12" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+              <text x="225" y="124" text-anchor="middle" font-size="13" fill="#21314f">OpCo drafts AP</text>
+            </g>
+            <!-- scribble over retrofit -->
+            <g class="scrib" data-at="scrib"><path d="M158 100 L294 140 M158 120 L294 100 M158 140 L294 120 M176 96 L186 144"/></g>
+            <!-- AI-NATIVE collapsed agent -->
+            <g class="rv" data-at="agent">
+              <path d="M88 120 C108 112,120 128,146 120" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M139 114 L148 120 L139 126" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="150" y="74" width="190" height="92" rx="14" fill="#e7f0ff" stroke="#2b3a55" stroke-width="2.8"/>
+              <text x="245" y="98" text-anchor="middle" font-size="13" fill="#1d2b4a" font-weight="bold">⚡ Reconcile agent</text>
+              <text x="245" y="118" text-anchor="middle" font-size="10" fill="#3a4a6a">runs continuously, every invoice</text>
+              <text x="245" y="134" text-anchor="middle" font-size="10" fill="#3a4a6a">auto-matches PO + ledger</text>
+              <text x="245" y="152" text-anchor="middle" font-size="10" fill="#3a4a6a">auto-pays the clean ones</text>
+            </g>
+            <!-- human audits exceptions -->
+            <g class="rv" data-at="audit">
+              <path d="M340 120 C360 112,372 128,396 120" stroke="#21314f" stroke-width="2.4" fill="none"/><path d="M389 114 L398 120 L389 126" stroke="#21314f" stroke-width="2.4" fill="none"/>
+              <rect x="400" y="92" width="112" height="56" rx="12" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2.5"/>
+              <text x="456" y="115" text-anchor="middle" font-size="10.5" fill="#5b21b6">👤 GM audits</text><text x="456" y="131" text-anchor="middle" font-size="10.5" fill="#5b21b6">exceptions only</text>
+            </g>
+          </g>
+        </svg>
+        <div style="font-size:11px;color:#888;margin-top:6px">4 human phases → 1 continuous agent + human-on-exceptions. <b>The stack collapsed.</b></div>
+      </div>
+    </div>
+    <div class="doneband" id="done">✓ AI-NATIVE — no retrofit, still serves the locked intent → SHARE / EXPORT</div>
+  </div>
+</div>
+
+<script>
+  const feed=document.getElementById('feed'); const hint=document.getElementById('hint');
+  let timers=[]; const T=(fn,d)=>timers.push(setTimeout(fn,d));
+  const reveal=(at,on=true)=>document.querySelector(`.rv[data-at="${at}"]`).classList.toggle('show',on);
+  const scrib=on=>document.querySelector('.scrib').classList.toggle('show',on);
+
+  // feed items: type provoke | propose | user
+  function add(kind, html, opts={}){
+    const el=document.createElement('div'); el.className='item';
+    if(kind==='provoke') el.innerHTML=`<div class="provoke"><span class="tag">✋ PROVOKE</span>${html}</div>`;
+    else if(kind==='propose') el.innerHTML=`<div class="propose"><span class="tag">💡 PROPOSE — react to this</span><div class="idea">${html}</div><div class="acts"><span class="mini">Use it →</span><span class="mini ghost">nah</span></div></div>`;
+    else el.innerHTML=`<div class="userbub">${html}</div>`;
+    feed.appendChild(el); requestAnimationFrame(()=>el.classList.add('show'));
+    while(feed.children.length>6) feed.removeChild(feed.firstChild);
+  }
+
+  function play(){
+    timers.forEach(clearTimeout); timers=[];
+    feed.innerHTML=''; ['retro','agent','audit'].forEach(a=>reveal(a,false)); scrib(false);
+    document.getElementById('done').classList.remove('show'); hint.textContent='playing…';
+
+    T(()=>add('provoke',"You're redesigning Team A's AP process. The old phases must <b>not</b> survive. Don't be practical — think unicorn."), 500);
+
+    // team retrofits
+    T(()=>{ reveal('retro'); add('user',"We kept 'OpCo drafts AP' — they still need to draft it…"); }, 2200);
+    T(()=>{ scrib(true); add('provoke',"✋ That's the <b>OLD</b> process. Why does a <i>human</i> draft anything? If the data's all there, that's a retrofit. Kill it."); }, 3300);
+
+    // AI proposes a unicorn
+    T(()=>add('propose',"What if <b>no one drafts</b> at all — an agent reconciles <i>every</i> invoice continuously, auto-pays the clean ones, and only escalates exceptions to a human?"), 5200);
+
+    // team uses it -> stack collapses
+    T(()=>{ reveal('retro',false); scrib(false); reveal('agent'); add('user',"Ok — using it. One continuous reconcile agent."); }, 7400);
+
+    // rabbit rule
+    T(()=>add('user',"…and the agent generates a monthly payments report for the GM."), 9000);
+    T(()=>add('provoke',"🐇 A report is a <b>feature</b>, not AI-native. What decision does it drive? Maybe the GM never reads a report — the system just <i>acts</i>, and only pings them on an exception."), 10000);
+
+    // resolve to human-on-exceptions
+    T(()=>{ reveal('audit'); add('user',"Right — kill the report. GM only audits flagged exceptions."); }, 12200);
+    T(()=>add('provoke',"Now the human <b>audits</b> instead of <b>creates</b>. Cadence, deliverable, goal — all changed. Still serves the locked intent. <b>That's</b> AI-native."), 13400);
+
+    T(()=>{ document.getElementById('done').classList.add('show'); hint.textContent='done — hit replay'; }, 15400);
+  }
+  document.getElementById('replay').onclick=play;
+  play();
+</script>
+</body>
+</html>

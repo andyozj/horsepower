@@ -1,0 +1,7 @@
+SIL Open Font License 1.1 — Fraunces, Inter, Caveat
+
+These fonts are licensed under the SIL Open Font License, Version 1.1.
+Full text: https://openfontlicense.org
+
+Fraunces © Undercase Type. Inter © Rasmus Andersson. Caveat © Impallari Type.
+Variable woff2 (latin subset) self-hosted from the Google Fonts css2 API to avoid a CDN dependency.

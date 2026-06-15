@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Studio — Souls (A · B · C)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Gloria+Hallelujah&family=Shadows+Into+Light+Two&family=Schoolbell&family=Fredoka:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e9e6df;color:#222}
+  .page{max-width:1180px;margin:0 auto;padding:36px 22px 120px}
+  h1{font-family:'Fraunces';font-size:28px;margin:0 0 6px}
+  .sub{color:#6a6a6a;max-width:680px;line-height:1.5;margin:0 0 14px}
+  .nav{position:sticky;top:0;z-index:60;display:flex;gap:8px;flex-wrap:wrap;padding:12px 0;background:linear-gradient(#e9e6df,#e9e6dfdd 70%,#e9e6df00)}
+  .nav a{font-size:13px;font-weight:600;color:#333;text-decoration:none;padding:7px 13px;border:1px solid #c9c4ba;border-radius:999px;background:#fff}
+  .vibe{margin:46px 0}
+  .vibe > .lab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .vibe > .lab .n{font-family:'Fraunces';font-size:20px;font-weight:600}
+  .vibe > .lab .feel{flex:1;min-width:260px;color:#555;font-size:13px;line-height:1.5}
+  .note{font-size:12.5px;color:#777;margin-top:12px;line-height:1.5}
+
+  .mock{border-radius:14px;overflow:hidden;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+  .bar{display:flex;align-items:center;gap:12px;padding:12px 18px;position:relative;z-index:5}
+  .map{padding:18px 18px 6px;position:relative;z-index:4}
+  .coach{margin:6px 18px 18px;border-radius:14px;padding:12px 14px;position:relative;z-index:5}
+  .bubble{max-width:80%;padding:8px 12px;font-size:13.5px;line-height:1.45;margin:6px 0;border-radius:13px}
+  .pill{font-size:13px;padding:3px 11px;border-radius:12px}
+
+  /* ============================ A — CRITIC'S NOTEBOOK ============================ */
+  #A .mock{background:#f4efe2;color:#21314f;background-image:radial-gradient(rgba(120,110,90,.12) 1px,transparent 1px);background-size:19px 19px}
+  #A .bar{border-bottom:2px dashed #b9b094}
+  #A .logo{font-family:'Caveat';font-weight:700;font-size:26px;color:#21314f}
+  #A .pill{font-family:'Patrick Hand';border:2px solid #21314f;background:#cfe0d2;transform:rotate(-1.5deg)}
+  #A .pill.code{background:#ffd24a;transform:rotate(1.2deg)}
+  #A .timer{margin-left:auto;font-family:'Caveat';font-weight:700;font-size:23px;color:#21314f}
+  #A .redpen{position:absolute;font-family:'Caveat';font-weight:700;color:#e23b3b;z-index:6;pointer-events:none}
+  #A .coach{background:#fffaf0;border:2px solid #21314f;border-radius:18px 15px 20px 13px}
+  #A .who{font-family:'Caveat';font-weight:700;font-size:19px;display:flex;align-items:center;gap:9px}
+  #A .bubble{font-family:'Patrick Hand'}
+  #A .bubble.ai{background:#fff;border:2px solid #e23b3b;color:#21314f;border-radius:15px 15px 15px 4px}
+  #A .bubble.user{margin-left:auto;background:#dbe6ff;border:2px solid #21314f;border-radius:15px 15px 4px 15px}
+
+  /* ============================ B — CRAYON MANIFESTO ============================ */
+  #B .mock{background:#fbf6ec;color:#1a1a1a}
+  #B .mock::before{content:"";position:absolute;inset:0;background:
+     repeating-linear-gradient(135deg,#0000 0 22px,#00000005 22px 24px);pointer-events:none}
+  #B .bar{border-bottom:3px solid #1a1a1a;gap:8px}
+  #B .logo{font-family:'Permanent Marker';font-size:22px;color:#e02d2d;letter-spacing:.5px}
+  #B .pill{font-family:'Permanent Marker';font-size:12px;border:2.5px solid #1a1a1a;background:#ffe14d;transform:rotate(-2deg)}
+  #B .pill.code{background:#41b3ff;color:#fff;transform:rotate(1.5deg)}
+  #B .timer{margin-left:auto;font-family:'Permanent Marker';font-size:20px;color:#1a1a1a}
+  #B .tape{position:absolute;width:96px;height:26px;background:#7fd4c1cc;border:1px solid #0001;z-index:7;box-shadow:0 2px 5px #0002}
+  #B .stamp{position:absolute;right:22px;top:62px;z-index:8;font-family:'Permanent Marker';color:#e02d2d;
+     border:3px solid #e02d2d;border-radius:6px;padding:5px 10px;transform:rotate(-9deg);opacity:.85;font-size:13px;text-align:center;line-height:1.1}
+  #B .coach{background:#fff;border:3px solid #1a1a1a;border-radius:4px}
+  #B .who{font-family:'Permanent Marker';font-size:16px;display:flex;align-items:center;gap:8px;color:#e02d2d}
+  #B .bubble{font-family:'Gloria Hallelujah';font-size:12.5px}
+  #B .bubble.ai{background:#ffe14d;border:2.5px solid #1a1a1a;border-radius:4px}
+  #B .bubble.user{margin-left:auto;background:#41b3ff;color:#fff;border:2.5px solid #1a1a1a;border-radius:4px}
+
+  /* ============================ C — CRAFTED STORYBOOK ============================ */
+  #C .mock{background:#fdf6ee;color:#4a3f35}
+  #C .wash{position:absolute;inset:0;pointer-events:none;z-index:1;
+     background:radial-gradient(280px 200px at 12% 0%,#ffe9b8aa,transparent),
+                radial-gradient(300px 230px at 88% 8%,#d6ecffaa,transparent),
+                radial-gradient(360px 260px at 70% 120%,#ffd9e6aa,transparent),
+                radial-gradient(300px 240px at 8% 120%,#d8f3dcaa,transparent)}
+  #C .bar{border-bottom:2px solid #e7d9c6}
+  #C .logo{font-family:'Fredoka';font-weight:600;font-size:21px;color:#7a5c3e}
+  #C .pill{font-family:'Shadows Into Light Two';font-size:14px;border:2px solid #b89a78;background:#ffe7b3;border-radius:14px 11px 15px 10px}
+  #C .pill.code{background:#bfe3ff;border-color:#7fb0d6}
+  #C .timer{margin-left:auto;font-family:'Fredoka';font-weight:500;font-size:20px;color:#a07b54}
+  #C .coach{background:#fffdf8;border:2px solid #e6cfa9;border-radius:18px}
+  #C .who{font-family:'Fredoka';font-weight:600;font-size:17px;display:flex;align-items:center;gap:9px;color:#7a5c3e}
+  #C .bubble{font-family:'Shadows Into Light Two';font-size:14.5px}
+  #C .bubble.ai{background:#eaf4ff;border:2px solid #b9d6ef;border-radius:15px 15px 15px 4px}
+  #C .bubble.user{margin-left:auto;background:#ffe7b3;border:2px solid #e6c98c;border-radius:15px 15px 4px 15px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Three Souls for the Light Hand-Drawn Vibe</h1>
+  <p class="sub">Same app — header, workflow map, coach. The goal here is <b>personality</b>: each should feel authored by a specific hand, not generated by Excalidraw.</p>
+  <div class="nav">
+    <a href="#A">🔴 A · Critic's Notebook</a>
+    <a href="#B">⚡ B · Crayon Manifesto</a>
+    <a href="#C">🌤️ C · Crafted Storybook</a>
+  </div>
+
+  <!-- ===================== A ===================== -->
+  <section class="vibe" id="A">
+    <div class="lab"><span class="n">🔴 A — The Critic's Notebook</span>
+      <span class="feel">The app IS the Coach's marked-up notebook. A hand-drawn critic takes a <b>red pen</b> to your work — circles weak spots, scrawls "why??", crosses out retrofits. Soul = the visual identity is the product mechanic.</span></div>
+    <div class="mock">
+      <!-- red pen marginalia -->
+      <div class="redpen" style="left:430px;top:150px;font-size:30px;transform:rotate(-12deg)">why??</div>
+      <div class="redpen" style="left:705px;top:60px;font-size:22px;transform:rotate(8deg)">really?</div>
+      <div class="bar">
+        <span class="logo">✱ Workflow Studio</span>
+        <span class="pill code">K7PD</span>
+        <span class="pill">capture</span>
+        <span class="timer">⏱ 6:00</span>
+      </div>
+      <div class="map">
+        <svg viewBox="0 0 860 220" width="100%">
+          <defs><filter id="rA"><feTurbulence type="fractalNoise" baseFrequency="0.013" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter></defs>
+          <g filter="url(#rA)" font-family="'Patrick Hand'">
+            <ellipse cx="62" cy="112" rx="50" ry="38" fill="#cfe0d2" stroke="#21314f" stroke-width="2.5"/>
+            <text x="62" y="108" text-anchor="middle" font-size="13" fill="#21314f">invoice</text>
+            <text x="62" y="125" text-anchor="middle" font-size="13" fill="#21314f">arrives</text>
+            <path d="M116 112 C146 102,161 122,194 112" stroke="#21314f" stroke-width="2.5" fill="none"/><path d="M186 105 L196 112 L186 119" stroke="#21314f" stroke-width="2.5" fill="none"/>
+            <rect x="198" y="40" width="176" height="146" rx="15" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+            <text x="286" y="63" text-anchor="middle" font-size="15" fill="#21314f">OpCo drafts AP</text>
+            <rect x="214" y="76" width="144" height="38" rx="9" fill="#dbe6ff" stroke="#21314f" stroke-width="2"/><text x="286" y="100" text-anchor="middle" font-size="12.5" fill="#21314f">pull figures</text>
+            <rect x="214" y="124" width="144" height="44" rx="9" fill="#ffe3e3" stroke="#21314f" stroke-width="2"/><text x="286" y="145" text-anchor="middle" font-size="12.5" fill="#21314f">manual reconcile</text><text x="286" y="161" text-anchor="middle" font-size="10.5" fill="#21314f">3 days</text>
+            <path d="M374 112 C404 102,419 122,452 112" stroke="#21314f" stroke-width="2.5" fill="none"/><path d="M444 105 L454 112 L444 119" stroke="#21314f" stroke-width="2.5" fill="none"/>
+            <rect x="456" y="40" width="176" height="146" rx="15" fill="#fff9ec" stroke="#21314f" stroke-width="2.5"/>
+            <text x="544" y="63" text-anchor="middle" font-size="15" fill="#21314f">GM reviews</text>
+            <rect x="472" y="92" width="144" height="38" rx="9" fill="#dbe6ff" stroke="#21314f" stroke-width="2"/><text x="544" y="116" text-anchor="middle" font-size="12.5" fill="#21314f">approve every one</text>
+            <path d="M632 112 C662 102,677 122,710 112" stroke="#21314f" stroke-width="2.5" fill="none"/><path d="M702 105 L712 112 L702 119" stroke="#21314f" stroke-width="2.5" fill="none"/>
+            <rect x="714" y="76" width="120" height="72" rx="15" fill="#ffd24a" stroke="#21314f" stroke-width="2.5"/>
+            <text x="774" y="105" text-anchor="middle" font-size="12.5" fill="#21314f">supplier</text><text x="774" y="123" text-anchor="middle" font-size="12.5" fill="#21314f">paid on time</text>
+          </g>
+          <!-- RED PEN: circle the pain + cross-out -->
+          <g fill="none" stroke="#e23b3b" stroke-width="3" stroke-linecap="round">
+            <path d="M212 122 C200 145,214 176,290 172 C360 168,372 140,356 122 C342 108,300 110,264 112 C238 113,220 110,212 124"/>
+            <path d="M474 90 L612 130 M474 130 L612 90"/>
+          </g>
+        </svg>
+      </div>
+      <div class="coach">
+        <div class="who">
+          <!-- critic character -->
+          <svg width="34" height="34" viewBox="0 0 40 40"><g stroke="#21314f" stroke-width="2.2" fill="#fff"><circle cx="20" cy="21" r="14"/></g><path d="M11 13 Q16 9 21 13" stroke="#21314f" stroke-width="2.2" fill="none"/><circle cx="15" cy="21" r="2" fill="#21314f"/><circle cx="25" cy="21" r="2" fill="#21314f"/><path d="M14 28 Q20 25 26 28" stroke="#21314f" stroke-width="2" fill="none"/><line x1="30" y1="30" x2="38" y2="38" stroke="#e23b3b" stroke-width="3" stroke-linecap="round"/><circle cx="38.5" cy="38.5" r="1.6" fill="#e23b3b"/></svg>
+          The Coach <span style="font-family:'Patrick Hand';font-size:13px;color:#e23b3b">· devil's advocate</span>
+        </div>
+        <div class="bubble ai">Why does the GM approve <u>every</u> invoice? What breaks if they only see the ones over £5k?</div>
+        <div class="bubble user">…honestly? Nothing. Crossed it out.</div>
+      </div>
+    </div>
+    <p class="note">Ballpoint-blue ink + craft paper, with a single aggressive <b>red pen</b> the Coach uses to mark your work. The red circle, the cross-out, the margin "why??" are all the AI's voice made visible.</p>
+  </section>
+
+  <!-- ===================== B ===================== -->
+  <section class="vibe" id="B">
+    <div class="lab"><span class="n">⚡ B — Crayon Manifesto</span>
+      <span class="feel">Punk, loud, maximalist. Ransom-note lettering, washi tape, stamps, clashing crayon color. Soul = pure attitude. The anti-retrofit "scribble it out" is violent and joyful.</span></div>
+    <div class="mock">
+      <div class="tape" style="left:160px;top:-6px;transform:rotate(-4deg)"></div>
+      <div class="tape" style="right:140px;bottom:64px;transform:rotate(6deg);background:#ffd24dcc"></div>
+      <div class="stamp">REDESIGN<br>DON'T RETROFIT</div>
+      <div class="bar">
+        <span class="logo">WORKFLOW STUDIO</span>
+        <span class="pill code">K7PD</span>
+        <span class="pill">CAPTURE</span>
+        <span class="timer">6:00</span>
+      </div>
+      <div class="map">
+        <svg viewBox="0 0 860 220" width="100%">
+          <defs><filter id="rB"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="9" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="4.5"/></filter></defs>
+          <g filter="url(#rB)" font-family="'Gloria Hallelujah'">
+            <rect x="14" y="84" width="104" height="56" rx="6" fill="#41b3ff" stroke="#1a1a1a" stroke-width="3.5"/>
+            <text x="66" y="108" text-anchor="middle" font-size="11" fill="#fff">invoice</text><text x="66" y="124" text-anchor="middle" font-size="11" fill="#fff">arrives</text>
+            <path d="M120 112 L196 112" stroke="#1a1a1a" stroke-width="4" fill="none"/><path d="M186 104 L198 112 L186 120" stroke="#1a1a1a" stroke-width="4" fill="none"/>
+            <rect x="200" y="40" width="178" height="148" rx="8" fill="#fff" stroke="#1a1a1a" stroke-width="3.5"/>
+            <text x="289" y="64" text-anchor="middle" font-size="13" fill="#e02d2d">OpCo drafts AP</text>
+            <rect x="216" y="78" width="146" height="40" rx="6" fill="#ffe14d" stroke="#1a1a1a" stroke-width="2.5"/><text x="289" y="103" text-anchor="middle" font-size="11" fill="#1a1a1a">pull figures</text>
+            <rect x="216" y="128" width="146" height="46" rx="6" fill="#ffb0b0" stroke="#1a1a1a" stroke-width="2.5"/><text x="289" y="150" text-anchor="middle" font-size="11" fill="#1a1a1a">manual reconcile</text>
+            <!-- violent scribble-out over the pain -->
+            <g stroke="#e02d2d" stroke-width="3.5" fill="none" stroke-linecap="round"><path d="M222 132 L356 170 M222 152 L356 132 M222 170 L356 150 M240 128 L250 174"/></g>
+            <path d="M378 112 L456 112" stroke="#1a1a1a" stroke-width="4" fill="none"/><path d="M446 104 L458 112 L446 120" stroke="#1a1a1a" stroke-width="4" fill="none"/>
+            <rect x="460" y="40" width="178" height="148" rx="8" fill="#fff" stroke="#1a1a1a" stroke-width="3.5"/>
+            <text x="549" y="64" text-anchor="middle" font-size="13" fill="#e02d2d">GM reviews</text>
+            <rect x="476" y="94" width="146" height="40" rx="6" fill="#ffe14d" stroke="#1a1a1a" stroke-width="2.5"/><text x="549" y="119" text-anchor="middle" font-size="11" fill="#1a1a1a">approve / reject</text>
+            <path d="M638 112 L714 112" stroke="#1a1a1a" stroke-width="4" fill="none"/><path d="M704 104 L716 112 L704 120" stroke="#1a1a1a" stroke-width="4" fill="none"/>
+            <rect x="718" y="76" width="122" height="74" rx="8" fill="#7fd4c1" stroke="#1a1a1a" stroke-width="3.5"/>
+            <text x="779" y="106" text-anchor="middle" font-size="11" fill="#1a1a1a">supplier</text><text x="779" y="124" text-anchor="middle" font-size="11" fill="#1a1a1a">PAID!</text>
+          </g>
+        </svg>
+      </div>
+      <div class="coach">
+        <div class="who">📣 THE COACH <span style="font-family:'Gloria Hallelujah';font-size:11px;color:#1a1a1a">· devil's advocate</span></div>
+        <div class="bubble ai">KILL the reconcile step. Why is a human doing maths a robot does better?!</div>
+        <div class="bubble user">ok ok we scribbled it out 😤</div>
+      </div>
+    </div>
+    <p class="note">Permanent-marker headlines, ransom-note pills, washi-tape strips, a rotated "REDESIGN — DON'T RETROFIT" rubber stamp, and pain points you literally scribble to death. Maximal attitude.</p>
+  </section>
+
+  <!-- ===================== C ===================== -->
+  <section class="vibe" id="C">
+    <div class="lab"><span class="n">🌤️ C — Crafted Storybook</span>
+      <span class="feel">Gentle, warm, charming. Colored-pencil + watercolor wash, a cohesive illustrated world — personas are little characters, a sun in the corner. Soul = a complete, kind, hand-made universe.</span></div>
+    <div class="mock">
+      <div class="wash"></div>
+      <!-- sun -->
+      <svg style="position:absolute;right:18px;top:10px;z-index:2" width="64" height="64" viewBox="0 0 64 64"><g stroke="#f4b942" stroke-width="2.5" stroke-linecap="round"><line x1="32" y1="4" x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="60"/><line x1="4" y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="60" y2="32"/><line x1="12" y1="12" x2="18" y2="18"/><line x1="46" y1="46" x2="52" y2="52"/><line x1="52" y1="12" x2="46" y2="18"/><line x1="18" y1="46" x2="12" y2="52"/></g><circle cx="32" cy="32" r="13" fill="#ffe7a3" stroke="#f4b942" stroke-width="2.5"/></svg>
+      <div class="bar" style="position:relative;z-index:5">
+        <span class="logo">☁ Workflow Studio</span>
+        <span class="pill code">K7PD</span>
+        <span class="pill">capture</span>
+        <span class="timer">6:00</span>
+      </div>
+      <div class="map">
+        <svg viewBox="0 0 860 230" width="100%" font-family="'Shadows Into Light Two'">
+          <ellipse cx="62" cy="112" rx="50" ry="40" fill="#cdeccf" stroke="#7aa67c" stroke-width="2.5"/>
+          <text x="62" y="108" text-anchor="middle" font-size="13" fill="#4a3f35">invoice</text><text x="62" y="126" text-anchor="middle" font-size="13" fill="#4a3f35">arrives</text>
+          <path d="M116 112 C146 104,161 120,194 112" stroke="#b89a78" stroke-width="2.5" fill="none"/><path d="M186 105 L196 112 L186 119" stroke="#b89a78" stroke-width="2.5" fill="none"/>
+          <rect x="198" y="40" width="176" height="150" rx="18" fill="#fffdf6" stroke="#e0b87a" stroke-width="2.5"/>
+          <text x="286" y="64" text-anchor="middle" font-size="15" fill="#7a5c3e">OpCo drafts AP</text>
+          <rect x="214" y="78" width="144" height="40" rx="12" fill="#eaf4ff" stroke="#9cc4e6" stroke-width="2"/><text x="286" y="103" text-anchor="middle" font-size="12.5" fill="#4a3f35">pull figures</text>
+          <rect x="214" y="128" width="144" height="44" rx="12" fill="#ffe1e8" stroke="#e69ab0" stroke-width="2"/><text x="286" y="150" text-anchor="middle" font-size="12.5" fill="#4a3f35">manual reconcile</text>
+          <!-- little persona character -->
+          <g transform="translate(348,150)"><circle cx="0" cy="0" r="9" fill="#ffd9a3" stroke="#b89a78" stroke-width="1.6"/><circle cx="-3" cy="-1" r="1.2" fill="#4a3f35"/><circle cx="3" cy="-1" r="1.2" fill="#4a3f35"/><path d="M-3 3 Q0 5 3 3" stroke="#4a3f35" stroke-width="1.2" fill="none"/></g>
+          <path d="M374 112 C404 104,419 120,452 112" stroke="#b89a78" stroke-width="2.5" fill="none"/><path d="M444 105 L454 112 L444 119" stroke="#b89a78" stroke-width="2.5" fill="none"/>
+          <rect x="456" y="40" width="176" height="150" rx="18" fill="#fffdf6" stroke="#e0b87a" stroke-width="2.5"/>
+          <text x="544" y="64" text-anchor="middle" font-size="15" fill="#7a5c3e">GM reviews</text>
+          <rect x="472" y="92" width="144" height="40" rx="12" fill="#eaf4ff" stroke="#9cc4e6" stroke-width="2"/><text x="544" y="117" text-anchor="middle" font-size="12.5" fill="#4a3f35">approve / reject</text>
+          <g transform="translate(606,150)"><circle cx="0" cy="0" r="9" fill="#d3b8ff" stroke="#b89a78" stroke-width="1.6"/><circle cx="-3" cy="-1" r="1.2" fill="#4a3f35"/><circle cx="3" cy="-1" r="1.2" fill="#4a3f35"/><path d="M-3 3 Q0 5 3 3" stroke="#4a3f35" stroke-width="1.2" fill="none"/></g>
+          <path d="M632 112 C662 104,677 120,710 112" stroke="#b89a78" stroke-width="2.5" fill="none"/><path d="M702 105 L712 112 L702 119" stroke="#b89a78" stroke-width="2.5" fill="none"/>
+          <rect x="714" y="76" width="122" height="74" rx="18" fill="#ffe7a3" stroke="#f4b942" stroke-width="2.5"/>
+          <text x="775" y="105" text-anchor="middle" font-size="12.5" fill="#7a5c3e">supplier</text><text x="775" y="123" text-anchor="middle" font-size="12.5" fill="#7a5c3e">paid on time</text>
+        </svg>
+      </div>
+      <div class="coach" style="position:relative;z-index:5">
+        <div class="who">
+          <svg width="32" height="32" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#bfe3ff" stroke="#7fb0d6" stroke-width="2.2"/><circle cx="14" cy="19" r="2" fill="#4a3f35"/><circle cx="26" cy="19" r="2" fill="#4a3f35"/><circle cx="12" cy="25" r="2.5" fill="#ffb3c1" opacity=".7"/><circle cx="28" cy="25" r="2.5" fill="#ffb3c1" opacity=".7"/><path d="M14 26 Q20 31 26 26" stroke="#4a3f35" stroke-width="2" fill="none"/></svg>
+          The Coach <span style="font-family:'Shadows Into Light Two';font-size:13px;color:#a07b54">· a gentle challenger</span>
+        </div>
+        <div class="bubble ai">What if the supplier just got paid automatically? Who would even miss the review?</div>
+        <div class="bubble user">huh. maybe nobody!</div>
+      </div>
+    </div>
+    <p class="note">Soft watercolor washes, colored-pencil outlines, a sun and clouds, and personas drawn as little round characters. Warmest and most charming — the Coach is a friend, not a critic.</p>
+  </section>
+</div>
+</body>
+</html>

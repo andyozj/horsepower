@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# runtime state — live workshop data INCLUDING host keys in plaintext; never commit
+data/
+
+# local agent / editor / OS cruft
+.claude/
+.DS_Store
+*.swp
+.playwright-mcp/
+
+# scratch / temp
+*.tmp
+.leak-sweep.tmp.js
+
+# generated test & QA output (screenshots, recordings, captured runs)
+uat-shots/
+qa-shots/
+qa-design/
+qa-edges/
+qa-critic/
+qa-critic2/

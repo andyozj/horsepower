@@ -1,0 +1,11 @@
+{
+  "name": "Horsepower — AI-Native Workflow Studio",
+  "short_name": "Horsepower",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe2",
+  "theme_color": "#21314f",
+  "icons": [
+    { "src": "/img/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

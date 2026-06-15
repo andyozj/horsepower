@@ -1,0 +1,21 @@
+{
+  "name": "horsepower",
+  "version": "0.2.0",
+  "description": "Horsepower 🐎 — AI-native workflow studio: Surface a workflow, swap it as a surprise, rebuild it AI-native with a Coach. Farrier-run, B-lite multi-device, disk-persistent.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node e2e.js",
+    "uat": "node e2e-playwright.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

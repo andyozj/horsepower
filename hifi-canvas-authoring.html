@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horsepower — canvas authoring (Excalidraw-grade)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:'Inter',sans-serif;color:#21314f;background:#e4e0d6;display:flex;flex-direction:column}
+  .topnote{padding:8px 16px;font-size:12.5px;color:#555}.topnote b{color:#21314f}
+  .app{flex:1;display:flex;flex-direction:column;margin:0 14px 14px;background:#f4efe2;border-radius:16px;overflow:hidden;
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:20px 20px;box-shadow:0 16px 44px rgba(0,0,0,.16)}
+  .toolbar{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:2px dashed #b9b094;flex-wrap:wrap}
+  .tool{display:flex;align-items:center;gap:6px;font-family:'Patrick Hand';font-size:13px;border:2px solid #21314f;border-radius:9px;padding:5px 11px;background:#fff;cursor:pointer;user-select:none}
+  .tool .sw{width:14px;height:14px;border-radius:4px;border:2px solid}
+  .tool:hover{background:#fbf6ec}.tool.on{box-shadow:0 0 0 3px #ffd24a;background:#fffaf0}
+  .tool.persona .sw{background:#f3e8ff;border-color:#7c3aed}
+  .tool.trigger .sw{background:#cfe0d2;border-color:#21314f;border-radius:50%}
+  .tool.phase .sw{background:#fff9ec;border-color:#21314f}
+  .tool.moment .sw{background:#dbe6ff;border-color:#21314f}
+  .tool.outcome .sw{background:#ffd24a;border-color:#21314f}
+  .tool.arrow .sw{border:none;width:18px;height:0;border-top:2px solid #21314f;position:relative}
+  .tool.arrow .sw::after{content:'▶';position:absolute;right:-3px;top:-8px;font-size:9px;color:#21314f}
+  .tool.select{background:#cfe0d2}
+  .sep{width:1px;height:22px;background:#cbbf9f;margin:0 4px}
+  .hintbar{margin-left:auto;font-family:'Patrick Hand';font-size:13px;color:#7a5c3e;background:#fff3cf;border:1.5px solid #e0b87a;border-radius:8px;padding:4px 11px}
+  .canvas{flex:1;position:relative;min-height:0}
+  svg.board{width:100%;height:100%;display:block;touch-action:none}
+  svg.board.placing{cursor:copy}svg.board.connecting{cursor:crosshair}
+  .node{cursor:grab}.node text{pointer-events:none;user-select:none}
+  .ring{display:none}.node.sel .ring{display:block}
+  .linkhit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer}
+  .midhandle{fill:#ffd24a;stroke:#21314f;stroke-width:2;cursor:grab}
+  .endhandle{fill:#fff;stroke:#21314f;stroke-width:2;cursor:grab}
+  .resizehandle{fill:#fff;stroke:#21314f;stroke-width:2;cursor:nwse-resize}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .empty span{font-family:'Caveat';font-size:24px;color:#b9b094}
+  .footer{padding:7px 14px;border-top:2px dashed #b9b094;font-size:11.5px;color:#8a8a72;font-style:italic}
+</style>
+</head>
+<body>
+  <div class="topnote">🐎 <b>Horsepower — the map canvas</b> (Surface &amp; Rebuild). Typed blocks · <b>editable, angle-adjustable arrows</b> · works by hand without the Coach.</div>
+  <div class="app">
+    <div class="toolbar">
+      <div class="tool select on" data-tool="select">✋ Select</div>
+      <div class="sep"></div>
+      <div class="tool persona" data-tool="persona"><span class="sw"></span>👤 Persona</div>
+      <div class="tool trigger" data-tool="trigger"><span class="sw"></span>Trigger</div>
+      <div class="tool phase" data-tool="phase"><span class="sw"></span>Phase</div>
+      <div class="tool moment" data-tool="moment"><span class="sw"></span>Moment</div>
+      <div class="tool outcome" data-tool="outcome"><span class="sw"></span>Outcome</div>
+      <div class="sep"></div>
+      <div class="tool arrow" data-tool="arrow"><span class="sw"></span>Arrow</div>
+      <div class="hintbar" id="hint">Pick a block, then click the canvas to drop it</div>
+    </div>
+    <div class="canvas">
+      <svg class="board" id="board" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="empty" id="empty"><span>pick a block above ↑ and click to drop it</span></div>
+    </div>
+    <div class="footer">move: drag block (arrows follow) · <b>resize: drag the corner</b> · rename: double-click · <b>text size: +/− keys</b> · delete: select + ⌫ · <b>arrow: click source→target, then double-click it (or drag its dot) to bend &amp; adjust the angle</b></div>
+  </div>
+
+<script>
+const board=document.getElementById('board'), hint=document.getElementById('hint'), empty=document.getElementById('empty');
+const DEF={persona:{w:160,h:46,label:'👤 new persona'},trigger:{w:120,h:74,label:'trigger'},phase:{w:184,h:112,label:'Phase'},moment:{w:144,h:44,label:'moment'},outcome:{w:134,h:64,label:'outcome'}};
+let nodes=[],links=[],uid=1,lid=1;
+let tool='select',selNode=null,selLink=null,connectFrom=null,drag=null,dragMid=null,dragResize=null;
+
+nodes=[
+  {id:'n1',type:'persona',x:40,y:30,...DEF.persona,label:'👤 OpCo GM'},
+  {id:'n2',type:'trigger',x:60,y:250,...DEF.trigger,label:'invoice arrives'},
+  {id:'n3',type:'phase',x:320,y:220,...DEF.phase,label:'OpCo drafts AP'},
+  {id:'n4',type:'outcome',x:780,y:240,...DEF.outcome,label:'paid on time'},
+];
+links=[{id:'l1',from:'n2',to:'n3',mid:null},{id:'l2',from:'n3',to:'n4',mid:null}]; uid=5; lid=3;
+
+const byId=id=>nodes.find(n=>n.id===id);
+const byLid=id=>links.find(l=>l.id===id);
+const ctr=n=>[n.x+n.w/2,n.y+n.h/2];
+function sp(e){const p=board.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(board.getScreenCTM().inverse());}
+function clip(n,tx,ty){const[cx,cy]=ctr(n);let dx=tx-cx,dy=ty-cy;if(!dx&&!dy)return[cx,cy];const t=Math.min((n.w/2)/Math.abs(dx||1e-6),(n.h/2)/Math.abs(dy||1e-6));return[cx+dx*t,cy+dy*t];}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function setTool(t){tool=t;connectFrom=null;
+  document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('on',el.dataset.tool===t));
+  board.classList.toggle('placing',!!DEF[t]);board.classList.toggle('connecting',t==='arrow');
+  hint.textContent=DEF[t]?`Click the canvas to drop a ${t}`:t==='arrow'?'Click the FROM block':'Drag to move · double-click to bend an arrow';}
+
+function linkGeom(l){
+  const a=byId(l.from),b=byId(l.to); if(!a||!b)return null;
+  if(l.mid){const[s]=[clip(a,l.mid.x,l.mid.y)],[e]=[clip(b,l.mid.x,l.mid.y)];
+    return {d:`M${s[0]} ${s[1]} L${l.mid.x} ${l.mid.y} L${e[0]} ${e[1]}`,handle:[l.mid.x,l.mid.y]};}
+  const[bx,by]=ctr(b),[ax,ay]=ctr(a),s=clip(a,bx,by),e=clip(b,ax,ay),mx=(s[0]+e[0])/2,my=(s[1]+e[1])/2;
+  return {d:`M${s[0]} ${s[1]} C${mx} ${s[1]}, ${mx} ${e[1]}, ${e[0]} ${e[1]}`,handle:[mx,my]};
+}
+
+function render(){
+  empty.style.display=nodes.length?'none':'flex';
+  let lh='';
+  links.forEach(l=>{const g=linkGeom(l);if(!g)return;const sel=l.id===selLink;
+    lh+=`<path class="linkhit" data-lid="${l.id}" d="${g.d}"/>
+      <path d="${g.d}" stroke="${sel?'#21314f':'#9aa3b8'}" stroke-width="${sel?2.8:2.4}" fill="none" marker-end="url(#ar)"/>`;
+    if(sel) lh+=`<circle class="midhandle" data-lid="${l.id}" cx="${g.handle[0]}" cy="${g.handle[1]}" r="6"/>`;
+  });
+  let nh='';
+  nodes.forEach(n=>{const sel=n.id===selNode?'sel':'';
+    const fill=n.type==='persona'?'#f3e8ff':n.type==='trigger'?'#cfe0d2':n.type==='moment'?'#dbe6ff':n.type==='outcome'?'#ffd24a':'#fff9ec';
+    const stroke=n.type==='persona'?'#7c3aed':'#21314f';
+    const shape=n.type==='trigger'
+      ?`<ellipse cx="${n.w/2}" cy="${n.h/2}" rx="${n.w/2}" ry="${n.h/2}" fill="${fill}" stroke="${stroke}" stroke-width="2.6" filter="url(#ruf)"/>`
+      :`<rect width="${n.w}" height="${n.h}" rx="13" fill="${fill}" stroke="${stroke}" stroke-width="2.6" filter="url(#ruf)"/>`;
+    const ring=n.type==='trigger'
+      ?`<ellipse class="ring" cx="${n.w/2}" cy="${n.h/2}" rx="${n.w/2+5}" ry="${n.h/2+5}" fill="none" stroke="#ffd24a" stroke-width="2.5" stroke-dasharray="5 4"/>`
+      :`<rect class="ring" x="-5" y="-5" width="${n.w+10}" height="${n.h+10}" rx="15" fill="none" stroke="#ffd24a" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+    nh+=`<g class="node ${sel}" data-id="${n.id}" transform="translate(${n.x},${n.y})">${ring}${shape}
+      <text x="${n.w/2}" y="${n.type==='phase'?(n.fontSize||13)+9:n.h/2+(n.fontSize||12)/3}" text-anchor="middle" font-size="${n.fontSize||(n.type==='phase'?13:12)}" font-family="Patrick Hand" fill="#21314f">${esc(n.label)}</text></g>`;
+  });
+  let rh='';
+  if(selNode){const n=byId(selNode); if(n) rh=`<rect class="resizehandle" data-id="${n.id}" x="${n.x+n.w-6}" y="${n.y+n.h-6}" width="12" height="12" rx="2"/>`;}
+  board.innerHTML=`<defs>
+    <filter id="ruf"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#9aa3b8"/></marker>
+  </defs>${lh}${nh}${rh}`;
+}
+
+board.addEventListener('pointerdown',e=>{
+  const p=sp(e);
+  const mh=e.target.closest('.midhandle');
+  if(mh){ dragMid=byLid(mh.dataset.lid); board.setPointerCapture(e.pointerId); return; }
+  const rhEl=e.target.closest('.resizehandle');
+  if(rhEl){ dragResize=byId(rhEl.dataset.id); board.setPointerCapture(e.pointerId); return; }
+  if(DEF[tool]){ const d=DEF[tool]; const n={id:'n'+(uid++),type:tool,x:p.x-d.w/2,y:p.y-d.h/2,w:d.w,h:d.h,label:d.label};
+    nodes.push(n); selNode=n.id; selLink=null; setTool('select'); render(); return; }
+  const g=e.target.closest('.node');
+  if(tool==='arrow'){ if(g){const id=g.dataset.id;
+    if(!connectFrom){connectFrom=id;selNode=id;hint.textContent='Now click the TO block';render();}
+    else if(id!==connectFrom){links.push({id:'l'+(lid++),from:connectFrom,to:id,mid:null});connectFrom=null;setTool('select');render();}}
+    return; }
+  if(g){ selNode=g.dataset.id;selLink=null;const n=byId(selNode);drag={n,dx:p.x-n.x,dy:p.y-n.y};g.setPointerCapture(e.pointerId);render();return; }
+  const lp=e.target.closest('.linkhit');
+  if(lp){ selLink=lp.dataset.lid; selNode=null; hint.textContent='double-click the arrow (or drag its dot) to bend it'; render(); return; }
+  selNode=null; selLink=null; render();
+});
+board.addEventListener('pointermove',e=>{const p=sp(e);
+  if(drag){drag.n.x=p.x-drag.dx;drag.n.y=p.y-drag.dy;render();}
+  else if(dragMid){dragMid.mid={x:p.x,y:p.y};render();}
+  else if(dragResize){dragResize.w=Math.max(dragResize.type==='phase'?120:56,p.x-dragResize.x);dragResize.h=Math.max(dragResize.type==='trigger'?44:36,p.y-dragResize.y);render();}});
+board.addEventListener('pointerup',()=>{drag=null;dragMid=null;dragResize=null;});
+board.addEventListener('dblclick',e=>{
+  const g=e.target.closest('.node'); if(g){const n=byId(g.dataset.id);const v=prompt('Rename:',n.label);if(v!=null){n.label=v;render();}return;}
+  const lp=e.target.closest('.linkhit'); if(lp){const l=byLid(lp.dataset.lid);const gm=linkGeom(l);if(!l.mid)l.mid={x:gm.handle[0],y:gm.handle[1]};selLink=l.id;selNode=null;hint.textContent='drag the gold dot to adjust the angle';render();}});
+document.addEventListener('keydown',e=>{
+  if((e.key==='+'||e.key==='=')&&selNode){const n=byId(selNode);n.fontSize=(n.fontSize||(n.type==='phase'?13:12))+1;render();return;}
+  if((e.key==='-'||e.key==='_')&&selNode){const n=byId(selNode);n.fontSize=Math.max(8,(n.fontSize||(n.type==='phase'?13:12))-1);render();return;}
+  if(e.key==='Delete'||e.key==='Backspace'){
+  if(selNode){nodes=nodes.filter(n=>n.id!==selNode);links=links.filter(l=>l.from!==selNode&&l.to!==selNode);selNode=null;render();}
+  else if(selLink){links=links.filter(l=>l.id!==selLink);selLink=null;render();}}});
+document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));
+render();
+</script>
+</body>
+</html>

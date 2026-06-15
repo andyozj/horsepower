@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horsepower — Journey Map (capstone)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Permanent+Marker&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',sans-serif;background:#e4e0d6;color:#21314f}
+  .wrap{max-width:1240px;margin:0 auto;padding:22px 18px 80px}
+  h1{font-family:'Fraunces';font-size:22px;margin:0 0 2px;color:#222}
+  .sub{color:#666;font-size:13px;margin:0 0 16px}
+
+  .board{background:#f4efe2;border-radius:16px;padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.16);
+    background-image:radial-gradient(rgba(120,110,90,.10) 1px,transparent 1px);background-size:20px 20px;overflow-x:auto}
+  .grid{display:grid;grid-template-columns:90px repeat(6,minmax(150px,1fr));gap:8px;min-width:980px}
+  .phh{font-family:'Permanent Marker';font-size:13px;text-align:center;padding:8px 6px;border-radius:10px;background:#0f172a;color:#fff;cursor:pointer;position:relative}
+  .phh.on{outline:3px solid #ffd24a}
+  .phh small{display:block;font-family:'Inter';font-weight:600;font-size:9px;color:#cbd5e1;margin-top:2px}
+  .corner{}
+  .lane{font-family:'Caveat';font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;border-radius:10px;writing-mode:vertical-lr;transform:rotate(180deg);padding:6px}
+  .lane.team{background:#dbe6ff;border:2px solid #21314f}
+  .lane.coach{background:#fff;border:2px solid #e23b3b}
+  .lane.farrier{background:#fff3cf;border:2px solid #e0b87a}
+  .cell{border-radius:10px;padding:8px 9px;font-size:11.5px;line-height:1.4;border:2px solid}
+  .cell.team{background:#eef4ff;border-color:#9fb8ff}
+  .cell.coach{background:#fff7f7;border-color:#f0b8b8}
+  .cell.farrier{background:#fffaf0;border-color:#e6cfa9}
+  .cell ul{margin:0;padding-left:14px}
+  .cell li{margin:2px 0}
+  .cell.idle{color:#aaa;font-style:italic;display:flex;align-items:center;justify-content:center}
+  .trig{grid-column:2 / -1;font-family:'Patrick Hand';font-size:11.5px;color:#7a5c3e;text-align:center;padding:2px}
+
+  .legend{display:flex;gap:14px;margin:12px 2px 0;font-size:12px;color:#555;flex-wrap:wrap}
+  .lg{display:flex;align-items:center;gap:6px}
+  .sw{width:13px;height:13px;border-radius:4px;border:2px solid}
+  .sw.t{background:#eef4ff;border-color:#9fb8ff}.sw.c{background:#fff7f7;border-color:#f0b8b8}.sw.f{background:#fffaf0;border-color:#e6cfa9}
+
+  .detail{margin-top:16px;background:#fffaf0;border:2px solid #21314f;border-radius:14px;padding:14px 16px;display:none}
+  .detail.show{display:block}
+  .detail h3{font-family:'Caveat';font-size:22px;margin:0 0 4px}
+  .detail .trg{font-family:'Patrick Hand';font-size:13px;color:#2e7d52;margin-bottom:8px}
+  .detail .edges{margin-top:8px}
+  .detail .edges b{font-family:'Permanent Marker';font-size:10px;color:#a31d1d;letter-spacing:.04em}
+  .detail .edges li{font-size:12.5px;margin:3px 0}
+  .hint{font-size:12px;color:#888;font-style:italic;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐎 Horsepower — End-to-End Journey Map</h1>
+  <p class="sub">The whole product, woven: <b>Team · Coach · Farrier</b> across every phase. Click a phase for the detail + edge cases. (Visual render of the end-to-end UX spec.)</p>
+
+  <div class="board">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="legend">
+    <span class="lg"><span class="sw t"></span> Team (own device)</span>
+    <span class="lg"><span class="sw c"></span> the Coach (AI)</span>
+    <span class="lg"><span class="sw f"></span> the Farrier (host)</span>
+    <span class="hint">— click any phase header ↑</span>
+  </div>
+
+  <div class="detail" id="detail"></div>
+</div>
+
+<script>
+const PH = [
+  {k:'lobby', t:'LOBBY', s:'create + join', trig:'Farrier → Start Surface',
+    team:['Create team → <b>team code on screen</b>','or Join team via code','See teammates (presence)'],
+    coach:null,
+    farrier:['Host workshop → <b>workshop code</b>','Watch teams assemble (live)','Re-seat / remove'],
+    edges:['Need ≥2 teams to swap later','Latecomers can join mid-phase']},
+  {k:'surface', t:'SURFACE', s:'capture what is', trig:'Farrier → Swap (needs ≥2 teams)',
+    team:['<b>Brain-dump</b> (chat ǀ map, resizable)','Edit map: drag · rename · add','Resolve thin / orphans'],
+    coach:['<b>Scribe</b>: dump → living map','<b>Govern</b>: missing / thin / orphan + WHY','<b>redesign-ready?</b> gate'],
+    farrier:['Set timer','Monitor dashboard','<b>Drill → canvas mirror</b>','Nudge the stuck'],
+    edges:['Orphans block redesign-ready','Thin canvas flagged on console','Disconnect → state restores']},
+  {k:'swap', t:'SWAP', s:'rotate + strip HOW', trig:'→ enters Rebuild',
+    team:['🔴 <b>Stamp</b> lands','Receive another team\'s <b>BRIEF</b> (no HOW)'],
+    coach:['<b>Distill</b> → abstract brief','<b>Strip the HOW</b> (zero-leak)','Rotate canvases'],
+    farrier:['Confirm Swap','<b>Override</b> if a team\'s not ready, or hold'],
+    edges:['Not ready → override / hold','Odd count → ring rotation (never your own)']},
+  {k:'rebuild', t:'REBUILD', s:'reinvent it', trig:'Farrier → Share',
+    team:['<b>Absorb → identify areas → design</b>','Build the new HOW (map-heavy)','Resolve constraint-vs-HOW + people-land'],
+    coach:['<b>Fair skeptic</b>: constraint or HOW?','<b>Provoke</b>: retrofit / drift / rabbit-rule','<b>Human-landing</b> gate'],
+    farrier:['Timer','Monitor (retrofit / landing flags)','Drill → mirror'],
+    edges:['Unplaced human → blocks "done"','"Freed up…" → rejected','Removal must be design-justified']},
+  {k:'share', t:'SHARE', s:'present + export', trig:'→ Closed',
+    team:['Present <b>before → after</b>','<b>Export 2-image PDF</b>'],
+    coach:null,
+    farrier:['Pick who presents (no scoring)','Project a team\'s mirror','Close / archive'],
+    edges:['Partial redesign → exports as-is','Export works offline (client render)']},
+  {k:'close', t:'CLOSED', s:'archived', trig:'—',
+    team:['Take the export to show the boss'],
+    coach:null,
+    farrier:['Workshop archived (persists locally)'],
+    edges:['Re-openable from disk']},
+];
+
+const grid=document.getElementById('grid');
+function cell(kind,items){
+  if(!items) return `<div class="cell ${kind} idle">idle</div>`;
+  return `<div class="cell ${kind}"><ul>${items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`;
+}
+function build(){
+  let h = `<div class="corner"></div>` + PH.map((p,i)=>`<div class="phh ${i===0?'':''}" data-k="${p.k}">${p.t}<small>${p.s}</small></div>`).join('');
+  h += `<div class="lane team">Team</div>` + PH.map(p=>cell('team',p.team)).join('');
+  h += `<div class="lane coach">Coach</div>` + PH.map(p=>cell('coach',p.coach)).join('');
+  h += `<div class="lane farrier">Farrier</div>` + PH.map(p=>cell('farrier',p.farrier)).join('');
+  grid.innerHTML=h;
+  grid.querySelectorAll('.phh').forEach(el=>el.onclick=()=>showDetail(el.dataset.k));
+}
+function showDetail(k){
+  const p=PH.find(x=>x.k===k);
+  document.querySelectorAll('.phh').forEach(e=>e.classList.toggle('on',e.dataset.k===k));
+  const d=document.getElementById('detail'); d.classList.add('show');
+  d.innerHTML=`<h3>${p.t} — ${p.s}</h3>
+    <div class="trg">▸ transition: ${p.trig}</div>
+    <div class="edges"><b>EDGE CASES &amp; BRANCHES</b><ul class="edges">${p.edges.map(e=>`<li>${e}</li>`).join('')}</ul></div>`;
+  d.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+build();
+showDetail('surface');
+</script>
+</body>
+</html>
