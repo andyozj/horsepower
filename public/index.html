@@ -958,6 +958,11 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
   .handle,.bendhandle{width:18px; height:18px}
   .viewctl{bottom:186px}
   .viewctl button{width:40px; height:40px; font-size:18px}
+  /* A2c phone dock: collapsed = a fixed Coach pill above the lanes; open = a bottom sheet over them */
+  .coachdock.phonepill{position:fixed; left:auto; right:12px; bottom:236px; z-index:34; background:none; border:none; flex-direction:row}
+  .coachdock.phonepill .docktoggle{width:52px; height:52px; border-radius:50%; box-shadow:var(--shadow-float); border:1.5px solid var(--ink)}
+  .coachdock.phonesheet{position:fixed; left:0; right:0; bottom:0; top:auto; z-index:40; max-height:72vh; border-top:1.5px solid var(--ink); box-shadow:0 -4px 16px rgba(33,49,79,.18)}
+  .coachdock.phonesheet .dockmsgs{max-height:42vh}
   .goalnote{max-width:94%; font-size:12px}
   /* floating trays: collapsed pills in a row above the palette */
   .traysheet{position:fixed; bottom:126px; max-height:none; width:auto; z-index:var(--z-panel); padding:0; overflow:visible}
@@ -2466,7 +2471,7 @@ function catchUpCard(phase){
        ['g-bolt','The goal: rebuild it AI-native','drop Agent blocks where AI should act, land every person, log your guesses'],
        ['g-bulb','The Coach','tap the red face, bottom-right — it knows their world']]
     : [['g-pin','This is your team’s living map','everyone edits together, in real time'],
-       ['g-bulb','The Coach reads along','right rail — it pushes on the why, not just the what'],
+       ['g-bulb','The Coach reads along','it interviews you, builds the map, and pushes on the why'],
        ['g-flag','The goal','map it so a newcomer could run it cold — clear the Newcomer check']];
   rows.forEach(([g,b,sub])=>card.append(el('div',{class:'prow'}, el('span',{class:'pico', html:glyph(g)}), el('div',{}, el('b',{},b), el('div',{class:'meta'},sub)))));
   const t0=myTeam();
@@ -2541,7 +2546,15 @@ function ruleAnswerFor(txt){
 // (so you can keep talking / the map stays the hero); the message thread expands on demand.
 function interviewDock(t){
   const open = ui.dockOpen === true;   // default: slim composer bar (map is the hero); thread expands on the toggle / on a new reply
-  const dock = el('div',{class:'coachdock'+(open?' open':''), 'data-testid':'coach-dock'});
+  // PHONE: the fixed palette/gate lanes would occlude an in-flow dock, so the collapsed phone dock is a
+  // fixed Coach pill that opens a bottom SHEET (the established phone pattern). Desktop = in-flow bar.
+  const phone = isPhone();
+  if(phone && !open){
+    const pill = el('div',{class:'coachdock phonepill', 'data-testid':'coach-dock'});
+    pill.append(el('button',{class:'docktoggle coachbtn', 'data-testid':'dock-toggle', title:'Open the Coach', 'aria-label':'Open the Coach', onclick:()=>{ ui.dockOpen=true; render(); }, html: coachAvatar(40)}));
+    return pill;
+  }
+  const dock = el('div',{class:'coachdock'+(open?' open':'')+(phone?' phonesheet':''), 'data-testid':'coach-dock'});
   // rule-answered quick chips (always present so they're reachable without expanding the thread)
   const chips=el('div',{class:'chips dockchips'});
   [['What’s thin?','#b3760b'],['Run the Newcomer check','#2e7d52'],['Push me on WHY','#e23b3b']].forEach(([txt,col])=>
