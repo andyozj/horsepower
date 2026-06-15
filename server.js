@@ -76,6 +76,9 @@ function originAllowed(origin) {
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
+// Auth header name: native Anthropic uses 'x-api-key'; some gateways (e.g. the Heineken GenAI proxy
+// at genai.heineken.com/models/anthropic/v1/messages) use 'api-key'. Override to retarget.
+const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'x-api-key').toLowerCase();
 const AZURE_ENDPOINT = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '');
 const AZURE_KEY = process.env.AZURE_OPENAI_KEY || '';
 const AZURE_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || '';
@@ -922,7 +925,7 @@ const lastBankReply = {};
 async function callAnthropic(system, chat) {
   const r = await fetch(ANTHROPIC_BASE_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    headers: { 'content-type': 'application/json', [ANTHROPIC_AUTH_HEADER]: ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 400, system, messages: chat }),
     signal: AbortSignal.timeout(CONFIG.COACH_TIMEOUT_MS)
   });
