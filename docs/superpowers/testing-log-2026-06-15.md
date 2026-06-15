@@ -80,3 +80,27 @@ Legend: ✅ pass · ❌ fail · ⚠️ problem found/fixed
 | qa-hostile | ✅ 76 passed, 0 failed |
 
 - ⚠️ **PROBLEM 6 (CSP regression, found only by the full sweep):** the new strict CSP (`script-src 'self' 'unsafe-inline'`) blocked qa-a11y's `page.addScriptTag({url: cdn axe-core})` → suite crashed with a CSP-violation Error. The CSP is **correct for the app** (it self-hosts everything by design — CLAUDE.md), so the fix is in the TEST: fetch axe source in Node (no browser CSP) and inject it as inline content (allowed by `'unsafe-inline'`). Restored 33/33 (commit `e01e83f`). **Lesson:** a CSP change must be regression-tested against every browser harness, not just the main UAT — the UAT passed clean; only qa-a11y (which loads an external script) exposed it. The plan's Task 7 named only the UAT for the CSP check; the a11y suite should have been named too.
+
+---
+
+## Final code review (whole branch) — `feature-dev:code-reviewer`
+
+Reviewed `git diff main..HEAD`. **Critical: none.** Findings + resolutions:
+
+- ⚠️ **PROBLEM 7 (Important, real logic bug — fixed `7da9a24`):** `coachSpendAllowed` used `takeToken(room) && takeToken(ip) && takeToken(global)`. `takeToken` is destructive and `&&` short-circuits left-to-right, so when the per-IP/global gate denied, the **per-room token was already consumed** — a throttled IP could silently drain a room's shared coach budget. Fixed: split into non-destructive `peekToken` + `takeToken`; peek all three, then consume. **Verified RED→GREEN:** new `testCoachDrain` (distinct proxy IPs) fails on the old chain (IP-B degraded, 17/18) and passes on the fix (18/18).
+- ⚠️ **PROBLEM 8 (Minor — fixed):** CSP relied on the `script-src` fallback for the service worker. Added explicit `worker-src 'self'`.
+- ⚠️ **PROBLEM 9 (Minor — fixed):** `/api/diff` had no rate limit. Added its own per-IP bucket (separate from the `/api/workshop` GET bucket so it can't collide with the share-gallery's multi-team fetches).
+- ⚠️ **PROBLEM 10 (Minor — fixed):** `originAllowed` admits no-Origin (non-browser) clients even when `ALLOWED_ORIGINS` is set (by design, for native/test clients). Added a startup log so operators know the allowlist only filters browsers.
+- ✅ Reviewer adversarially confirmed non-issues: 6-char migration has no stranded 4-char assumptions; `reqIp` XFF index is correct; coach synth/cluster/recap/structure branches all sit AFTER the spend gate (no bypass); `/api/diff` gate runs before any data access; env-gating defaults all preserve LAN behaviour; race-card PNG uses `data:` (not `blob:`), unaffected by CSP.
+
+## Final state — ALL SUITES GREEN
+qa-online 18 · qa-editguard 30 · e2e 34 · qa-batch1 18 · qa-batch2 20 · qa-sandbox 12 · qa-scale 12 · qa-scale-ui 5 · e2e-playwright 64 · qa-a11y 33 · qa-hostile 76. (Re-verified e2e/a11y/UAT/hostile after the review fixes.)
+
+## Summary: 10 problems found & fixed during execution
+1–3: 6-char code change had hidden length-4 assumptions (client join guard = app-breaker; UAT regex; e2e + sandbox assertions the subagent's narrow regression missed).
+4–5: diff-gate test was too weak (passed without the fix) and exposed a test-isolation ordering bug.
+6: strict CSP broke qa-a11y's CDN axe load (fixed in the test; app CSP stays strict).
+7: **the one real production logic bug** — destructive token-bucket chain draining room coach budget.
+8–10: CSP worker-src, diff rate-limit, origin-allowlist operator log (defense-in-depth).
+
+**Key lesson:** narrow per-task regression (running only the suite a task names) repeatedly missed cross-cutting breakage; the full sweep + an adversarial final review caught what the per-task checks did not.
