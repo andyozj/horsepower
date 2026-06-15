@@ -60,7 +60,7 @@ async function main() {
     await testCodeLength();     // Task 2
     await testProxyTrust();     // Task 3
     await testGlobalMint();     // Task 4 — LAST of the create-heavy checks (drains the global mint bucket)
-    // await testWsOrigin();    // Task 5
+    await testWsOrigin();    // Task 5
     // await testDiffGate();    // Task 6
     // await testHeaders();     // Task 7
   } finally {
@@ -144,6 +144,22 @@ async function testGlobalMint() {
     if (r.ok) codes++;
   }
   ok('global mint cap returns 429 once exhausted', sawCap, { codes });
+}
+
+// ---- Task 5: WebSocket origin allowlist ----
+async function testWsOrigin() {
+  console.log('\n[ws origin allowlist]');
+  const tryOrigin = origin => new Promise(res => {
+    const w = new WebSocket(WSBASE, { headers: origin ? { Origin: origin } : {} });
+    let settled = false;
+    w.on('open', () => { if (!settled) { settled = true; w.close(); res('open'); } });
+    w.on('error', () => { if (!settled) { settled = true; res('rejected'); } });
+    w.on('unexpected-response', () => { if (!settled) { settled = true; res('rejected'); } });
+    setTimeout(() => { if (!settled) { settled = true; res('open'); } }, 1500);
+  });
+  ok('allowed Origin connects', (await tryOrigin('http://allowed.test')) === 'open');
+  ok('disallowed Origin is rejected', (await tryOrigin('http://evil.test')) === 'rejected');
+  ok('no Origin (native client / LAN) is allowed', (await tryOrigin(null)) === 'open');
 }
 
 main();

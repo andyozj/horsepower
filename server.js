@@ -64,6 +64,14 @@ const CONFIG = {
 // N≥1 = read the Nth-from-the-right X-Forwarded-For entry (the one your own proxy appended).
 const TRUSTED_PROXY_HOPS = Math.max(0, Number(process.env.TRUSTED_PROXY_HOPS) || 0);
 
+// WS origin allowlist (Task 5): empty = allow all (LAN/dev/native-client default).
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+function originAllowed(origin) {
+  if (!ALLOWED_ORIGINS.length) return true;   // unset = allow all (LAN/dev default)
+  if (!origin) return true;                    // native (non-browser) clients send no Origin
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
 // ---- AI provider config (anthropic | azure) ----
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
@@ -86,7 +94,15 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, maxPayload: CONFIG.WS_MAX_PAYLOAD });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: CONFIG.WS_MAX_PAYLOAD,
+  verifyClient: (info, cb) => {
+    if (originAllowed(info.origin)) return cb(true);
+    log('ws_origin_rejected', { origin: info.origin || null });
+    return cb(false, 403, 'Forbidden origin');
+  }
+});
 
 // ---------- State ----------
 const workshops = new Map(); // code -> workshop
