@@ -59,6 +59,10 @@ const CONFIG = {
   SANDBOX_TTL_MS: 4 * 60 * 60 * 1000     // R3: a dry-run is throwaway — gone after 4h idle (24x a 10-min rehearsal, 6x faster than closed)
 };
 
+// Trusted-proxy hops for per-IP attribution (Task 3): 0 = direct (use socket addr, ignore XFF);
+// N≥1 = read the Nth-from-the-right X-Forwarded-For entry (the one your own proxy appended).
+const TRUSTED_PROXY_HOPS = Math.max(0, Number(process.env.TRUSTED_PROXY_HOPS) || 0);
+
 // ---- AI provider config (anthropic | azure) ----
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
@@ -111,9 +115,16 @@ function ipBucket(kind, ip, cfg) {
   if (!ipBuckets.has(k)) ipBuckets.set(k, makeBucket(cfg));
   return ipBuckets.get(k);
 }
+// Public-internet-safe client IP. With no trusted proxy (default), use the socket address and
+// IGNORE the client-spoofable X-Forwarded-For. Behind N trusted proxies, read the Nth-from-the-right
+// XFF entry — the one your own proxy appended (everything to its left is attacker-controlled).
 function reqIp(req) {
-  return (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim())
-    || req.socket.remoteAddress || 'unknown';
+  if (TRUSTED_PROXY_HOPS > 0) {
+    const parts = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    const ip = parts[parts.length - TRUSTED_PROXY_HOPS];
+    if (ip) return ip;
+  }
+  return req.socket.remoteAddress || 'unknown';
 }
 const coachBuckets = new Map(); // workshop code -> bucket (kept OFF the workshop object so it never hits disk)
 const coachIpBuckets = new Map();                 // per-IP coach spend bucket

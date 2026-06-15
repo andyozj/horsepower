@@ -58,7 +58,7 @@ async function main() {
   try {
     await testCoachCaps();      // Task 1
     await testCodeLength();     // Task 2
-    // await testProxyTrust();  // Task 3
+    await testProxyTrust();     // Task 3
     // await testGlobalMint();  // Task 4
     // await testWsOrigin();    // Task 5
     // await testDiffGate();    // Task 6
@@ -111,6 +111,24 @@ async function testCodeLength() {
   await wait(150);
   ok('6-char code joins over WS', !!joined, joined);
   m.close();
+}
+
+// ---- Task 3: trusted-proxy IP attribution ----
+async function testProxyTrust() {
+  console.log('\n[proxy trust]');
+  // server is spawned with TRUSTED_PROXY_HOPS=1, so the IP = the LAST xff entry (proxy-appended).
+  // A client that prepends a spoofed IP must NOT be able to reset its bucket: both requests below
+  // share the same trusted IP (127.0.0.1, appended last) and so share one mint bucket.
+  const hdr = ip => ({ 'x-forwarded-for': `${ip}, 127.0.0.1` });
+  // drain the per-IP mint bucket is heavy; instead assert the GET bucket keys identically despite spoof.
+  // Fire GETs with different SPOOFED left entries; the trusted IP is constant → one shared GET bucket.
+  let lastStatus = 200, sawThrottle = false;
+  for (let i = 0; i < 80; i++) {
+    const r = await fetch(BASE + '/api/workshop/ZZZZZZ', { headers: hdr('9.9.9.' + i) });
+    lastStatus = r.status;
+    if (r.status === 429) { sawThrottle = true; break; }
+  }
+  ok('spoofed XFF left-entry cannot dodge the per-IP GET bucket (got throttled)', sawThrottle, { lastStatus });
 }
 
 main();
