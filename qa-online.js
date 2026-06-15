@@ -59,7 +59,7 @@ async function main() {
     await testCoachCaps();      // Task 1
     await testCodeLength();     // Task 2
     await testProxyTrust();     // Task 3
-    // await testGlobalMint();  // Task 4
+    await testGlobalMint();     // Task 4 — LAST of the create-heavy checks (drains the global mint bucket)
     // await testWsOrigin();    // Task 5
     // await testDiffGate();    // Task 6
     // await testHeaders();     // Task 7
@@ -129,6 +129,21 @@ async function testProxyTrust() {
     if (r.status === 429) { sawThrottle = true; break; }
   }
   ok('spoofed XFF left-entry cannot dodge the per-IP GET bucket (got throttled)', sawThrottle, { lastStatus });
+}
+
+// ---- Task 4: global mint cap (botnet backstop) ----
+async function testGlobalMint() {
+  console.log('\n[global mint cap]');
+  // server spawned with MINT_GLOBAL_MAX=4. We have already minted a few rooms in earlier checks,
+  // so just hammer until we see a 429 attributable to the GLOBAL cap (not per-IP — same IP, but the
+  // per-IP MINT bucket capacity default 60 is far higher, so the global cap of 4 bites first here).
+  let sawCap = false, codes = 0;
+  for (let i = 0; i < 12; i++) {
+    const r = await fetch(BASE + '/api/workshop', { method: 'POST' });
+    if (r.status === 429) { sawCap = true; break; }
+    if (r.ok) codes++;
+  }
+  ok('global mint cap returns 429 once exhausted', sawCap, { codes });
 }
 
 main();

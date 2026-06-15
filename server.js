@@ -49,6 +49,7 @@ const CONFIG = {
   // minting: full local CI run mints <10 workshops; dev loops ~40/10min worst -> 60 burst
   MINT_BUCKET: { capacity: 60, refillPerSec: 0.1 },        // per IP, ~6/min sustained
   MAX_WORKSHOPS: 500,
+  MINT_GLOBAL_BUCKET: { capacity: Number(process.env.MINT_GLOBAL_MAX) || 300, refillPerSec: 300 / 3600 }, // ~300/hr total backstop
   GET_BUCKET: { capacity: 60, refillPerSec: 0.5 },         // GET /api/workshop/:code per IP
   HOSTKEY_LEN: 8,
   HOSTKEY_STRIKES: 3,
@@ -110,6 +111,7 @@ function takeToken(b, n = 1) {
   b.tokens -= n; return true;
 }
 const ipBuckets = new Map();   // `${kind}:${ip}` -> bucket (mint, GET)
+const mintGlobalBucket = makeBucket(CONFIG.MINT_GLOBAL_BUCKET);  // distributed-flood backstop (all create routes)
 function ipBucket(kind, ip, cfg) {
   const k = kind + ':' + ip;
   if (!ipBuckets.has(k)) ipBuckets.set(k, makeBucket(cfg));
@@ -715,6 +717,8 @@ function broadcast(w) {
 app.post('/api/workshop', (req, res) => {
   if (!takeToken(ipBucket('mint', reqIp(req), CONFIG.MINT_BUCKET)))
     return res.status(429).json({ error: 'Too many workshops from this address — try again in a minute.' });
+  if (!takeToken(mintGlobalBucket))
+    return res.status(429).json({ error: 'Server is busy creating rooms — try again shortly.' });
   if (workshops.size >= CONFIG.MAX_WORKSHOPS)
     return res.status(503).json({ error: 'Server is at capacity.' });
   const w = createWorkshop();
@@ -726,6 +730,8 @@ app.post('/api/workshop', (req, res) => {
 app.post('/api/sandbox', (req, res) => {
   if (!takeToken(ipBucket('mint', reqIp(req), CONFIG.MINT_BUCKET)))          // SHARES the mint bucket (A6)
     return res.status(429).json({ error: 'Too many rooms from this address — try again in a minute.' });
+  if (!takeToken(mintGlobalBucket))
+    return res.status(429).json({ error: 'Server is busy creating rooms — try again shortly.' });
   if (workshops.size >= CONFIG.MAX_WORKSHOPS)
     return res.status(503).json({ error: 'Server is at capacity.' });
   const w = createWorkshop({ sandbox: true });
