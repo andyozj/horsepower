@@ -17,7 +17,7 @@ const mk = () => new Promise(res => { const w = new WebSocket(WSBASE); w.on('ope
   console.log('\n— Epic 0: setup & join —');
   const r = await fetch(BASE + '/api/workshop', { method: 'POST' });
   const { code, hostKey } = await r.json();
-  ok('host mints workshop + host code', code && code.length === 4 && hostKey && hostKey.length === 8, { code, hostKey });
+  ok('host mints workshop + host code', code && code.length === 6 && hostKey && hostKey.length === 8, { code, hostKey });
 
   const fac = await mk(), a1 = await mk(), a2 = await mk(), b1 = await mk();
   const last = {};

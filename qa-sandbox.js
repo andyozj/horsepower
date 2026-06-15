@@ -18,7 +18,7 @@ const J = o => JSON.stringify(o);
   // 1. mint a sandbox
   const r = await fetch(BASE + '/api/sandbox', { method: 'POST' });
   const d = await r.json();
-  ok('1. POST /api/sandbox → 200 {code,hostKey,sandbox:true}', r.status === 200 && d.code && d.code.length === 4 && d.hostKey && d.hostKey.length === 8 && d.sandbox === true, d);
+  ok('1. POST /api/sandbox → 200 {code,hostKey,sandbox:true}', r.status === 200 && d.code && d.code.length === 6 && d.hostKey && d.hostKey.length === 8 && d.sandbox === true, d);
   const code = d.code, hostKey = d.hostKey;
 
   // 2. GET 404 (Guard 3)

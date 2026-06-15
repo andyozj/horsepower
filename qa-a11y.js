@@ -10,10 +10,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 let pass = 0, fail = 0;
 const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fail++; console.log('  ✗', n, x != null ? '→ ' + x : ''); } };
 
-// axe scan: inject the CDN script into THIS page, run with color-contrast off (matches the platform probe),
+// Fetch the axe source in NODE (no browser CSP applies) and inject it as INLINE content below. The app's
+// production CSP is strict (`script-src 'self' 'unsafe-inline'`) and deliberately blocks remote CDN scripts
+// in the page — so addScriptTag({url}) would be (correctly) blocked. Inline content is allowed by 'unsafe-inline'.
+let _axeSrc = null;
+async function axeSource() { if (_axeSrc == null) _axeSrc = await (await fetch(AXE)).text(); return _axeSrc; }
+
+// axe scan: inject axe into THIS page, run with color-contrast off (matches the platform probe),
 // return critical/serious violation ids.
 async function axeSerious(page) {
-  await page.addScriptTag({ url: AXE });
+  await page.addScriptTag({ content: await axeSource() });
   await page.waitForFunction(() => !!window.axe, null, { timeout: 8000 });
   const res = await page.evaluate(async () => {
     const r = await window.axe.run(document, { rules: { 'color-contrast': { enabled: false } } });

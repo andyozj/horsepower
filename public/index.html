@@ -1529,14 +1529,14 @@ function viewLanding(){
   card.append(sbox);
 
   const jname = el('input',{placeholder:'Your name', maxlength:'40', 'data-testid':'join-name', value:me.name||''});
-  const jcode = el('input',{class:'ticket', placeholder:'4 letters — e.g. MARE', 'data-testid':'join-code', maxlength:'4'});
+  const jcode = el('input',{class:'ticket', placeholder:'6 letters — e.g. MARELY', 'data-testid':'join-code', maxlength:'6'});
   const jerr = el('div',{class:'err', style:'display:none'});
   const joinBtn = el('button',{class:'btn primary', style:'width:100%', 'data-testid':'join-btn', onclick:async()=>{
     const code=(jcode.value||'').toUpperCase().trim(), name=(jname.value||'').trim();
     if(name.length<1){ jerr.textContent='Enter your name.'; jerr.style.display='block'; return; }
-    if(code.length!==4){ jerr.textContent='That’s not a 4-letter code.'; jerr.style.display='block'; return; }
+    if(code.length<4||code.length>6){ jerr.textContent='That’s not a valid room code.'; jerr.style.display='block'; return; }
     const r = await fetch('/api/workshop/'+code);
-    if(!r.ok){ jerr.textContent='That room doesn’t exist — check the 4 letters.'; jerr.style.display='block'; return; }
+    if(!r.ok){ jerr.textContent='That room doesn’t exist — check the code.'; jerr.style.display='block'; return; }
     me.role='member'; me.code=code; me.name=name; me.teamId=null; me.memberId=null; saveMe();
     if(!ws||ws.readyState!==1) connect(); else sendJoin();
     view='picker';
@@ -1566,8 +1566,8 @@ function viewLanding(){
 
   const det = el('details',{style:'margin-top:14px'});
   det.append(el('summary',{class:'meta', style:'cursor:pointer'}, 'Join as co-host'));
-  det.append(el('div',{class:'meta', style:'margin-top:6px; font-size:12px'}, 'The 4-letter room code + the private host code — ask whoever created the room.'));
-  const hcode = el('input',{placeholder:'workshop code', maxlength:'4', style:'text-transform:uppercase; margin-top:8px'});
+  det.append(el('div',{class:'meta', style:'margin-top:6px; font-size:12px'}, 'The room code + the private host code — ask whoever created the room.'));
+  const hcode = el('input',{placeholder:'workshop code', maxlength:'6', style:'text-transform:uppercase; margin-top:8px'});
   const hkey = el('input',{placeholder:'host code', maxlength:'12', style:'text-transform:uppercase; margin-top:8px'});
   const herr = el('div',{class:'err', style:'display:none'});
   det.append(hcode, hkey, el('button',{class:'btn sm', style:'margin-top:8px', onclick:async()=>{

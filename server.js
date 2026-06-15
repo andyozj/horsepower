@@ -40,11 +40,16 @@ const CONFIG = {
   WS_MAX_BUFFERED: 1_000_000,        // skip a socket in broadcast when this far behind
   // coach: gates the PROVIDER call only — bank replies stay free (degradation path)
   COACH_BUCKET: { capacity: 6, refillPerSec: 10 / 60 },   // ~10/min per room, burst 6
+  // public-internet coach spend caps (per-IP + global). Env-overridable; defaults are high
+  // enough that no honest LAN room trips them. On trip → degrade to the free bank reply.
+  COACH_IP_BUCKET: { capacity: Number(process.env.COACH_IP_MAX) || 40, refillPerSec: 40 / 3600 },        // ~40/hr/IP
+  COACH_GLOBAL_BUCKET: { capacity: Number(process.env.COACH_GLOBAL_MAX) || 2000, refillPerSec: 2000 / 86400 }, // ~2000/day total
   COACH_TIMEOUT_MS: 20_000,
   COACH_REPLY_MAX: 1200,
   // minting: full local CI run mints <10 workshops; dev loops ~40/10min worst -> 60 burst
   MINT_BUCKET: { capacity: 60, refillPerSec: 0.1 },        // per IP, ~6/min sustained
   MAX_WORKSHOPS: 500,
+  MINT_GLOBAL_BUCKET: { capacity: Number(process.env.MINT_GLOBAL_MAX) || 300, refillPerSec: 300 / 3600 }, // ~300/hr total backstop
   GET_BUCKET: { capacity: 60, refillPerSec: 0.5 },         // GET /api/workshop/:code per IP
   HOSTKEY_LEN: 8,
   HOSTKEY_STRIKES: 3,
@@ -55,9 +60,22 @@ const CONFIG = {
   SANDBOX_TTL_MS: 4 * 60 * 60 * 1000     // R3: a dry-run is throwaway — gone after 4h idle (24x a 10-min rehearsal, 6x faster than closed)
 };
 
+// Trusted-proxy hops for per-IP attribution (Task 3): 0 = direct (use socket addr, ignore XFF);
+// N≥1 = read the Nth-from-the-right X-Forwarded-For entry (the one your own proxy appended).
+const TRUSTED_PROXY_HOPS = Math.max(0, Number(process.env.TRUSTED_PROXY_HOPS) || 0);
+
+// WS origin allowlist (Task 5): empty = allow all (LAN/dev/native-client default).
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+function originAllowed(origin) {
+  if (!ALLOWED_ORIGINS.length) return true;   // unset = allow all (LAN/dev default)
+  if (!origin) return true;                    // native (non-browser) clients send no Origin
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
 // ---- AI provider config (anthropic | azure) ----
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
 const AZURE_ENDPOINT = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '');
 const AZURE_KEY = process.env.AZURE_OPENAI_KEY || '';
 const AZURE_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || '';
@@ -71,18 +89,40 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  // HSTS: ignored by browsers over plain HTTP, so safe to always send; engages on the HTTPS host.
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // Relaxed CSP — single-file app uses inline script/style (needs 'unsafe-inline'); data: for inline
+  // SVG/PNG; self-hosted fonts; wss/ws for the live socket. Still blocks third-party script injection.
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data:; " +
+    "font-src 'self'; " +
+    "connect-src 'self' ws: wss:; " +
+    "worker-src 'self'; " +   // explicit coverage for the service worker (don't rely on script-src fallback)
+    "base-uri 'self'; " +
+    "frame-ancestors 'none'");
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, maxPayload: CONFIG.WS_MAX_PAYLOAD });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: CONFIG.WS_MAX_PAYLOAD,
+  verifyClient: (info, cb) => {
+    if (originAllowed(info.origin)) return cb(true);
+    log('ws_origin_rejected', { origin: info.origin || null });
+    return cb(false, 403, 'Forbidden origin');
+  }
+});
 
 // ---------- State ----------
 const workshops = new Map(); // code -> workshop
 
 function newId(n = 10) { return crypto.randomBytes(n).toString('hex').slice(0, n); }
-function newCode(len = 4) {
+function newCode(len = 6) {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let c = '';
   for (let i = 0; i < len; i++) c += chars[Math.floor(Math.random() * chars.length)];
@@ -93,24 +133,51 @@ function newCode(len = 4) {
 function makeBucket({ capacity, refillPerSec }) {
   return { tokens: capacity, capacity, refillPerSec, last: Date.now() };
 }
-function takeToken(b, n = 1) {
+// peekToken: refill-and-check WITHOUT consuming (so callers can test several buckets before
+// committing). takeToken consumes only after a successful peek.
+function peekToken(b, n = 1) {
   const now = Date.now();
   b.tokens = Math.min(b.capacity, b.tokens + ((now - b.last) / 1000) * b.refillPerSec);
   b.last = now;
-  if (b.tokens < n) return false;
+  return b.tokens >= n;
+}
+function takeToken(b, n = 1) {
+  if (!peekToken(b, n)) return false;
   b.tokens -= n; return true;
 }
 const ipBuckets = new Map();   // `${kind}:${ip}` -> bucket (mint, GET)
+const mintGlobalBucket = makeBucket(CONFIG.MINT_GLOBAL_BUCKET);  // distributed-flood backstop (all create routes)
 function ipBucket(kind, ip, cfg) {
   const k = kind + ':' + ip;
   if (!ipBuckets.has(k)) ipBuckets.set(k, makeBucket(cfg));
   return ipBuckets.get(k);
 }
+// Public-internet-safe client IP. With no trusted proxy (default), use the socket address and
+// IGNORE the client-spoofable X-Forwarded-For. Behind N trusted proxies, read the Nth-from-the-right
+// XFF entry — the one your own proxy appended (everything to its left is attacker-controlled).
 function reqIp(req) {
-  return (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim())
-    || req.socket.remoteAddress || 'unknown';
+  if (TRUSTED_PROXY_HOPS > 0) {
+    const parts = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    const ip = parts[parts.length - TRUSTED_PROXY_HOPS];
+    if (ip) return ip;
+  }
+  return req.socket.remoteAddress || 'unknown';
 }
 const coachBuckets = new Map(); // workshop code -> bucket (kept OFF the workshop object so it never hits disk)
+const coachIpBuckets = new Map();                 // per-IP coach spend bucket
+const coachGlobalBucket = makeBucket(CONFIG.COACH_GLOBAL_BUCKET);  // one shared global ceiling
+function coachSpendAllowed(ip, room) {
+  // per-room (existing intent), per-IP, and global — all must have a token to spend the key.
+  if (!coachBuckets.has(room.code)) coachBuckets.set(room.code, makeBucket(CONFIG.COACH_BUCKET));
+  if (!coachIpBuckets.has(ip)) coachIpBuckets.set(ip, makeBucket(CONFIG.COACH_IP_BUCKET));
+  const rb = coachBuckets.get(room.code), ib = coachIpBuckets.get(ip);
+  // PEEK all three first — takeToken is destructive, so a plain `&&` chain would burn the per-room
+  // token even when the per-IP/global gate denies (a throttled IP could silently drain a room's
+  // shared coach budget). Only consume once all three have a token.
+  if (!(peekToken(rb) && peekToken(ib) && peekToken(coachGlobalBucket))) return false;
+  takeToken(rb); takeToken(ib); takeToken(coachGlobalBucket);
+  return true;
+}
 
 // ---- JSON-line logger -----------------------------------------------------
 function log(evt, data) { console.log(JSON.stringify(Object.assign({ ts: new Date().toISOString(), evt }, data))); }
@@ -691,6 +758,8 @@ function broadcast(w) {
 app.post('/api/workshop', (req, res) => {
   if (!takeToken(ipBucket('mint', reqIp(req), CONFIG.MINT_BUCKET)))
     return res.status(429).json({ error: 'Too many workshops from this address — try again in a minute.' });
+  if (!takeToken(mintGlobalBucket))
+    return res.status(429).json({ error: 'Server is busy creating rooms — try again shortly.' });
   if (workshops.size >= CONFIG.MAX_WORKSHOPS)
     return res.status(503).json({ error: 'Server is at capacity.' });
   const w = createWorkshop();
@@ -702,6 +771,8 @@ app.post('/api/workshop', (req, res) => {
 app.post('/api/sandbox', (req, res) => {
   if (!takeToken(ipBucket('mint', reqIp(req), CONFIG.MINT_BUCKET)))          // SHARES the mint bucket (A6)
     return res.status(429).json({ error: 'Too many rooms from this address — try again in a minute.' });
+  if (!takeToken(mintGlobalBucket))
+    return res.status(429).json({ error: 'Server is busy creating rooms — try again shortly.' });
   if (workshops.size >= CONFIG.MAX_WORKSHOPS)
     return res.status(503).json({ error: 'Server is at capacity.' });
   const w = createWorkshop({ sandbox: true });
@@ -849,7 +920,7 @@ function bankReply(mode) {
 const lastBankReply = {};
 
 async function callAnthropic(system, chat) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch(ANTHROPIC_BASE_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 400, system, messages: chat }),
@@ -888,8 +959,8 @@ app.post('/api/coach', async (req, res) => {
   // Spending the key requires a LIVE room + budget; otherwise degrade honestly.
   const room = workshops.get(String(req.body.code || '').toUpperCase());
   if (!room) return res.json({ reply: bankReply(m), degraded: true });
-  if (!coachBuckets.has(room.code)) coachBuckets.set(room.code, makeBucket(CONFIG.COACH_BUCKET));
-  if (!takeToken(coachBuckets.get(room.code))) return res.json({ reply: bankReply(m), degraded: true });
+  // public-internet cost control: per-room + per-IP + global must all allow before we spend the key.
+  if (!coachSpendAllowed(reqIp(req), room)) { log('coach_capped', { code: room.code, ip: reqIp(req) }); return res.json({ reply: bankReply(m), degraded: true }); }
 
   const system = SYSTEMS[m];
   const chat = (Array.isArray(messages) ? messages : [])
@@ -1376,8 +1447,12 @@ wss.on('close', () => clearInterval(heartbeat));
 
 // ---------- expose diff helper for share (REST, rule-based, offline) ----------
 app.get('/api/diff/:code/:teamId', (req, res) => {
+  if (!takeToken(ipBucket('diff', reqIp(req), CONFIG.GET_BUCKET)))   // own bucket, won't collide with /api/workshop GETs
+    return res.status(429).json({ error: 'Slow down.' });
   const w = workshops.get((req.params.code || '').toUpperCase());
   if (!w) return res.status(404).json({ error: 'not found' });
+  if (w.state !== 'share' && w.state !== 'closed')   // parity with the A2 WS projection: no original pre-reveal
+    return res.status(403).json({ error: 'not available yet' });
   const rebuilder = findTeam(w, req.params.teamId);
   if (!rebuilder || !rebuilder.redesign) return res.status(404).json({ error: 'no redesign' });
   const original = findTeam(w, rebuilder.receivedFromTeamId);
@@ -1389,6 +1464,7 @@ load();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
   console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
+  if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
 });
 
 module.exports = { app, server, governance, buildTeardown, performSwap, buildDiff };
