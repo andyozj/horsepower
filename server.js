@@ -17,7 +17,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');   // WebSocket (client) = the Mode-2 realtime upstream
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -94,14 +94,15 @@ const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY || AZURE_KEY || '';
 const AZURE_STT_DEPLOYMENT = process.env.AZURE_STT_DEPLOYMENT || '';      // e.g. gpt-4o-mini-transcribe / whisper
 const AZURE_TTS_DEPLOYMENT = process.env.AZURE_TTS_DEPLOYMENT || '';      // e.g. gpt-4o-mini-tts (optional)
 const AZURE_TTS_VOICE = process.env.AZURE_TTS_VOICE || 'alloy';
-const AZURE_VOICELIVE_ENDPOINT = (process.env.AZURE_VOICELIVE_ENDPOINT || '').replace(/\/+$/, '');  // wss base (Mode 2)
-const AZURE_VOICELIVE_MODEL = process.env.AZURE_VOICELIVE_MODEL || 'gpt-realtime-mini';
 const AZURE_AUDIO_API_VERSION = process.env.AZURE_AUDIO_API_VERSION || '2025-03-01-preview';
+// Mode 2 "Converse" — the Azure OpenAI Realtime API endpoint (the full URL incl. ?model=…), wss-ified.
+// e.g. https://<res>.cognitiveservices.azure.com/openai/v1/realtime?model=gpt-realtime-2 . Auth: api-key.
+const AZURE_REALTIME_URL = (process.env.AZURE_REALTIME_URL || '').replace(/^http/, 'ws');
 function voiceCaps() {
   return {
     listen: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_STT_DEPLOYMENT),
     speak: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_TTS_DEPLOYMENT),
-    converse: !!(AZURE_VOICELIVE_ENDPOINT && AZURE_SPEECH_KEY)
+    converse: !!(AZURE_REALTIME_URL && AZURE_SPEECH_KEY)
   };
 }
 
@@ -1436,6 +1437,61 @@ app.post('/api/coach', async (req, res) => {
 function send(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); }
 function isFarrier(ws) { return ws.role === 'farrier'; }
 
+// Slice B Mode 2 — the realtime relay. The Coach builds the map by calling this tool; the call is
+// intercepted on OUR server and applied to the canonical canvas (mirrors the text path's applyOps).
+const UPDATE_MAP_TOOL = {
+  type: 'function', name: 'update_map',
+  description: 'Add/update/connect/remove blocks on the team\'s CURRENT-workflow map as you learn how it really works. Call it whenever you learn a person, trigger, input, phase/moment, the intent, or the outcome.',
+  parameters: { type: 'object', properties: { ops: { type: 'array', description: 'one or more map edits', items: { type: 'object', properties: {
+    op: { type: 'string', enum: ['add', 'update', 'connect', 'remove'] },
+    tmpId: { type: 'string' }, id: { type: 'string' },
+    type: { type: 'string', enum: ['persona', 'trigger', 'input', 'phase', 'moment', 'intent', 'outcome'] },
+    text: { type: 'string' }, why: { type: 'string' },
+    capacity: { type: 'string', enum: ['operates', 'accountable', 'served', 'informed'] },
+    pain: { type: 'boolean' }, from: { type: 'string' }, to: { type: 'string' }
+  }, required: ['op'] } } }, required: ['ops'] }
+};
+const VOICE_INSTRUCTIONS = `You are the Coach running a SPOKEN interview to map a team's CURRENT workflow. Talk naturally and briefly — ONE sharp question at a time, dig into the WHY. You're speaking aloud: never read JSON or field lists out loud.
+As you learn the workflow, CALL the update_map tool to build the map — a SEPARATE persona for every named person (never fold a person into a step), each with an INFERRED capacity (approver/on-the-hook = accountable, hands-on doer = operates, the one it's for = served, only cc'd = informed); the inputs; the phases/moments; ONE intent that is a DECISION (not an artifact like "a report"); and ONE distinct outcome. Attach the WHY whenever they give one.
+When the workflow is fully captured, give a short warm hand-off: "That's your workflow mapped — take a look and fix anything I got wrong."`;
+
+// Open a per-socket realtime upstream and bridge it to the browser. Audio + transcripts relay through;
+// the update_map tool-call applies to the canonical map server-side. Degrades to a 'voice:event' on failure.
+function startRealtime(ws, w, team) {
+  try { if (ws.rt) { ws.rt.close(); ws.rt = null; } } catch {}
+  let rt;
+  try { rt = new WebSocket(AZURE_REALTIME_URL, { headers: { 'api-key': AZURE_SPEECH_KEY } }); }
+  catch (e) { log('rt_open_failed', { err: String(e.message || e).slice(0, 120) }); return send(ws, { type: 'voice:event', event: 'error' }); }
+  ws.rt = rt;
+  rt.on('error', e => { log('rt_error', { err: String(e && e.message || e).slice(0, 140) }); try { send(ws, { type: 'voice:event', event: 'error' }); } catch {} });
+  rt.on('close', () => { if (ws.rt === rt) ws.rt = null; try { send(ws, { type: 'voice:event', event: 'closed' }); } catch {} });
+  rt.on('open', () => {
+    try {
+      rt.send(JSON.stringify({ type: 'session.update', session: {
+        instructions: VOICE_INSTRUCTIONS,
+        output_modalities: ['audio'],
+        audio: { input: { format: { type: 'audio/pcm', rate: 24000 }, turn_detection: null },   // PTT: client commits; no auto-VAD
+                 output: { voice: 'alloy', format: { type: 'audio/pcm', rate: 24000 } } },
+        tools: [UPDATE_MAP_TOOL], tool_choice: 'auto'
+      } }));
+      send(ws, { type: 'voice:event', event: 'ready' });
+    } catch {}
+  });
+  rt.on('message', data => {
+    let ev; try { ev = JSON.parse(data); } catch { return; }
+    const t = ev.type || '';
+    if (t === 'response.output_audio.delta' || t === 'response.audio.delta') return send(ws, { type: 'voice:audio-out', audio: ev.delta });
+    if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') return send(ws, { type: 'voice:coach-text', delta: ev.delta });
+    if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });
+    if (t === 'response.done' || t === 'response.completed') return send(ws, { type: 'voice:event', event: 'turn-done' });
+    if (t === 'response.function_call_arguments.done' && ev.name === 'update_map') {
+      let args; try { args = JSON.parse(ev.arguments || '{}'); } catch { args = {}; }
+      if (Array.isArray(args.ops)) { applyOps(team.canvas, args.ops); broadcast(w); }   // server-applied → reconciler renders live
+      try { rt.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: ev.call_id, output: JSON.stringify({ ok: true }) } })); rt.send(JSON.stringify({ type: 'response.create' })); } catch {}
+    }
+  });
+}
+
 wss.on('connection', ws => {
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
@@ -1445,6 +1501,14 @@ wss.on('connection', ws => {
 
   ws.on('message', raw => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
+    // Slice B Mode 2: realtime audio frames are high-rate — meter them on their OWN generous bucket and
+    // forward straight to the per-socket Azure realtime upstream, bypassing the canvas bucket/broadcast path.
+    if (msg.type === 'voice:audio') {
+      ws.voiceBucket = ws.voiceBucket || makeBucket({ capacity: 200, refillPerSec: 100 });
+      if (!takeToken(ws.voiceBucket)) return;
+      try { if (ws.rt && ws.rt.readyState === 1 && typeof msg.audio === 'string') ws.rt.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: msg.audio.slice(0, 300000) })); } catch {}
+      return;
+    }
     // A12: per-socket token bucket — a hostile/broken client can't starve the loop
     ws.bucket = ws.bucket || makeBucket(CONFIG.WS_BUCKET);
     if (!takeToken(ws.bucket)) {
@@ -1738,6 +1802,21 @@ wss.on('connection', ws => {
         }
         broadcast(w); break;
       }
+      case 'voice:start': {   // Mode 2: open the realtime upstream for this seated member (PTT session)
+        if (ws.role !== 'member' || !ws.teamId) return;
+        if (!voiceCaps().converse) return send(ws, { type: 'voice:event', event: 'unavailable' });
+        const team = findTeam(w, ws.teamId);
+        if (team) startRealtime(ws, w, team);
+        break;
+      }
+      case 'voice:commit': {  // PTT release → commit the buffered audio and ask for a spoken response
+        try { if (ws.rt && ws.rt.readyState === 1) { ws.rt.send(JSON.stringify({ type: 'input_audio_buffer.commit' })); ws.rt.send(JSON.stringify({ type: 'response.create' })); } } catch {}
+        break;
+      }
+      case 'voice:stop': {    // hang up the realtime session
+        try { if (ws.rt) ws.rt.close(); } catch {} ws.rt = null;
+        break;
+      }
       case 'phase:set': {
         if (!isFarrier(ws)) return;
         const allowed = ['lobby', 'surface', 'rebuild', 'share', 'closed'];
@@ -1822,6 +1901,7 @@ wss.on('connection', ws => {
   });
 
   ws.on('close', () => {
+    try { if (ws.rt) { ws.rt.close(); ws.rt = null; } } catch {}   // Slice B: tear down the realtime upstream
     const w = workshops.get(ws.workshopCode);
     if (w && ws.memberId) {
       const team = findTeam(w, ws.teamId);
