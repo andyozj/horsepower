@@ -57,7 +57,8 @@ const CONFIG = {
   SWEEP_EVERY_MS: 60 * 60 * 1000,
   CLOSED_TTL_MS: 24 * 60 * 60 * 1000,    // closed workshops: gone after 24h idle
   IDLE_TTL_MS: 48 * 60 * 60 * 1000,      // any workshop: gone after 48h without a broadcast
-  SANDBOX_TTL_MS: 4 * 60 * 60 * 1000     // R3: a dry-run is throwaway — gone after 4h idle (24x a 10-min rehearsal, 6x faster than closed)
+  SANDBOX_TTL_MS: 4 * 60 * 60 * 1000,    // R3: a dry-run is throwaway — gone after 4h idle (24x a 10-min rehearsal, 6x faster than closed)
+  PG_POOL_MAX: Number(process.env.PG_POOL_MAX) || 4   // Postgres connection pool size (single-instance durability backend)
 };
 
 // Trusted-proxy hops for per-IP attribution (Task 3): 0 = direct (use socket addr, ignore XFF);
@@ -301,9 +302,21 @@ function mergeCanvas(serverCanvas, clean, knownIds) {
   return out;
 }
 
-// ---------- Persistence (atomic: tmp + fsync + rename, .bak fallback) ----------
-let saveTimer = null, shuttingDown = false;
-function saveNow() {
+// ---------- Persistence ----------
+// Two backends, chosen by DATABASE_URL. The in-memory `workshops` Map is always the LIVE source of
+// truth (WS broadcasts read it); this layer keeps a durable mirror so rooms survive restart/redeploy.
+//  • no DATABASE_URL  → local file (atomic: tmp + fsync + rename, .bak fallback) — laptop / zero setup.
+//  • DATABASE_URL set → Postgres (e.g. Azure): one JSONB row per workshop keyed by code; load all on boot.
+// SCOPE: this buys DURABILITY for a SINGLE instance — the WS state is in-memory, so multi-instance
+// scale would additionally need cross-instance pub/sub (a separate phase, see docs/DEPLOY.md).
+const DATABASE_URL = process.env.DATABASE_URL || '';
+const USE_PG = !!DATABASE_URL;
+const PG_SSL = process.env.PG_NO_SSL ? false : { rejectUnauthorized: false };   // Azure/most managed PG require TLS
+let pgPool = null, pgReady = false;
+let saveTimer = null, shuttingDown = false, pgChain = Promise.resolve();
+
+// --- file backend (byte-identical to the prior behavior) ---
+function saveFile() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const tmp = DATA_FILE + '.tmp';
@@ -315,26 +328,79 @@ function saveNow() {
     fs.renameSync(tmp, DATA_FILE);          // atomic on POSIX: readers see old or new, never half
   } catch (e) { log('save_failed', { err: e.message }); }
 }
+function loadFile() {
+  for (const file of [DATA_FILE, DATA_FILE + '.bak']) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (e) { log('load_failed', { file: path.basename(file), err: e.message }); }
+  }
+  return null;
+}
+
+// --- Postgres backend ---
+async function pgInit() {
+  const { Pool } = require('pg');                                  // lazy: never required without DATABASE_URL
+  pgPool = new Pool({ connectionString: DATABASE_URL, ssl: PG_SSL, max: CONFIG.PG_POOL_MAX });
+  pgPool.on('error', e => log('pg_pool_error', { err: e.message }));   // idle-client errors must not crash the process
+  await pgPool.query('CREATE TABLE IF NOT EXISTS workshops (code text PRIMARY KEY, data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())');
+  pgReady = true;
+}
+// Upsert every live workshop and drop rows for rooms no longer in memory — the table MIRRORS the Map
+// exactly, matching the file backend's "write the whole set" semantics. N is small (a handful of rooms).
+async function pgSaveAll() {
+  if (!pgReady) return;
+  const all = [...workshops.values()];
+  for (const w of all) {
+    await pgPool.query(
+      'INSERT INTO workshops (code, data, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (code) DO UPDATE SET data = EXCLUDED.data, updated_at = now()',
+      [w.code, JSON.stringify(w)]);
+  }
+  const codes = all.map(w => w.code);
+  if (codes.length) await pgPool.query('DELETE FROM workshops WHERE code <> ALL($1::text[])', [codes]);
+  else await pgPool.query('DELETE FROM workshops');
+}
+async function pgLoad() {
+  const r = await pgPool.query('SELECT data FROM workshops');
+  return r.rows.map(x => x.data);
+}
+
+// --- unified seams used everywhere else (scheduleSave / boot / shutdown) ---
+function saveNow() {
+  if (USE_PG) {
+    // fire-and-forget, serialized so saves never overlap; a DB hiccup logs but never blocks the room (rule #8)
+    pgChain = pgChain.then(pgSaveAll).catch(e => log('save_failed', { db: true, err: e.message }));
+  } else {
+    saveFile();
+  }
+}
 function scheduleSave() {
   if (saveTimer || shuttingDown) return;
   saveTimer = setTimeout(() => { saveTimer = null; saveNow(); }, 400);
 }
-function load() {
-  for (const file of [DATA_FILE, DATA_FILE + '.bak']) {
-    try {
-      if (!fs.existsSync(file)) continue;
-      const arr = JSON.parse(fs.readFileSync(file, 'utf8'));
-      arr.forEach(w => workshops.set(w.code, w));
-      log('restored', { workshops: workshops.size, from: path.basename(file) });
-      return;
-    } catch (e) { log('load_failed', { file: path.basename(file), err: e.message }); }
+async function bootStore() {
+  if (USE_PG) {
+    await pgInit();
+    let arr = await pgLoad();
+    if (!arr || !arr.length) {                       // one-time cutover: import an existing file snapshot, then own it
+      const fileArr = loadFile();
+      if (fileArr && fileArr.length) { fileArr.forEach(w => workshops.set(w.code, w)); await pgSaveAll(); log('pg_imported', { workshops: fileArr.length }); arr = []; }
+    }
+    (arr || []).forEach(w => workshops.set(w.code, w));
+    log('restored', { workshops: workshops.size, from: 'postgres' });
+  } else {
+    const arr = loadFile();
+    if (arr) { arr.forEach(w => workshops.set(w.code, w)); log('restored', { workshops: workshops.size, from: 'file' }); }
   }
 }
-function shutdown(sig) {
+async function shutdown(sig) {
   if (shuttingDown) return; shuttingDown = true;
   log('shutdown', { sig });
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-  saveNow();                                 // flush the debounce window
+  try {
+    if (USE_PG) { await pgChain; await pgSaveAll(); if (pgPool) await pgPool.end(); }
+    else saveFile();                          // flush the debounce window
+  } catch (e) { log('shutdown_save_failed', { err: e.message }); }
   try { server.close(() => process.exit(0)); } catch { process.exit(0); }
   setTimeout(() => process.exit(0), 1500).unref();   // never hang on open sockets
 }
@@ -797,6 +863,7 @@ app.get('/api/workshop/:code', (req, res) => {
 app.get('/api/health', (req, res) => {
   if (shuttingDown) return res.status(503).json({ ok: false, shuttingDown: true });
   res.json({ ok: true, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
+             db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
              workshops: workshops.size, uptime: Math.round(process.uptime()) });
 });
 // the room's REAL join address — so the projector never tells people "localhost"
@@ -1739,11 +1806,17 @@ app.get('/api/diff/:code/:teamId', (req, res) => {
   res.json(buildDiff(original.canvas, rebuilder.redesign.canvas, rebuilder.redesign.locked));
 });
 
-load();
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
-  console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
-  if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
-});
+// Boot: restore the durable store, THEN listen. A Postgres init failure is logged loudly and surfaced on
+// /api/health (db:'postgres-error') but never blocks startup — the room still runs in-memory (rule #8).
+bootStore()
+  .catch(e => log('boot_store_failed', { db: USE_PG, err: e.message }))
+  .finally(() => {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
+      console.log(`Store: ${USE_PG ? (pgReady ? 'Postgres (durable)' : 'Postgres CONFIGURED BUT UNREACHABLE — running in-memory, NOT durable') : `local file (${DATA_FILE})`}`);
+      console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
+      if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
+    });
+  });
 
 module.exports = { app, server, governance, buildTeardown, performSwap, buildDiff };

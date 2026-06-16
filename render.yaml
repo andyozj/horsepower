@@ -26,7 +26,13 @@ services:
         sync: false                         # SET AFTER 1st deploy → your https://<name>.onrender.com URL
       - key: ANTHROPIC_API_KEY
         sync: false                         # OPTIONAL — leave unset to run the free rule-based Coach
-# NOTE: no `disk:` block — free tier has none. To make workshops durable later, upgrade
-# `plan: starter` and add:
-#   disk: { name: data, mountPath: /data, sizeGB: 1 }
-# then add an env var DATA_DIR=/data.
+      - key: DATABASE_URL
+        sync: false                         # OPTIONAL but RECOMMENDED — a managed Postgres (e.g. Azure
+                                            # Database for PostgreSQL) connection string. Set it and rooms
+                                            # become DURABLE across restarts/redeploys (free-tier disk is
+                                            # ephemeral). Unset → falls back to the local file store.
+                                            # TLS is ON by default (Azure requires it); set PG_NO_SSL=1
+                                            # only for a local no-TLS Postgres. See docs/DEPLOY.md.
+# Durability: set DATABASE_URL above (managed Postgres) — no disk block needed. The app stores one JSONB
+# row per workshop and reloads them on boot. This is SINGLE-INSTANCE durability; multi-instance scale
+# needs cross-instance pub/sub (a separate phase — see CLAUDE.md / DEPLOY.md scaling notes).
