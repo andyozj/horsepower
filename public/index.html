@@ -2671,7 +2671,8 @@ function catchUpCard(phase){
 }
 // Voice-live corner "coach blob": once you're talking, the orb shrinks to the bottom-right and the FULL
 // map fills the screen, building as you speak — no text dock (you're already talking). Tap to start/stop.
-function voiceCoachBlob(t){
+function voiceCoachBlob(t, opts){
+  opts = opts || {};
   if(ui.voice && ui.voice.converse && !VC.active) setTimeout(()=>VC.ensureSession(),0);   // warm the session
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript into the fresh caption box
   const min = ui.blobMin==null ? isPhone() : !!ui.blobMin;   // phones default to just-the-orb so the map stays visible; desktop opens the transcript
@@ -2686,7 +2687,7 @@ function voiceCoachBlob(t){
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   row.append(orb);
   blob.append(row);
-  if(!min) blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  if(!min) blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ if(opts.rebuild){ ui.railOpen=true; render(); } else { VC.hangup(); ui.voiceMode='type'; render(); } }, html: glyph('g-keys')+'Type'}));
   return blob;
 }
 function viewSurface(){
@@ -3189,11 +3190,14 @@ function interviewHero(t){
   wrap.append(hero);
   return wrap;
 }
-function buildCoachRail(mode, chat){
+function buildCoachRail(mode, chat, opts){
+  opts = opts || {};
   const chatArr = chat || [];
   const collapsed = !ui.railOpen;
   if (!collapsed) ui.seenChatLen = chatArr.length;                 // opening clears unread
   const unread = collapsed ? chatArr.slice(ui.seenChatLen).filter(m=>m.role==='assistant'||m.role==='farrier').length : 0;   // R7: a whisper also breathes the badge
+  // Rebuild voice: the spoken-sparring blob is the Coach entry, so suppress the duplicate collapsed button
+  if(collapsed && opts.hideCollapsed) return el('div',{class:'rail collapsed', 'data-testid':'coach-rail', style:'display:none'});
   const rail = el('div',{class:'rail'+(collapsed?' collapsed':''), style: collapsed?'':('width:'+ui.railWidth+'px'), 'data-testid':'coach-rail'});
   // collapse/expand tab (a notch on the canvas edge — visible even when collapsed)
   // collapsed → a round Coach-face button (bottom-right) so the Coach is always findable
@@ -3373,9 +3377,14 @@ function viewRebuild(){
         if(rr&&rr.width>600){ cv._fit(rr.width-274, rr.height, 1); if(cv._view){ ui.zoom=cv._view().zoom; ui.pan=cv._view().pan; } } });
     }
   }
+  // Slice C voice: the spoken redesign-challenger — a corner sparring blob. Tap to argue out the new
+  // design; the Coach pushes back out loud (named roles, who absorbs the work, real-vs-habit) and drops
+  // Agent blocks by voice. Shown when the rail is collapsed; "Type" opens the text rail. (Phone: map stays hero.)
+  const converse = !!(ui.voice && ui.voice.converse);
   left.append(cv);
+  if(converse && !ui.railOpen) left.append(voiceCoachBlob(t, {rebuild:true}));
   work.append(left);
-  work.append(buildCoachRail('rebuild', (r.canvas.chat)||[]));
+  work.append(buildCoachRail('rebuild', (r.canvas.chat)||[], {hideCollapsed:converse}));
   return work;
 }
 // the delivered teardown ingredients as scattered context cards on the map (hover → WHY)

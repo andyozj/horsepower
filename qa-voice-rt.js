@@ -16,7 +16,7 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
 // Mock Azure realtime upstream: records the session.update; on input_audio_buffer.commit it emits a
 // canned update_map tool-call (add a persona) + an audio delta + response.done.
 function startMockRealtime() {
-  const state = { sessions: 0, lastSession: null, gotAppend: false };
+  const state = { sessions: 0, lastSession: null, gotAppend: false, op: null };   // state.op overrides the canned tool-call op
   const wss = new WebSocketServer({ port: 0 });
   wss.on('connection', up => {
     state.sessions++;
@@ -26,8 +26,8 @@ function startMockRealtime() {
       if (m.type === 'input_audio_buffer.append') state.gotAppend = true;
       if (m.type === 'input_audio_buffer.commit') {
         up.send(J({ type: 'response.output_audio.delta', delta: 'QUJD' }));   // base64 'ABC'
-        up.send(J({ type: 'response.function_call_arguments.done', name: 'update_map', call_id: 'c1',
-          arguments: J({ ops: [{ op: 'add', tmpId: 't1', type: 'persona', text: 'AP Clerk', capacity: 'operates' }] }) }));
+        const ops = [state.op || { op: 'add', tmpId: 't1', type: 'persona', text: 'AP Clerk', capacity: 'operates' }];
+        up.send(J({ type: 'response.function_call_arguments.done', name: 'update_map', call_id: 'c1', arguments: J({ ops }) }));
         up.send(J({ type: 'response.done' }));
       }
     });
@@ -87,6 +87,49 @@ async function main() {
     ok('B: update_map tool-call APPLIED to the canonical canvas (server-side)', (r.team().canvas.blocks || []).some(b => b.type === 'persona' && b.text === 'AP Clerk' && (b.meta || {}).capacity === 'operates'), (r.team().canvas.blocks || []).map(b => b.type + ':' + b.text));
     ok('B: turn-done event relayed', r.evs.some(e => e.event === 'turn-done'), r.evs);
     r.m.close();
+  } finally { await kill(h); }
+
+  // ---- Phase C: REBUILD → the spoken redesign-challenger writes to the REDESIGN canvas ----
+  h = await spawnServer({ AZURE_REALTIME_URL: mock.url(), AZURE_SPEECH_KEY: 'k' });
+  try {
+    const mk = await (await fetch(BASE + '/api/workshop', { method: 'POST' })).json();
+    const code = mk.code, hostKey = mk.hostKey;
+    const fac = new WebSocket(WSBASE); await new Promise(r => fac.on('open', r));
+    fac.on('message', () => {});
+    fac.send(J({ type: 'join', role: 'farrier', workshopCode: code, hostKey }));
+    const seed = name => ({ blocks: [
+      { id: 'p' + name, type: 'persona', x: 80, y: 80, w: 160, h: 50, text: name + ' Clerk', meta: { capacity: 'operates' } },
+      { id: 'tr' + name, type: 'trigger', x: 80, y: 150, w: 160, h: 50, text: 'Invoice in', meta: {} },
+      { id: 'ph' + name, type: 'phase', x: 300, y: 80, w: 160, h: 50, text: 'Key it', meta: {} },
+      { id: 'in' + name, type: 'intent', x: 520, y: 80, w: 160, h: 50, text: 'Pay or query', meta: {} },
+      { id: 'ou' + name, type: 'outcome', x: 520, y: 150, w: 160, h: 50, text: 'Paid', meta: {} } ], arrows: [], orphans: [], chat: [] });
+    const mkMember = async (name, team) => {
+      const m = new WebSocket(WSBASE); await new Promise(r => m.on('open', r));
+      let st = null, teamId = null; const evs = [];
+      m.on('message', d => { const x = JSON.parse(d); if (x.type === 'state') st = x.state; if (x.type === 'seated') teamId = x.teamId; if (String(x.type || '').startsWith('voice:')) evs.push(x); });
+      m.send(J({ type: 'join', role: 'member', workshopCode: code, name })); await wait(120);
+      m.send(J({ type: 'team:create', workshopCode: code, name: team, memberName: name })); await wait(250);
+      return { m, evs, team: () => (st.teams || []).find(t => t.id === teamId) };
+    };
+    const A = await mkMember('Ann', 'AP'); const B = await mkMember('Bo', 'ETL');
+    fac.send(J({ type: 'phase:set', workshopCode: code, phase: 'surface' })); await wait(200);
+    A.m.send(J({ type: 'canvas:update', workshopCode: code, canvas: seed('A') })); await wait(120);
+    B.m.send(J({ type: 'canvas:update', workshopCode: code, canvas: seed('B') })); await wait(200);
+    fac.send(J({ type: 'phase:set', workshopCode: code, phase: 'rebuild' })); await wait(500);
+    ok('C: room reached rebuild with a redesign canvas', !!(A.team() && A.team().redesign), A.team() && Object.keys(A.team().redesign || {}));
+    mock.state.op = null;
+    A.m.send(J({ type: 'voice:start', workshopCode: code })); await wait(500);
+    const t0 = (mock.state.lastSession && (mock.state.lastSession.tools || [])[0]) || {};
+    const enums = (((((t0.parameters || {}).properties || {}).ops || {}).items || {}).properties || {}).type;
+    ok('C: rebuild session offers the agent-capable map tool', !!(enums && Array.isArray(enums.enum) && enums.enum.includes('agent')), enums && enums.enum);
+    ok('C: rebuild instructions carry the redesign-challenger brief', /sparring|redesign|retrofit/i.test(mock.state.lastSession.instructions || ''), (mock.state.lastSession.instructions || '').slice(0, 50));
+    mock.state.op = { op: 'add', tmpId: 'a1', type: 'agent', text: 'Invoice-matching agent' };
+    A.m.send(J({ type: 'voice:audio', workshopCode: code, audio: 'QUJD' })); await wait(120);
+    A.m.send(J({ type: 'voice:commit', workshopCode: code })); await wait(500);
+    const rc = (A.team().redesign && A.team().redesign.canvas.blocks) || [];
+    ok('C: the voice tool-call built an AGENT block on the REDESIGN canvas', rc.some(b => b.type === 'agent' && b.text === 'Invoice-matching agent'), rc.map(b => b.type + ':' + b.text));
+    ok('C: it did NOT touch the surface map', !((A.team().canvas.blocks || []).some(b => b.type === 'agent')), (A.team().canvas.blocks || []).map(b => b.type));
+    A.m.close(); B.m.close(); fac.close();
   } finally { await kill(h); }
 
   mock.wss.close();

@@ -1456,10 +1456,46 @@ const VOICE_INSTRUCTIONS = `You are the Coach running a SPOKEN interview to map 
 As you learn the workflow, CALL the update_map tool to build the map — a SEPARATE persona for every named person (never fold a person into a step), each with an INFERRED capacity (approver/on-the-hook = accountable, hands-on doer = operates, the one it's for = served, only cc'd = informed); the inputs; the phases/moments; ONE intent that is a DECISION (not an artifact like "a report"); and ONE distinct outcome. Attach the WHY whenever they give one.
 When the workflow is fully captured, give a short warm hand-off: "That's your workflow mapped — take a look and fix anything I got wrong."`;
 
+// Slice C voice: the SPOKEN redesign-challenger for the Rebuild phase — a sparring partner that makes
+// retrofit visible. Provokes, never adjudicates (no domain truth). Can drop `agent` blocks by voice.
+const REBUILD_MAP_TOOL = {
+  type: 'function', name: 'update_map',
+  description: 'Add/connect blocks on the team\'s NEW AI-native redesign as it takes shape — ESPECIALLY `agent` blocks where an AI should act, plus new phases/moments. Call it when they describe an AI step or a new design move. Never add intent/outcome (those are locked).',
+  parameters: { type: 'object', properties: { ops: { type: 'array', description: 'one or more map edits', items: { type: 'object', properties: {
+    op: { type: 'string', enum: ['add', 'connect'] },
+    tmpId: { type: 'string' }, id: { type: 'string' },
+    type: { type: 'string', enum: ['agent', 'phase', 'moment', 'persona', 'input', 'trigger'] },
+    text: { type: 'string' }, why: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' }
+  }, required: ['op'] } } }, required: ['ops'] }
+};
+const REBUILD_VOICE_INSTRUCTIONS = `You are the Coach — a SPOKEN sparring partner as a team rebuilds a workflow to be AI-native. You PROVOKE, you NEVER decide; you have no domain truth. Talk naturally and briefly — ONE sharp challenge at a time, then let them answer. You're speaking aloud: never read JSON or field names.
+Your whole job is to make RETROFIT visible — when they bolt AI onto the OLD shape, name it and ask if that's the redesign or just the old way with a robot in it.
+Push on three things:
+- PEOPLE: for anyone they keep/transform/remove, force a NAMED new role (not a verb like "reviews" — what's the role CALLED?), and name WHO or WHAT absorbs the work that's dropped. Never accept "freed up for higher-value work" — make them say the actual new job.
+- CONSTRAINTS: for any "rule" they treat as fixed, ask if it's a real law / physics / external party, or just habit or policy they could design away. Make them name which. Never accept "compliance" or "the business requires it" without a name.
+- AGENTS: when they describe where an AI should act, CALL the update_map tool to drop an \`agent\` block (and connect it) so the new design appears on the map as you talk.
+Quote them back. Never lecture, never hand them the answer. The locked intent and outcome are FIXED — don't try to change them.`;
+function rebuildVoiceContext(team){
+  const r = team.redesign || {}, td = r.teardown || {}, L = r.locked || {}, lines = [];
+  lines.push(`LOCKED intent (fixed): ${L.intent || '?'}`);
+  lines.push(`LOCKED outcome (fixed): ${L.outcome || '?'}`);
+  if (td.brief) lines.push(`Brief — need: ${(td.brief.need && (td.brief.need.intent || td.brief.need.trigger)) || ''}; want: ${(td.brief.want && td.brief.want.outcome) || ''}`);
+  if ((td.areasOfConcern || []).length) lines.push(`Areas of concern: ${td.areasOfConcern.map(a => a.text).join('; ')}`);
+  if ((td.candidateConstraints || []).length) lines.push(`Inherited "rules" to pressure-test: ${td.candidateConstraints.map(c => c.text).join('; ')}`);
+  if ((td.people || []).length) lines.push(`People who must land: ${td.people.map(p => p.role).join(', ')}`);
+  const landed = (r.peopleLandings || []).filter(p => p.outcome);
+  if (landed.length) lines.push(`Landed so far: ${landed.map(p => p.role + '→' + p.outcome).join('; ')}`);
+  lines.push(`AI agents on the new map so far: ${((r.canvas && r.canvas.blocks) || []).filter(b => b.type === 'agent').length}`);
+  return lines.join('\n');
+}
+
 // Open a per-socket realtime upstream and bridge it to the browser. Audio + transcripts relay through;
 // the update_map tool-call applies to the canonical map server-side. Degrades to a 'voice:event' on failure.
 function startRealtime(ws, w, team) {
   try { if (ws.rt) { ws.rt.close(); ws.rt = null; } } catch {}
+  // phase-aware: in Rebuild the Coach is a SPOKEN redesign-challenger writing to the redesign canvas;
+  // otherwise it's the Surface capture interview writing to the current-workflow map.
+  const rebuild = w.state === 'rebuild' && !!team.redesign;
   let rt;
   try { rt = new WebSocket(AZURE_REALTIME_URL, { headers: { 'api-key': AZURE_SPEECH_KEY } }); }
   catch (e) { log('rt_open_failed', { err: String(e.message || e).slice(0, 120) }); return send(ws, { type: 'voice:event', event: 'error' }); }
@@ -1475,10 +1511,10 @@ function startRealtime(ws, w, team) {
       input.transcription = { model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe' };      // always stream the user's words back (for the on-screen transcript)
       rt.send(JSON.stringify({ type: 'session.update', session: {
         type: 'realtime',                                                                     // GA realtime requires this
-        instructions: VOICE_INSTRUCTIONS,
+        instructions: rebuild ? (REBUILD_VOICE_INSTRUCTIONS + '\n\nWHAT THEY INHERITED (reference, never read aloud):\n' + rebuildVoiceContext(team)) : VOICE_INSTRUCTIONS,
         output_modalities: ['audio'],
         audio: { input, output: { voice: AZURE_REALTIME_VOICE, format: { type: 'audio/pcm', rate: 24000 } } },
-        tools: [UPDATE_MAP_TOOL], tool_choice: 'auto'
+        tools: [rebuild ? REBUILD_MAP_TOOL : UPDATE_MAP_TOOL], tool_choice: 'auto'
       } }));
       send(ws, { type: 'voice:event', event: 'ready' });
     } catch (e) { log('rt_session_failed', { err: String(e.message || e).slice(0, 140) }); }
@@ -1496,7 +1532,7 @@ function startRealtime(ws, w, team) {
     if (t === 'response.done' || t === 'response.completed') return send(ws, { type: 'voice:event', event: 'turn-done' });
     if (t === 'response.function_call_arguments.done' && ev.name === 'update_map') {
       let args; try { args = JSON.parse(ev.arguments || '{}'); } catch { args = {}; }
-      if (Array.isArray(args.ops)) { applyOps(team.canvas, args.ops); broadcast(w); }   // server-applied → reconciler renders live
+      if (Array.isArray(args.ops)) { applyOps(rebuild ? team.redesign.canvas : team.canvas, args.ops); broadcast(w); }   // server-applied → reconciler renders live (rebuild → the redesign canvas)
       try { rt.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: ev.call_id, output: JSON.stringify({ ok: true }) } })); rt.send(JSON.stringify({ type: 'response.create' })); } catch {}
     }
   });
