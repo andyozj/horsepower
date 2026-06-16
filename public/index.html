@@ -1036,6 +1036,12 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobmin:hover{background:color-mix(in srgb,var(--ink) 8%,transparent); color:var(--ink)}
 .voiceblob .blobmin .glyph{width:15px; height:15px}
 .voiceblob.min .blobrow{padding:6px}   /* just the orb + the expand control */
+/* rebuild: inline "type your move" composer that routes through the same sparring session */
+.voiceblob .blobcomp{display:flex; align-items:flex-end; gap:6px; align-self:stretch; background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:6px 6px 6px 11px; box-shadow:var(--shadow-rest)}
+.voiceblob .blobinput{flex:1; min-width:0; border:none; background:transparent; resize:none; font:inherit; font-size:13.5px; line-height:1.4; max-height:84px; outline:none; color:var(--ink)}
+.voiceblob .blobsend{flex:none; width:30px; height:30px; border-radius:50%; border:none; background:var(--ink); color:var(--paper); display:grid; place-items:center; cursor:pointer; transform:rotate(-90deg)}
+.voiceblob .blobsend .glyph{width:15px; height:15px}
+.voiceblob .blobsend:hover{background:var(--red-pen)}
 .voiceorb.blobform{position:relative; inset:auto; width:64px; height:64px; flex:none}
 .voiceorb.blobform .orbface{width:54px; height:54px}
 .voiceorb.blobform .orbmic{width:24px; height:24px; bottom:0; right:0; box-shadow:var(--shadow-rest)}
@@ -2687,7 +2693,21 @@ function voiceCoachBlob(t, opts){
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   row.append(orb);
   blob.append(row);
-  if(!min) blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ if(opts.rebuild){ ui.railOpen=true; render(); } else { VC.hangup(); ui.voiceMode='type'; render(); } }, html: glyph('g-keys')+'Type'}));
+  if(!min && opts.rebuild){
+    // "type instead" — same sparring session, just typed: routes through VC.sendText (spoken+text reply,
+    // can still drop Agent blocks). Map stays visible. + a link to the full Coach chat (whispers, verdicts).
+    const comp=el('div',{class:'blobcomp'});
+    const inp=el('textarea',{class:'blobinput', 'data-testid':'spar-input', rows:'1', placeholder:'…or type your move'});
+    if(ui.coachDraft) inp.value=ui.coachDraft;
+    inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
+    const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; VC.sendText(v); inp.value=''; ui.coachDraft=''; };
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
+    comp.append(inp, el('button',{class:'blobsend', 'data-testid':'spar-send', title:'Send', 'aria-label':'Send', onclick:fire, html: glyph('i-chev')}));
+    blob.append(comp);
+    blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'open-rail', title:'Open the full Coach chat', onclick:()=>{ ui.railOpen=true; render(); }, html: glyph('g-keys')+'Full chat'}));
+  } else if(!min){
+    blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  }
   return blob;
 }
 function viewSurface(){

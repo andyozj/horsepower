@@ -56,6 +56,7 @@ const REGISTRY = [
   { name: 'timer-custom',      kind: 'protected', selector: '.timerctl input',      match: { testid: 'timer-custom' } },
   // — exempt (not editingLock), each with the reason it's broadcast-safe —
   { name: 'coach composer',    kind: 'draft',  reason: 'per-keystroke ui.coachDraft persist+restore (the input-listener pattern)', match: { testid: 'coach-input' } },
+  { name: 'rebuild spar composer', kind: 'draft', reason: 'per-keystroke ui.coachDraft persist+restore (same input-listener pattern as the coach composer)', match: { testid: 'spar-input' } },
   { name: 'lock-challenge reason', kind: 'modal', reason: 'document.body-appended overlay — outside the render() tree', match: { phIncludes: 'why is it wrong' } },
   { name: 'lock-challenge proposed', kind: 'modal', reason: 'document.body-appended overlay — outside the render() tree', match: { phIncludes: 'proposed correction' } },
   { name: 'pulse confidence slider', kind: 'slider', reason: 'range input — no free text to lose; value re-derives from state', match: { type: 'range' } },
