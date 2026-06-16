@@ -1036,6 +1036,10 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobmin:hover{background:color-mix(in srgb,var(--ink) 8%,transparent); color:var(--ink)}
 .voiceblob .blobmin .glyph{width:15px; height:15px}
 .voiceblob.min .blobrow{padding:6px}   /* just the orb + the expand control */
+/* rebuild launcher: a clean labeled pill — one obvious action (open the Coach) */
+.voiceblob.min.rebuild .blobrow{padding:6px 6px 6px 17px; gap:11px}
+.voiceblob .bloblabel{border:none; background:transparent; cursor:pointer; font-family:Caveat,cursive; font-size:19px; font-weight:600; color:var(--ink); white-space:nowrap; padding:0}
+.voiceblob .bloblabel:hover{color:var(--red-pen)}
 /* rebuild: inline "type your move" composer that routes through the same sparring session */
 .voiceblob .blobcomp{display:flex; align-items:flex-end; gap:6px; align-self:stretch; background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:6px 6px 6px 11px; box-shadow:var(--shadow-rest)}
 .voiceblob .blobinput{flex:1; min-width:0; border:none; background:transparent; resize:none; font:inherit; font-size:13.5px; line-height:1.4; max-height:84px; outline:none; color:var(--ink)}
@@ -2681,15 +2685,21 @@ function voiceCoachBlob(t, opts){
   opts = opts || {};
   if(ui.voice && ui.voice.converse && !VC.active) setTimeout(()=>VC.ensureSession(),0);   // warm the session
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript into the fresh caption box
-  const min = ui.blobMin==null ? isPhone() : !!ui.blobMin;   // phones default to just-the-orb so the map stays visible; desktop opens the transcript
-  const blob=el('div',{class:'voiceblob'+(VC.active?' live':'')+(min?' min':''), 'data-testid':'voice-blob'});
+  // Rebuild + phones default to a clean single launcher orb — tap to OPEN; the transcript/composer only
+  // appear once opened, so the bottom-right stays uncluttered and clear of the people tray.
+  const min = ui.blobMin==null ? (isPhone() || opts.rebuild) : !!ui.blobMin;
+  const launch = min && opts.rebuild;   // minimized rebuild = a labeled "Spar with the Coach" launcher
+  const blob=el('div',{class:'voiceblob'+(VC.active?' live':'')+(min?' min':'')+(opts.rebuild?' rebuild':''), 'data-testid':'voice-blob'});
   if(!min) blob.append(el('div',{class:'voicecaption blobcap', 'data-testid':'voice-caption'}));    // the running transcript, above the orb (hidden when minimized)
   const LB={ idle:'Tap to talk', connecting:'Connecting…', listening:'Listening', thinking:'Thinking…', speaking:'Coach speaking' };
+  const open=()=>{ ui.blobMin=false; render(); };
   const row=el('div',{class:'blobrow'});
-  // minimize/expand the chatbot to just the orb (accessibility — keep the map clear)
-  row.append(el('button',{class:'blobmin', title: min?'Show the conversation':'Minimize to the orb', 'aria-label': min?'Show the conversation':'Minimize the Coach', 'data-testid':'blob-min', onclick:()=>{ ui.blobMin=!min; render(); }, html: glyph(min?'i-chev':'i-down')}));
-  if(!min) row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
-  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label':'Talk to the Coach — tap to talk or pause', onclick:()=>VC.toggle()});
+  if(launch){ row.append(el('button',{class:'bloblabel', onclick:open}, 'Spar with the Coach')); }
+  else {
+    row.append(el('button',{class:'blobmin', title: min?'Show the conversation':'Minimize to the orb', 'aria-label': min?'Show the conversation':'Minimize the Coach', 'data-testid':'blob-min', onclick:()=>{ ui.blobMin=!min; render(); }, html: glyph(min?'i-chev':'i-down')}));
+    if(!min) row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  }
+  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label': launch?'Open the Coach to spar':'Talk to the Coach — tap to talk or pause', onclick:()=> launch ? open() : VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   row.append(orb);
   blob.append(row);
