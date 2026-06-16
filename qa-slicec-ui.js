@@ -62,9 +62,13 @@ async function drop(p, sel, tool, x, y, text) { await p.click(`[data-testid=tool
     await A.locator('[data-testid=land-transforms]').first().click(); await wait(400);
     ok('challenge affordance appears once a person is landed', await A.locator('[data-testid=challenge-landing]').count() >= 1);
     await A.locator('[data-testid=challenge-landing]').first().click();
-    await A.waitForSelector('.landperson .chalreply', { timeout: 8000 });
-    ok('persona challenge renders a Coach line on the card', (await A.locator('.landperson .chalreply').first().textContent()).trim().length > 0);
-    await wait(400);
+    await A.waitForFunction(() => { const e = document.querySelector('.landperson .chalreply'); return e && e.textContent.trim() && e.textContent.trim() !== '…'; }, { timeout: 20000 }).catch(() => {});
+    const personaReply = (await A.locator('.landperson .chalreply').first().textContent()).trim();
+    ok('persona challenge renders a real Coach line (not the pending placeholder)', personaReply.length > 1 && personaReply !== '…');
+    console.log('    ↳ live persona challenge:', JSON.stringify(personaReply));
+    // the flag/require verdict persists server-side then rides the NEXT broadcast — on live-AI latency
+    // that lands a beat after the reply, so wait for it rather than checking immediately.
+    await A.locator('.landperson .reqchip').first().waitFor({ timeout: 8000 }).catch(() => {});
     ok('a require-chip surfaces what the team still owes', await A.locator('.landperson .reqchip').count() >= 1, await A.locator('.landperson .reqchip').first().textContent().catch(() => ''));
     await A.screenshot({ path: SHOTS + '/01-persona-challenge.png' });
 
@@ -80,8 +84,10 @@ async function drop(p, sel, tool, x, y, text) { await p.click(`[data-testid=tool
     await A.locator('[data-testid=route-law]').first().click(); await wait(400);
     ok('re-routing to law shows the REAL (survives) verdict', await A.locator('.cverdict.real').count() >= 1);
     await A.locator('[data-testid=challenge-route]').first().click();
-    await A.waitForSelector('.conrow .chalreply', { timeout: 8000 });
-    ok('Ask-the-Coach renders a routing challenge', (await A.locator('.conrow .chalreply').first().textContent()).trim().length > 0);
+    await A.waitForFunction(() => { const e = document.querySelector('.conrow .chalreply'); return e && e.textContent.trim() && e.textContent.trim() !== '…'; }, { timeout: 20000 }).catch(() => {});
+    const routeReply = (await A.locator('.conrow .chalreply').first().textContent()).trim();
+    ok('Ask-the-Coach renders a real routing challenge', routeReply.length > 1 && routeReply !== '…');
+    console.log('    ↳ live route challenge:', JSON.stringify(routeReply));
     await A.screenshot({ path: SHOTS + '/02-constraint-routing.png' });
 
     // land everyone so we reach share cleanly
