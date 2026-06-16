@@ -969,6 +969,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @keyframes ringout{0%{transform:scale(.7); opacity:.55} 100%{transform:scale(1.3); opacity:0}}
 @keyframes facebob{0%,100%{transform:scale(1)} 50%{transform:scale(1.05)}}
 .voicestatus{font-family:Fraunces,serif; font-size:21px; font-variation-settings:"opsz" 32; color:var(--ink); min-height:26px}
+.voicestage .voicestatus{font-family:Caveat,cursive; font-size:25px; font-weight:600; color:var(--red-pen)}   /* warm, handwritten state */
 .voicecaption{max-width:540px; min-height:22px; font-size:14.5px; line-height:1.55; color:var(--muted-strong)}
 .voicecaption .vcap-you{font-family:Caveat,cursive; font-size:19px; color:var(--muted); margin-bottom:4px}
 .voicecaption .vcap-coach{color:var(--ink)}
@@ -982,10 +983,15 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .vline.vyou{justify-content:flex-end}
 .vline.vyou .vtxt{background:var(--ink); color:var(--paper); border-bottom-right-radius:6px}
 .vline.vcoach{justify-content:flex-start}
-.vline.vcoach .vtxt{background:var(--card); border:1.5px solid var(--line); color:var(--ink); border-bottom-left-radius:6px; box-shadow:var(--shadow-rest)}
-/* a soft, glassy panel — a clear boundary without the boxy chrome (Mobbin voice-mode reference) */
-.voicestage .voicecaption.vtranscript, .typecap.vtranscript{width:min(600px,92vw); max-height:40vh; margin:2px auto 0; padding:16px 18px; background:color-mix(in srgb,var(--card) 50%, transparent); border:1px solid color-mix(in srgb,var(--line) 65%, transparent); border-radius:22px; box-shadow:var(--shadow-float); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px)}
-.typecap.vtranscript{max-height:32vh}
+.vline.vcoach .vtxt{background:var(--pop); border:1.5px solid color-mix(in srgb,var(--red-pen) 42%, var(--line)); color:var(--ink); border-bottom-left-radius:6px; box-shadow:var(--shadow-rest)}
+/* WARM, on-brand transcript: a paper card inside a hand-drawn wobble frame (the brand's signature) */
+.voicestage .vpanel{position:relative; width:min(600px,92vw); max-height:42vh; margin:4px auto 0; display:flex; flex-direction:column; min-height:0; background:var(--card); border-radius:20px; box-shadow:var(--shadow-float); overflow:hidden}
+.voicestage .vpanel:has(.voicecaption:empty){display:none}   /* no transcript yet → no empty framed card */
+.voicestage .vpanel .voicecaption{width:auto; max-height:none; min-height:0; margin:0; padding:17px 19px; background:transparent; border:none; box-shadow:none; overflow-y:auto}
+.vframe{position:absolute; inset:0; z-index:2; pointer-events:none; overflow:visible}
+.vframe path{fill:none; stroke:var(--red-pen); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:.82}
+.typecap.vtranscript{width:min(560px,92vw); max-height:32vh; margin:2px auto 10px; padding:14px 16px; background:var(--card); border:1.5px solid var(--line); border-radius:18px; box-shadow:var(--shadow-rest)}
+.voicestage .vshead .hl{background:linear-gradient(transparent 58%, var(--highlighter) 58%, var(--highlighter) 94%, transparent 94%); padding:0 5px 0 1px; -webkit-box-decoration-break:clone; box-decoration-break:clone}
 .vstype{margin-top:6px; display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:9px 17px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vstype:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
 .vstype .glyph{width:16px; height:16px}
@@ -994,9 +1000,24 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @media (max-width:560px){ .voicestage .vshead b{font-size:20px} .voicestatus{font-size:18px} }
 /* full-bleed immersive layout: the stage fills the work area and centers both axes, with an ambient glow */
 .work.interviewing.voicefull{justify-content:center; align-items:center; padding:0; overflow:hidden; position:relative}
-.voicefull::before{content:''; position:absolute; inset:0; pointer-events:none; z-index:0; background:radial-gradient(56% 46% at 50% 42%, color-mix(in srgb,var(--gold) 13%, transparent) 0%, transparent 70%)}
+/* a living, state-aware ambient aura — warm gold at rest, red while it's hearing you; breathes slowly */
+.voicefull::before{content:''; position:absolute; inset:0; pointer-events:none; z-index:0; transition:opacity .6s ease;
+  background:radial-gradient(40% 36% at 50% 40%, color-mix(in srgb,var(--gold) 20%, transparent) 0%, transparent 68%),
+             radial-gradient(74% 64% at 50% 46%, color-mix(in srgb,var(--gold) 7%, transparent) 0%, transparent 74%);
+  animation:auradrift 11s ease-in-out infinite}
+.voicefull::after{content:''; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:.5; background-image:radial-gradient(var(--line-soft) 1px, transparent 1px); background-size:22px 22px; -webkit-mask-image:radial-gradient(58% 50% at 50% 42%, #000 0%, transparent 72%); mask-image:radial-gradient(58% 50% at 50% 42%, #000 0%, transparent 72%)}
+.voicefull:has(.voiceorb.listening)::before{background:radial-gradient(42% 38% at 50% 40%, color-mix(in srgb,var(--pop,#e23b3b) 17%, transparent) 0%, transparent 68%), radial-gradient(76% 66% at 50% 46%, color-mix(in srgb,var(--gold) 9%, transparent) 0%, transparent 76%); animation-duration:4.5s}
+.voicefull:has(.voiceorb.speaking)::before{animation-duration:3s}
+@keyframes auradrift{0%,100%{transform:scale(1); opacity:.82} 50%{transform:scale(1.07); opacity:1}}
 .voicefull .voicestage{width:100%; max-width:none; height:100%; justify-content:center}
 .voicefull .voicestage>*{position:relative; z-index:1}
+/* listening waveform — comes alive only while the Coach is hearing you */
+.vwave{display:flex; align-items:center; justify-content:center; gap:4px; height:24px; margin-top:-2px; opacity:0; transition:opacity .35s ease}
+.vwave .bar{width:3px; height:22%; border-radius:3px; background:var(--pop,#e23b3b); opacity:.45}
+.voicefull:has(.voiceorb.listening) .vwave{opacity:1}
+.voicefull:has(.voiceorb.listening) .vwave .bar{animation:waveb 1s ease-in-out infinite}
+@keyframes waveb{0%,100%{height:16%} 50%{height:92%}}
+@media (prefers-reduced-motion:reduce){ .voicefull::before{animation:none !important} .vwave .bar{animation:none !important; height:42%} }
 .voicebar{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center}
 .vbtn{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:10px 18px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); cursor:pointer; transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vbtn:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
@@ -2054,6 +2075,16 @@ function roughPill(w,h,seed,amp=1.6,inset=1){ const r=srand(seed); const y0=inse
     + wobbleSeg(cx1,y1,cx0,y1,r,amp)
     + `M${cx0.toFixed(1)} ${(y1+j()).toFixed(1)} A${rad.toFixed(1)} ${rad.toFixed(1)} 0 0 1 ${(cx0+j()).toFixed(1)} ${y0.toFixed(1)} `; }
 function roughLine(x1,y1,x2,y2,seed,amp=1.8){ return wobbleSeg(x1,y1,x2,y2,srand(seed),amp); }
+// a hand-drawn wobble frame sized to a (resizable) panel — the signature brand border, redrawn on resize
+function drawVframe(panel){
+  if(!panel) return; const w=Math.round(panel.clientWidth), h=Math.round(panel.clientHeight); if(w<24||h<24) return;
+  const NS='http://www.w3.org/2000/svg';
+  let svg=panel.querySelector(':scope > .vframe');
+  if(!svg){ svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','vframe'); svg.setAttribute('aria-hidden','true'); panel.prepend(svg); }
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.setAttribute('width',w); svg.setAttribute('height',h);
+  let p=svg.querySelector('path'); if(!p){ p=document.createElementNS(NS,'path'); svg.append(p); }
+  p.setAttribute('d', roughRect(w,h,'vpanel',2.4,5));
+}
 function squigglePath(w,seed){ const r=srand(seed); let d=`M1 4 `; const step=7; for(let x=step;x<=w;x+=step){ d+=`Q${x-step/2} ${(x/step)%2?0.5:7.5} ${x} ${(3.4+(r()*1.4-0.7)).toFixed(1)} `; } return d; }
 // B8: REDUCED is mutable + live-updated, so an OS toggle mid-session re-evaluates without a reload.
 const _mqRM = matchMedia('(prefers-reduced-motion: reduce)');
@@ -3062,13 +3093,18 @@ function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
-  stage.append(el('div',{class:'vshead'}, el('b',{},'Talk me through your workflow'), el('div',{class:'meta'},'Tap the orb and just talk — I’ll listen and build your map as you go.')));
+  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'},'Tap the orb and just talk — I’ll listen and build your map as you go.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   stage.append(el('div',{class:'orbwrap'}, orb));
+  const wave=el('div',{class:'vwave','aria-hidden':'true'}); for(let i=0;i<9;i++) wave.append(el('span',{class:'bar', style:'animation-delay:'+(i*0.08).toFixed(2)+'s'}));
+  stage.append(wave);   // a listening waveform under the orb — comes alive only while the Coach is hearing you
   const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
   stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to start talking'));
-  stage.append(el('div',{class:'voicecaption', 'data-testid':'voice-caption'}));
+  const cap=el('div',{class:'voicecaption', 'data-testid':'voice-caption'});
+  const panel=el('div',{class:'vpanel'}, cap);   // the transcript inside a hand-drawn paper frame
+  stage.append(panel);
+  setTimeout(()=>{ drawVframe(panel); try{ const ro=new ResizeObserver(()=>drawVframe(panel)); ro.observe(panel); }catch(_){} },0);
   const bar=el('div',{class:'voicebar'});
   bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   bar.append(ivSkipBtn(t));
