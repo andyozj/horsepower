@@ -2657,7 +2657,7 @@ function viewSurface(){
   // VOICE: keep the big "talk to the Coach" stage until the map has actually FORMED (≥3 blocks) — no
   // staring at a blank map. Once there's enough, the map graduates to the hero and the Coach drops to the
   // bottom-right corner blob (still live). TEXT: chat-hero until the Coach hands off.
-  const mapReady = (t.canvas.blocks || []).length >= 3;
+  const mapReady = (t.canvas.blocks || []).length >= 5;
   if(converse && !skipped){ if(!mapReady) return interviewHero(t); }   // big talking stage while the map is sparse
   else if(!handedOff && !skipped) return interviewHero(t);             // text chat hero / type panel
   // ---- Stage 2: the map is the HERO; voice → corner blob, text → bottom dock ----
