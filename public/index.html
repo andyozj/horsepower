@@ -939,11 +939,11 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @media (prefers-reduced-motion:reduce){.ivmic.recording::before{animation:none}}
 /* Slice B Mode 2 — the voice-first stage: an immersive, confident Coach orb (Mobbin voice-mode pattern).
    Layered glow + concentric ripple rings; explicit idle/listening/thinking/speaking states; GPU-only. */
-.voicestage{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:14px 20px 26px; text-align:center; flex:1; min-height:0; position:relative}
-.voicestage .vshead{max-width:460px; margin-bottom:2px}
-.voicestage .vshead b{font-family:Fraunces,serif; font-size:23px; font-variation-settings:"opsz" 40; display:block; letter-spacing:-.01em}
-.voicestage .vshead .meta{font-size:14px; margin-top:4px; line-height:1.5}
-.orbwrap{position:relative; width:min(330px,76vw); height:min(330px,76vw); display:grid; place-items:center; margin:4px 0}
+.voicestage{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:14px 20px 24px; text-align:center; flex:1; min-height:0; position:relative}
+.voicestage .vshead{max-width:460px; margin-bottom:0}
+.voicestage .vshead b{font-family:Fraunces,serif; font-size:22px; font-variation-settings:"opsz" 40; display:block; letter-spacing:-.01em}
+.voicestage .vshead .meta{font-size:13.5px; margin-top:3px; line-height:1.5}
+.orbwrap{position:relative; width:min(208px,46vw); height:min(208px,46vw); display:grid; place-items:center; margin:2px 0}
 .voiceorb{position:absolute; inset:0; width:100%; height:100%; border:none; background:transparent; padding:0; cursor:pointer; border-radius:50%; display:grid; place-items:center; -webkit-tap-highlight-color:transparent}
 .orbhalo{position:absolute; inset:4%; border-radius:50%; z-index:0; background:radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--gold) 32%, transparent) 0%, color-mix(in srgb,var(--gold) 10%, transparent) 42%, transparent 64%); animation:halobreathe 4s ease-in-out infinite; will-change:transform,opacity}
 .orbring{position:absolute; inset:24%; border-radius:50%; border:1.6px solid color-mix(in srgb,var(--ink) 14%, transparent); z-index:1; opacity:0; will-change:transform,opacity}
@@ -973,20 +973,18 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voicecaption .vcap-you{font-family:Caveat,cursive; font-size:19px; color:var(--muted); margin-bottom:4px}
 .voicecaption .vcap-coach{color:var(--ink)}
 /* the scrollable conversation log (you ↔ coach), shared by the full stage, the corner blob, and the type panel */
-.vtranscript{display:flex; flex-direction:column; gap:9px; overflow-y:auto; scrollbar-width:thin; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; text-align:left}
-.vtranscript .vthead{position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:6px; font-family:Fraunces,serif; font-size:12px; font-variation-settings:"opsz" 18; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:0 2px 8px; margin:0 0 1px; background:linear-gradient(var(--card),var(--card) 68%, transparent)}
-.vtranscript .vthead .glyph{width:13px; height:13px; opacity:.7}
-.vtranscript .vline{display:flex; gap:8px; align-items:flex-end; max-width:100%}
-.vline .vav{flex:none; align-self:flex-start; width:22px; height:22px; border-radius:50%; overflow:hidden; display:grid; place-items:center}
-.vline .vav.vsteed{border:1.5px solid var(--steed,var(--line)); background:var(--card)}
-.vline .vav.vsteed svg{width:16px; height:16px}
-.vline .vtxt{font-size:14px; line-height:1.5; padding:8px 12px; border-radius:14px; max-width:78%; word-break:break-word}
+.vtranscript{display:flex; flex-direction:column; gap:10px; overflow-y:auto; scrollbar-width:thin; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; text-align:left}
+.vtranscript .vline{display:flex; gap:9px; align-items:flex-end; max-width:100%}
+.vline .vav{flex:none; align-self:flex-end; width:24px; height:24px; border-radius:50%; overflow:hidden; display:grid; place-items:center; box-shadow:var(--shadow-rest)}
+.vline .vav.vsteed{border:2px solid var(--steed,var(--line)); background:var(--card)}
+.vline .vav.vsteed svg{width:17px; height:17px}
+.vline .vtxt{font-size:14.5px; line-height:1.5; padding:9px 14px; border-radius:16px; max-width:76%; word-break:break-word}
 .vline.vyou{justify-content:flex-end}
-.vline.vyou .vtxt{background:var(--ink); color:var(--paper); border-bottom-right-radius:5px}
+.vline.vyou .vtxt{background:var(--ink); color:var(--paper); border-bottom-right-radius:6px}
 .vline.vcoach{justify-content:flex-start}
-.vline.vcoach .vtxt{background:var(--card); border:1.3px solid var(--line); color:var(--ink); border-bottom-left-radius:5px}
-/* the boundary panel so it's unmistakably "the transcript" */
-.voicestage .voicecaption.vtranscript, .typecap.vtranscript{width:min(540px,92vw); max-height:38vh; margin:4px auto 0; padding:12px 14px; background:color-mix(in srgb,var(--card) 72%, transparent); border:1.5px solid var(--line); border-radius:18px; box-shadow:var(--shadow-rest)}
+.vline.vcoach .vtxt{background:var(--card); border:1.5px solid var(--line); color:var(--ink); border-bottom-left-radius:6px; box-shadow:var(--shadow-rest)}
+/* a soft, glassy panel — a clear boundary without the boxy chrome (Mobbin voice-mode reference) */
+.voicestage .voicecaption.vtranscript, .typecap.vtranscript{width:min(600px,92vw); max-height:40vh; margin:2px auto 0; padding:16px 18px; background:color-mix(in srgb,var(--card) 50%, transparent); border:1px solid color-mix(in srgb,var(--line) 65%, transparent); border-radius:22px; box-shadow:var(--shadow-float); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px)}
 .typecap.vtranscript{max-height:32vh}
 .vstype{margin-top:6px; display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:9px 17px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vstype:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
@@ -1009,8 +1007,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobrow{display:flex; align-items:center; gap:13px; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:7px 9px 7px 18px; box-shadow:var(--shadow-float)}
 .voiceblob.live .blobrow{border-color:var(--ink)}
 .voiceblob .blobstatus{font-family:Fraunces,serif; font-size:15px; font-variation-settings:"opsz" 24; white-space:nowrap}
-.voiceblob .blobcap{width:330px; max-width:62vw; max-height:46vh; padding:10px 12px; align-items:stretch; background:var(--card); border:1.5px solid var(--line); border-radius:16px; box-shadow:var(--shadow-float)}
-.voiceblob .blobcap .vthead{background:linear-gradient(var(--card),var(--card) 70%, transparent)}
+.voiceblob .blobcap{width:330px; max-width:62vw; max-height:46vh; padding:12px 14px; align-items:stretch; background:var(--card); border:1.5px solid var(--line); border-radius:18px; box-shadow:var(--shadow-float)}
 .voiceblob .blobcap:empty{display:none}
 .voiceblob .blobmin{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; background:transparent; color:var(--muted); cursor:pointer; border-radius:50%; flex:none}
 .voiceblob .blobmin:hover{background:color-mix(in srgb,var(--ink) 8%,transparent); color:var(--ink)}
@@ -3041,7 +3038,6 @@ const VC = {
     box.classList.add('vtranscript'); box.innerHTML='';
     const lines=this.transcript.filter(e=>e.text);
     if(!lines.length) return;   // empty → :empty hides the panel entirely
-    box.append(el('div',{class:'vthead', html: glyph('g-mic')+'<span>Transcript</span>'}));
     for(const e of lines){
       const you=e.role==='you';
       const line=el('div',{class:'vline '+(you?'vyou':'vcoach')});
