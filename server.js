@@ -339,9 +339,17 @@ function loadFile() {
 }
 
 // --- Postgres backend ---
+// Strip ssl/sslmode query params from the URL. node-pg MISHANDLES them: e.g. `?ssl=require` makes it set
+// ssl to the STRING "require", which OVERRIDES the explicit `ssl` config below and then throws SYNCHRONOUSLY
+// inside pg's socket handler (`'key' in "require"`), bypassing every try/catch and killing the process on
+// boot. TLS is negotiated solely via the explicit `ssl` config (PG_SSL), so these params are pure footguns.
+function pgConnString(raw) {
+  try { const u = new URL(raw); ['ssl', 'sslmode'].forEach(k => u.searchParams.delete(k)); return u.toString(); }
+  catch { return raw; }                                            // not a parseable URL → hand it through untouched
+}
 async function pgInit() {
   const { Pool } = require('pg');                                  // lazy: never required without DATABASE_URL
-  pgPool = new Pool({ connectionString: DATABASE_URL, ssl: PG_SSL, max: CONFIG.PG_POOL_MAX });
+  pgPool = new Pool({ connectionString: pgConnString(DATABASE_URL), ssl: PG_SSL, max: CONFIG.PG_POOL_MAX, connectionTimeoutMillis: 10000 });
   pgPool.on('error', e => log('pg_pool_error', { err: e.message }));   // idle-client errors must not crash the process
   await pgPool.query('CREATE TABLE IF NOT EXISTS workshops (code text PRIMARY KEY, data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())');
   pgReady = true;

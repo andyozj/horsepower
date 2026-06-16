@@ -25,9 +25,12 @@ async function spawnServer(dataDir) {
 }
 async function killServer(srv) { srv.kill('SIGTERM'); await wait(700); try { srv.kill('SIGKILL'); } catch {} await wait(200); }
 
+// the inspector connects with a sanitized URL (strip ssl/sslmode — pg mishandles them); the SERVER under
+// test still gets the RAW DBURL via spawnServer env, so this exercises the server's own strip.
+function cleanUrl(u) { try { const x = new URL(u); ['ssl', 'sslmode'].forEach(k => x.searchParams.delete(k)); return x.toString(); } catch { return u; } }
 async function main() {
   const { Client } = require('pg');
-  const c = new Client({ connectionString: DBURL, ssl: NO_SSL === '1' ? false : { rejectUnauthorized: false } });
+  const c = new Client({ connectionString: cleanUrl(DBURL), ssl: NO_SSL === '1' ? false : { rejectUnauthorized: false } });
   await c.connect();
   await c.query('DROP TABLE IF EXISTS workshops');                 // clean slate so the import path runs
 
