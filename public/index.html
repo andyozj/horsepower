@@ -161,7 +161,7 @@ label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin
 .posterink{position:absolute; inset:0; overflow:visible; pointer-events:none}
 .posterink path{fill:none; stroke:rgba(33,49,79,.85); stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round} /* the self-drawing map must READ while it draws — not a ghost on cream */
 .posterink path.leash{stroke-dasharray:3 7; stroke-width:1.5; opacity:0; animation:fadeSoft .6s ease forwards}
-.posterink path.annarrow{stroke:rgba(226,59,59,.6); stroke-width:1.5; stroke-dasharray:none; opacity:0; animation:fadeSoft .6s ease forwards}
+.posterink path.annarrow{stroke:rgba(226,59,59,.4); stroke-width:1.3; stroke-dasharray:none; opacity:0; animation:fadeSoft .6s ease forwards}
 .hnode{position:absolute; display:flex; align-items:center; gap:7px; padding:8px 12px; background:var(--card); color:var(--ink);
   font-size:14px; font-weight:500; border-radius:var(--r-scrap); border-left:3px solid transparent; --rot:0deg; transform:rotate(var(--rot));
   box-shadow:var(--shadow-float); animation:heroRise var(--t-enter) var(--ease-settle) both}
@@ -171,7 +171,7 @@ label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin
   box-shadow:var(--shadow-float); animation:heroRise var(--t-enter) var(--ease-settle) both}
 .hmoment .glyph{width:14px; height:14px; flex:none}
 .hmoment .squiggle{left:8px; right:8px; bottom:2px}
-.hann{position:absolute; font-family:Caveat,cursive; font-size:18.5px; color:var(--red-pen); white-space:nowrap; --rot:-2deg; transform:rotate(var(--rot)); opacity:0; animation:fadeSoft .7s ease forwards}
+.hann{position:absolute; font-family:Caveat,cursive; font-size:16px; color:color-mix(in srgb,var(--red-pen) 66%, var(--paper)); white-space:nowrap; --rot:-1.5deg; transform:rotate(var(--rot)); opacity:0; animation:fadeSoft .7s ease forwards}
 @keyframes heroRise{0%{opacity:0; transform:translateY(14px) rotate(var(--rot))}70%{transform:translateY(-2px) rotate(var(--rot))}100%{opacity:1; transform:translateY(0) rotate(var(--rot))}}
 @keyframes fadeSoft{to{opacity:1}}
 .pvals{display:flex; flex-direction:column; gap:13px; margin-top:2px}
