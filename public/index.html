@@ -936,7 +936,7 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .voicestage .vshead{max-width:460px; margin-bottom:2px}
 .voicestage .vshead b{font-family:Fraunces,serif; font-size:23px; font-variation-settings:"opsz" 40; display:block; letter-spacing:-.01em}
 .voicestage .vshead .meta{font-size:14px; margin-top:4px; line-height:1.5}
-.orbwrap{position:relative; width:min(300px,74vw); height:min(300px,74vw); display:grid; place-items:center; margin:4px 0}
+.orbwrap{position:relative; width:min(330px,76vw); height:min(330px,76vw); display:grid; place-items:center; margin:4px 0}
 .voiceorb{position:absolute; inset:0; width:100%; height:100%; border:none; background:transparent; padding:0; cursor:pointer; border-radius:50%; display:grid; place-items:center; -webkit-tap-highlight-color:transparent}
 .orbhalo{position:absolute; inset:4%; border-radius:50%; z-index:0; background:radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--gold) 32%, transparent) 0%, color-mix(in srgb,var(--gold) 10%, transparent) 42%, transparent 64%); animation:halobreathe 4s ease-in-out infinite; will-change:transform,opacity}
 .orbring{position:absolute; inset:24%; border-radius:50%; border:1.6px solid color-mix(in srgb,var(--ink) 14%, transparent); z-index:1; opacity:0; will-change:transform,opacity}
@@ -968,6 +968,15 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .typecap{margin:0 auto 10px; text-align:center; max-width:520px}
 @media (prefers-reduced-motion:reduce){ .orbhalo,.orbface,.orbring,.orbmic{animation:none !important} }
 @media (max-width:560px){ .voicestage .vshead b{font-size:20px} .voicestatus{font-size:18px} }
+/* full-bleed immersive layout: the stage fills the work area and centers both axes, with an ambient glow */
+.work.interviewing.voicefull{justify-content:center; align-items:center; padding:0; overflow:hidden; position:relative}
+.voicefull::before{content:''; position:absolute; inset:0; pointer-events:none; z-index:0; background:radial-gradient(56% 46% at 50% 42%, color-mix(in srgb,var(--gold) 13%, transparent) 0%, transparent 70%)}
+.voicefull .voicestage{width:100%; max-width:none; height:100%; justify-content:center}
+.voicefull .voicestage>*{position:relative; z-index:1}
+.voicebar{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center}
+.vbtn{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:10px 18px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); cursor:pointer; transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
+.vbtn:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
+.vbtn .glyph{width:16px; height:16px}
 .landpill{position:absolute; left:12px; bottom:12px; z-index:var(--z-panel); display:flex; align-items:center; gap:7px; background:var(--ink); color:var(--card); font-size:14px; font-weight:600; padding:7px 15px; border-radius:999px; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-lift)}
 .landpill .glyph{width:15px; height:15px}
 .landpill.done{background:var(--ok)}
@@ -2936,6 +2945,10 @@ const VC = {
   }
 };
 window.VC=VC;
+// Shared "draw the map by hand" escape (used by the voice bar + the type panel).
+function ivSkipBtn(t){
+  return el('button',{class:'vbtn ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ if(window.VC) VC.hangup(); ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }, html: glyph('i-stroke')+'Draw it myself'});
+}
 // The voice-first stage: a big tappable Coach orb + an unmistakable state label + a live caption, with a
 // clean "I'd rather type" escape. Modeled on the ChatGPT/Gemini/Grok voice pattern (Mobbin).
 function voiceStage(t){
@@ -2948,7 +2961,10 @@ function voiceStage(t){
   const LB={ idle:'Tap to talk', connecting:'Waking the Coach…', listening:'Listening — tap when you’re done', thinking:'Thinking…', speaking:'Coach is speaking…' };
   stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
   stage.append(el('div',{class:'voicecaption', 'data-testid':'voice-caption'}));
-  stage.append(el('button',{class:'vstype', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'I’d rather type'}));
+  const bar=el('div',{class:'voicebar'});
+  bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  bar.append(ivSkipBtn(t));
+  stage.append(bar);
   return stage;
 }
 // The type panel inside a realtime session: typed turns go THROUGH the live session (spoken reply + same
@@ -3002,10 +3018,9 @@ function interviewHero(t){
   // Realtime voice available → voice-FIRST (a tappable Coach orb), with a clean "type" panel that still
   // routes through the live session. Otherwise → the classic typed interview (sendInterviewTurn).
   if(ui.voice && ui.voice.converse){
-    const wrap = ui.voiceMode==='type' ? converseTypePanel(t) : (el('div',{class:'work interviewing', 'data-testid':'interview-hero'}, voiceStage(t)));
-    const skip=el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ VC.hangup(); ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }}, 'I’d rather draw it myself →');
-    wrap.append(skip);
-    return wrap;
+    if(ui.voiceMode==='type'){ const w=converseTypePanel(t); w.append(ivSkipBtn(t)); return w; }
+    // voice: a full-bleed, centered, immersive stage (voiceStage owns its own controls incl. the skip)
+    return el('div',{class:'work interviewing voicefull', 'data-testid':'interview-hero'}, voiceStage(t));
   }
   const wrap=el('div',{class:'work interviewing'});
   const hero=el('div',{class:'interviewhero','data-testid':'interview-hero'});
