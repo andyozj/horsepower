@@ -895,6 +895,34 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .landperson .lb.removed.on{background:var(--removed-wash); border-color:var(--muted); color:var(--muted); text-decoration:line-through}
 .landperson textarea{font-size:12px; min-height:30px; margin-top:5px}
 .landperson.landed{opacity:.62}
+/* Slice C: the inline persona redesign-challenge on each landed person */
+.perschal{margin-top:7px; border-top:1.4px dashed var(--line-soft); padding-top:7px}
+.perschal .reqchip{display:inline-block; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--removed-wash); border:1.2px solid var(--warn,#c9881f); color:var(--warn,#9a6a14)}
+.perschal .reqchip.ok{background:var(--ok-wash); border-color:var(--ok); color:var(--ok)}
+.chalreply{font-size:12.5px; line-height:1.45; color:var(--ink); background:var(--card); border-left:2.5px solid var(--pop,#e23b3b); padding:5px 8px; border-radius:0 7px 7px 0; margin:6px 0}
+.chalreply.deg{border-left-color:var(--muted); color:var(--muted-strong); font-style:italic}
+.btn.xs{font-size:11.5px; padding:3px 8px}
+/* Slice C: live shape-meter (retrofit detector) on the people tray */
+.shapemeter{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; margin:-2px 0 8px; padding:5px 9px; border-radius:8px; border:1.4px solid var(--line)}
+.shapemeter .bnd{font-family:Fraunces,serif; letter-spacing:.02em}
+.shapemeter.REDESIGNED{background:var(--ok-wash); border-color:var(--ok); color:var(--ok)}
+.shapemeter.PARTIAL{background:var(--wash-outcome); border-color:var(--thin); color:var(--thin-text,#7a4f07)}
+.shapemeter.retrofit{background:var(--removed-wash); border-color:var(--pop,#e23b3b); color:var(--pop,#e23b3b)}
+/* Slice C: the constraint routing panel — real or habit? */
+.conpanel{position:absolute; left:12px; top:96px; width:306px; max-width:46vw; z-index:var(--z-panel); background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-paper); box-shadow:var(--shadow-float)}
+.conpanel>summary{list-style:none; cursor:pointer; padding:10px 13px; display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600}
+.conpanel>summary .glyph{width:15px; height:15px; color:var(--lock); flex:none}
+.conpanel>summary .cnt{margin-left:auto; background:var(--wash-blue); border:1.3px solid var(--ink); border-radius:999px; padding:1px 9px; font-size:12px; font-variant-numeric:tabular-nums}
+.conpanel .body{max-height:42vh; overflow:auto; padding:0 12px 11px}
+.conrow{border-top:1.4px dashed var(--line-soft); padding:8px 0}
+.conrow .ct{font-size:13px; font-weight:600; line-height:1.35}
+.csrc{display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 0}
+.csrc .sbtn{font-size:11.5px; padding:3px 8px; border:1.2px solid var(--line); background:var(--paper); border-radius:7px; font-weight:500; cursor:pointer}
+.csrc .sbtn.on{background:var(--ink); color:var(--card); border-color:var(--ink)}
+.cverdict{font-size:11.5px; font-weight:700; margin-top:6px; letter-spacing:.01em}
+.cverdict.real{color:var(--ok)}
+.cverdict.assumed{color:var(--pop,#e23b3b)}
+.conchal{margin-top:5px}
 .landpill{position:absolute; left:12px; bottom:12px; z-index:var(--z-panel); display:flex; align-items:center; gap:7px; background:var(--ink); color:var(--card); font-size:14px; font-weight:600; padding:7px 15px; border-radius:999px; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-lift)}
 .landpill .glyph{width:15px; height:15px}
 .landpill.done{background:var(--ok)}
@@ -2931,6 +2959,7 @@ function viewRebuild(){
     cv.append(synthBtn);
   }
   cv.append(assumptionsWidget(t));   // always-visible ledger, bottom-centre
+  const conp=constraintPanel(t); if(conp) cv.append(conp);   // Slice C: route inherited constraints real/habit
   // fit the world to the VISIBLE viewport minus the people tray — opening the rail
   // reflows the canvas and the viewport-anchored tray would otherwise slide over the
   // teardown card band (world x≥680). Refit once per rail-open/closed state, never on
@@ -2965,6 +2994,7 @@ function landTray(t){
   tray.append(el('h3',{html:glyph('g-persona')+'<span>People — where do they land?</span>'}));
   tray.append(el('div',{class:'ppl-note'},'everyone lands — that’s the deal'));
   tray.append(el('div',{class:'ppl-how'}, 'For each person, pick their fate in your design: ', el('b',{},'stays'), ' (same role) · ', el('b',{},'transforms'), ' (new role — say what they ride next) · ', el('b',{},'removed'), ' (the design itself must justify it — “freed up for higher-value work” won’t pass).'));
+  const sm=shapeMeterEl(t); if(sm) tray.append(sm);   // Slice C: live retrofit-detector verdict
   (r.peopleLandings||[]).forEach(p=>{
     const card=el('div',{class:'landperson'+(p.outcome?' landed':''), style:'--rot:'+seededRot('lp'+(p.role||''),1)+'deg'});
     card.append(el('div',{class:'pr', html: glyph('g-persona')+' '+esc(p.role)}));
@@ -2980,10 +3010,79 @@ function landTray(t){
     });
     card.append(ctrls, note);
     note.addEventListener('blur',()=>{ if(p.outcome) wsSend({type:'people:land', personId:p.personId, outcome:p.outcome, note:note.value}); });
+    // Slice C: inline persona redesign-challenge — appears once an outcome is picked
+    if(p.outcome){
+      const chx=el('div',{class:'perschal'});
+      const REQ_LABEL={'named-role':'needs a named role','dropped-work':'name the dropped work','absorber':'who absorbs the work?','named-break':'name what breaks the old shape'};
+      if(p.coachReq) chx.append(el('span',{class:'reqchip'}, REQ_LABEL[p.coachReq]||p.coachReq));
+      else if(p.coachFlag===null && (ui.personaChal||{})[p.personId] && (ui.personaChal||{})[p.personId].settled) chx.append(el('span',{class:'reqchip ok'},'✓ holds'));
+      const got=(ui.personaChal||{})[p.personId];
+      if(got && got.reply) chx.append(el('div',{class:'chalreply'+(got.degraded?' deg':'')}, esc(got.reply)));
+      chx.append(el('button',{class:'btn xs ghost', 'data-testid':'challenge-landing', onclick:()=>challengePersona(t,p)}, got?'Ask again':'⚑ Coach, check this'));
+      card.append(chx);
+    }
     tray.append(card);
   });
   if(!(r.peopleLandings||[]).length) tray.append(el('div',{class:'meta'},'no people inventory'));
   return tray;
+}
+// Slice C: the live shape-meter (retrofit detector). Reads the server-computed personaDelta off the wire.
+const SHAPE_COPY={ 'REDESIGNED':'the work changed shape', 'PARTIAL':'partly reshaped — keep pushing', 'RETROFIT-SHAPED':'looks like AI bolted onto the old shape' };
+function shapeMeterEl(t){
+  const d=t.personaDelta; if(!d || !d.total) return null;
+  const cls = d.band==='RETROFIT-SHAPED' ? 'retrofit' : d.band;
+  const m=el('div',{class:'shapemeter '+cls, 'data-testid':'shape-meter', title:'transforms+removed '+(d.transforms+d.removed)+' · stays '+d.stays+' · agents '+d.agents});
+  m.append(el('span',{class:'bnd'}, d.band.replace('-SHAPED','')), el('span',{}, '— '+SHAPE_COPY[d.band]));
+  return m;
+}
+// Slice C: the persona redesign-challenge — provoke ONE landing. The verdict (flag/require) persists
+// server-side onto the landing and rides the next broadcast; the prose reply is held client-side.
+async function challengePersona(t,p){
+  ui.personaChal=ui.personaChal||{};
+  ui.personaChal[p.personId]={reply:'…',pending:true}; render();
+  try{
+    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({mode:'rebuild', challenge:'persona', code:me.code, teamId:t.id, personId:p.personId, outcome:p.outcome, note:p.note, role:p.role, capacity:p.capacity})}).then(x=>x.json());
+    ui.personaChal[p.personId]={reply:r.reply||'', settled:!!r.settled, degraded:!!r.degraded};
+  }catch(e){ ui.personaChal[p.personId]={reply:'Coach is offline — but you still owe a named role or an absorber here.', degraded:true}; }
+  render();
+}
+// Slice C: the constraint routing panel — every inherited "rule" routed real or habit (server-derived).
+function constraintPanel(t){
+  const r=t.redesign; const cons=(r&&r.constraints)||[];
+  if(!cons.length) return null;
+  const routed=cons.filter(c=>c.source).length;
+  const wrap = isPhone()
+    ? keepOpen(el('details',{class:'conpanel traysheet', 'data-testid':'constraint-panel'}), 'cons')
+    : keepOpen(el('details',{class:'conpanel', 'data-testid':'constraint-panel'}), 'cons');
+  wrap.append(el('summary',{}, el('span',{html:glyph('g-lock')}), 'Constraints — real or habit?', el('span',{class:'cnt'}, routed+'/'+cons.length)));
+  const body=el('div',{class:'body'});
+  body.append(el('div',{class:'meta', style:'line-height:1.45; padding:8px 0 2px'},'Every “rule” you inherited — route it. A REAL constraint (a named law, a third party, physics/data) survives. Habit and policy you can design away.'));
+  const SRC=[['law','law'],['external-party','3rd party'],['physics','physics/data'],['policy','policy'],['habit','habit']];
+  cons.forEach(c=>{
+    const row=el('div',{class:'conrow'});
+    row.append(el('div',{class:'ct'}, esc(c.text)));
+    const opts=el('div',{class:'csrc'});
+    SRC.forEach(([v,lab])=> opts.append(el('button',{class:'sbtn'+(c.source===v?' on':''), 'data-testid':'route-'+v, onclick:()=>wsSend({type:'constraint:route', constraintId:c.id, source:v})}, lab)));
+    row.append(opts);
+    if(c.movable) row.append(el('div',{class:'cverdict '+c.movable}, c.movable==='real'?'REAL — survives the redesign':'ASSUMED — you can design this away'));
+    const got=(ui.routeChal||{})[c.id];
+    if(got && got.reply) row.append(el('div',{class:'chalreply'+(got.degraded?' deg':'')}, esc(got.reply)));
+    if(c.source) row.append(el('div',{class:'conchal'}, el('button',{class:'btn xs ghost', 'data-testid':'challenge-route', onclick:()=>challengeRoute(t,c)}, got?'Ask again':'Ask the Coach')));
+    body.append(row);
+  });
+  wrap.append(body);
+  return wrap;
+}
+async function challengeRoute(t,c){
+  ui.routeChal=ui.routeChal||{};
+  ui.routeChal[c.id]={reply:'…'}; render();
+  try{
+    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({mode:'rebuild', challenge:'route', code:me.code, teamId:t.id, constraintId:c.id, source:c.source, text:c.text})}).then(x=>x.json());
+    ui.routeChal[c.id]={reply:r.reply||'', degraded:!!r.degraded};
+  }catch(e){ ui.routeChal[c.id]={reply:'Coach is offline — route it yourself: is there a named law, or is it just habit?', degraded:true}; }
+  render();
 }
 function landPill(r){
   const landed=(r.peopleLandings||[]).filter(p=>p.outcome).length, total=(r.peopleLandings||[]).length;
@@ -3073,6 +3172,16 @@ function viewShare(){
     judgeLedger(rebuilder).forEach((c,idx)=>{ led.append(el('span',{class:'led '+(c.held?'held':'fake'), style:'animation-delay:'+(idx*140)+'ms', html: (c.held? glyph('g-lock')+' kept — ' : 'MYTH — ')+esc(c.text)+(c.capacity?' <i>('+esc(c.capacity)+')</i>':'')})); });
     strip.append(led);
     wrap.append(sec(strip));
+    // Slice C: did the work change shape, or did they retrofit?
+    if(rebuilder.personaDelta && rebuilder.personaDelta.total){
+      const d=rebuilder.personaDelta; const cls=d.band==='RETROFIT-SHAPED'?'retrofit':d.band;
+      const card=el('div',{class:'reckonstage', 'data-testid':'shape-verdict'});
+      card.append(el('h3',{},'Did the work change shape?'));
+      card.append(el('div',{class:'shapemeter '+cls, style:'display:inline-flex; font-size:14px; margin-top:6px'}, el('span',{class:'bnd'}, d.band.replace('-SHAPED','')), el('span',{},'— '+SHAPE_COPY[d.band])));
+      card.append(el('p',{class:'meta', style:'margin-top:9px'}, d.transforms+' transformed · '+d.removed+' removed · '+d.stays+' stayed'+(d.toilStays?(' ('+d.toilStays+' still hand-cranking)'):'')+' · '+d.agents+' agent'+(d.agents===1?'':'s')+' now act.'));
+      if(d.band==='RETROFIT-SHAPED') card.append(el('p',{class:'meta', style:'color:var(--pop,#e23b3b); margin-top:6px'},'The roles barely moved and few agents act — this reads as the old shape with AI on the side. The richest debrief question: what would it take to actually redesign it?'));
+      wrap.append(sec(card));
+    }
     if((rebuilder.redesign.assumptions||[]).length){
       const asms=rebuilder.redesign.assumptions;
       const open=asms.filter(a=>a.status==='open').length;
@@ -3499,6 +3608,24 @@ function pulseBoard(){
     commits.forEach(c=> box.append(el('div',{class:'meta', html: glyph('g-flag')+' “'+esc(c.text)+'” — '+esc(c.name)+', '+esc(c.team)}))); }
   return box;
 }
+// Slice C: the retrofit-detector board — per-team shape verdict + open Coach flags. Farrier-only (never projected).
+function shapeBoard(){
+  const teams=(state.teams||[]).filter(t=>t.redesign && t.personaDelta && t.personaDelta.total);
+  const box=el('div',{class:'card', 'data-testid':'shape-board'});
+  box.append(el('h3',{html: glyph('g-stamp')+' Shape verdict · retrofit detector'}));
+  box.append(el('div',{class:'meta', style:'margin-bottom:6px'},'Did each team REDESIGN the work, or retrofit AI onto the old shape? Debrief fuel — never projected.'));
+  if(!teams.length){ box.append(el('div',{class:'meta'},'No rebuilds landed yet.')); return box; }
+  teams.forEach(t=>{ const d=t.personaDelta; const cls=d.band==='RETROFIT-SHAPED'?'retrofit':d.band;
+    const row=el('div',{style:'display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap'});
+    row.append(el('b',{}, esc(t.name)),
+      el('span',{class:'shapemeter '+cls, style:'font-size:11.5px'}, el('span',{class:'bnd'}, d.band.replace('-SHAPED',''))),
+      el('span',{class:'meta'}, d.transforms+'↻ transformed · '+d.removed+'✂ removed · '+d.stays+'→ stayed · '+d.agents+' agent'+(d.agents===1?'':'s')+(d.toilStays?(' · '+d.toilStays+' still hand-cranking'):'')));
+    const flags=(t.redesign.peopleLandings||[]).filter(p=>p.coachFlag).map(p=>p.coachFlag);
+    if(flags.length) row.append(el('span',{class:'meta', style:'color:var(--pop,#e23b3b)'}, flags.length+' open Coach flag'+(flags.length===1?'':'s')+': '+flags.join(', ')));
+    box.append(row);
+  });
+  return box;
+}
 
 //==================================================================
 // SWAP REVEAL
@@ -3740,6 +3867,8 @@ function viewConsole(){
   dash.append(statrow);
   // R2.4: exit-pulse + commitment results board (Farrier-private; never projected — rule #2)
   if(state.state==='share'||state.state==='closed') dash.append(pulseBoard());
+  // Slice C: the retrofit-detector board — live from rebuild onward (Farrier-private)
+  if(state.state==='rebuild'||state.state==='share'||state.state==='closed') dash.append(shapeBoard());
 
   const table=el('table',{class:'teamtable'});
   table.append(el('tr',{}, el('th',{},'Team'), el('th',{},'Online'), el('th',{},'Progress'), el('th',{},'Flags'), el('th',{},'Status'), el('th',{},'Coach read')));

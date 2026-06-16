@@ -638,7 +638,9 @@ function performSwap(w) {
       canvas: seeded,
       locked: L,
       teardown: source.teardown,
-      peopleLandings: (source.teardown.people || []).map(p => ({ personId: p.id, role: p.role, capacity: p.capacity, outcome: null, note: '' })),
+      peopleLandings: (source.teardown.people || []).map(p => ({ personId: p.id, role: p.role, capacity: p.capacity, outcome: null, note: '', coachFlag: null, coachReq: null })),
+      // Slice C: constraint-routing ledger — seeded from the candidate constraints, routed real/habit in Rebuild.
+      constraints: (source.teardown.candidateConstraints || []).map(c => ({ id: c.id, text: c.text, why: c.why || '', source: null, movable: null, status: 'open', coachFlag: null, ts: Date.now() })),
       assumptions: [],     // {id, text, status:'open'|'confirmed'|'busted'}
       amendments: [],      // {field, from, to, ts}
       notes: ''
@@ -685,6 +687,7 @@ function teamPublic(w, t) {
     receivedFromTeamId: t.receivedFromTeamId || null,
     receivedFromTeamName: t.receivedFromTeamId ? (findTeam(w, t.receivedFromTeamId) || {}).name : null,
     redesign: t.redesign || null,
+    personaDelta: t.redesign ? personaDelta(t) : null,   // Slice C: live retrofit-detector verdict (rebuilder's own design — no leak)
     amendmentRequests: t.amendmentRequests || []
   };
 }
@@ -867,6 +870,90 @@ Op types (key to existing ids; use a tmpId for a new block you connect in the sa
 Set "done": true ONLY once the workflow is fully captured — a trigger, the people (with capacity), inputs, the phases/moments, a real intent (a DECISION, not "a report"), and an outcome, each with its WHY. When you set done:true, your reply is a short warm hand-off ("That’s your workflow mapped — take a look and fix anything I got wrong."). Until then, done:false and keep interviewing.
 Rules: never invent content they didn't say; one intent at most; a correction ("X is actually Y") is an UPDATE to that block, never a new one; max ~6 ops per turn; intent must be a decision, not an artifact ("a report"). ${SECRECY}`;
 
+// Slice C: the native redesign-challenger. Rebuild is POST-reveal, so these are NOT vocab-linted
+// (consistent with SYSTEMS.rebuild) — secrecy is over by the time a team is landing people.
+// The Coach PROVOKES; it never adjudicates truth — it turns a silent fake-keep into a STATED claim.
+SYSTEMS.persona = `You are the Coach challenging ONE person-landing as a team rebuilds a workflow to be AI-native. They've decided a person stays / transforms / removed. Your job: make a vague or retrofit landing into a STATED claim — you NEVER decide if it's right, you force them to say it out loud.
+You are given the person's role + capacity, their chosen outcome, their note, and the LOCKED intent/outcome the new design must serve.
+Return ONLY JSON, no prose: {"reply":"<one challenge, <=2 sentences, quote them back>","flag":"unexamined-keep|shape-keep|blank-transform|verb-not-role|missing-dropped-work|value-handwave|absorbed-by-whom|null","require":"named-role|dropped-work|absorber|named-break|null","settled":false}
+Tactics: transforms with a verb but no role name -> flag "verb-not-role", require "named-role" ("'reviews' is what they DO — what's the new role CALLED?"). removed with no absorber -> "missing-dropped-work" / "absorber" ("removed by WHAT? name the design move that does their work now"). "freed up" / "higher-value work" -> "value-handwave" / "named-role". stays on an operates-capacity person -> "shape-keep" / "named-break" ("they keep hand-cranking — is that the redesign or the old shape?"). A keep with no reason -> "unexamined-keep". If the landing is genuinely specific and justified, return flag:null require:null settled:true with a one-line acknowledgement.
+ONE challenge. Quote them. Never lecture. Never propose the answer for them — you provoke, they decide.`;
+SYSTEMS.route = `You are the Coach pressure-testing whether a claimed constraint on a redesign is REAL or just habit. You never rule on it — you force the team to NAME what kind of constraint it is.
+You are given the constraint text and the source the team routed it to (law | external-party | physics | policy | habit).
+Return ONLY JSON, no prose: {"reply":"<one challenge, <=2 sentences, quote the constraint>","flag":"unnamed-law|movable-policy|disguised-habit|real|null","settled":false}
+Tactics: source=law -> "which law, exactly? cite it, or it's policy you can change." source=policy -> "a policy is a choice someone made — could the redesign make it moot?" source=habit -> acknowledge it's movable, ask what it'd take to drop it. source=external-party/physics -> if plausible, settled:true. Never accept "compliance" or "the business requires it" as a law without a name.
+ONE challenge. Provoke, never decide.`;
+
+// Slice C degradation: rule-based challenge banks (room never stalls, rule #8). Honest scaffolding —
+// the SAME provoke-never-adjudicate contract as the live Coach, just deterministic.
+function personaChallengeBank(outcome, note, role, capacity) {
+  const n = String(note || '').trim();
+  const ROLE_WORDS = /\b(lead|owner|manager|analyst|specialist|steward|officer|agent|reviewer|approver|architect|designer|operator|coordinator|partner|controller|head|director|strategist|advisor|auditor)\b/i;
+  const verbOnly = n && n.split(/\s+/).length <= 4 && !ROLE_WORDS.test(n);
+  const who = role || 'this person';
+  if (/freed up|higher.?value/i.test(n)) return { reply: `"freed up for higher-value work" is the retrofit's favourite line — name the actual new role ${who} hold${role ? 's' : ''}, or it's a cut you haven't justified.`, flag: 'value-handwave', require: 'named-role', settled: false };
+  if (outcome === 'removed' && !n) return { reply: `You removed ${who} — removed by WHAT? Name the design move that does their work now, or it's a gap, not a redesign.`, flag: 'missing-dropped-work', require: 'absorber', settled: false };
+  if (outcome === 'removed') return { reply: `Removed — so who or what absorbs "${n.slice(0, 50)}"? If nothing does, the work didn't vanish, it just went invisible.`, flag: 'absorbed-by-whom', require: 'absorber', settled: false };
+  if (outcome === 'transforms' && (!n || verbOnly)) return { reply: `"${n || 'transforms'}" is what they DO — what's the new role CALLED? Give it a name a newcomer could put on a door.`, flag: 'verb-not-role', require: 'named-role', settled: false };
+  if (outcome === 'stays' && /operates/i.test(String(capacity || ''))) return { reply: `${who} stays, still hand-cranking the work. Is that the redesign — or the old shape with AI bolted on the side?`, flag: 'shape-keep', require: 'named-break', settled: false };
+  if (outcome === 'stays' && !n) return { reply: `${who} stays — but doing what, exactly, once the system acts? Say what changes under them.`, flag: 'unexamined-keep', require: 'named-role', settled: false };
+  return { reply: `Landed: ${who} → ${outcome}. If that's genuinely the new shape, hold it — the share-out will test it.`, flag: null, require: null, settled: true };
+}
+function routeChallengeBank(source, text) {
+  const t = text ? `"${String(text).slice(0, 60)}"` : 'that';
+  switch (source) {
+    case 'law': return { reply: `You called ${t} a law — which one, exactly? Cite it, or it's a policy you're free to change.`, flag: 'unnamed-law', settled: false };
+    case 'policy': return { reply: `A policy is a choice someone made. Could the new design make ${t} simply moot?`, flag: 'movable-policy', settled: false };
+    case 'habit': return { reply: `Good — ${t} is habit, not law. What would it actually take to drop it?`, flag: 'disguised-habit', settled: false };
+    case 'external-party': return { reply: `Fair — if a third party truly forces ${t}, it's real. Who, and what exactly do they require?`, flag: 'real', settled: false };
+    case 'physics': return { reply: `If ${t} is physics or a hard data dependency, it stands. Name the dependency so it's on the record.`, flag: 'real', settled: false };
+    default: return { reply: `Is ${t} a real constraint, or just how it's always run? Route it.`, flag: null, settled: false };
+  }
+}
+const ROUTE_SOURCES = ['law', 'external-party', 'physics', 'policy', 'habit'];
+// SERVER-derived movability — the client's `movable` is NEVER trusted (rule #4).
+function movableFromSource(source) {
+  return (source === 'law' || source === 'external-party' || source === 'physics') ? 'real' : 'assumed';
+}
+// Slice C: the retrofit detector. Rule-based shape verdict over a rebuilder's people landings + agents.
+// About the rebuilder's OWN new design — never the hidden original, so no leak. NEVER blocks anything.
+function personaDelta(team) {
+  const r = team.redesign; if (!r) return null;
+  const people = (r.teardown && r.teardown.people) || [];
+  const lands = r.peopleLandings || [];
+  const total = lands.length;
+  const before = {};
+  people.forEach(p => { const c = String(p.capacity || 'unspecified').toLowerCase(); before[c] = (before[c] || 0) + 1; });
+  let stays = 0, transforms = 0, removed = 0, landed = 0, toilStays = 0;
+  lands.forEach(l => {
+    if (l.outcome) landed++;
+    if (l.outcome === 'stays') { stays++; if (/operates/i.test(String(l.capacity || ''))) toilStays++; }
+    else if (l.outcome === 'transforms') transforms++;
+    else if (l.outcome === 'removed') removed++;
+  });
+  const agents = ((r.canvas && r.canvas.blocks) || []).filter(b => b.type === 'agent').length;
+  const moved = transforms + removed;
+  let band = 'PARTIAL';
+  if (total > 0 && moved / total >= 0.5 && agents >= 1) band = 'REDESIGNED';
+  else if (agents === 0 || (total > 0 && stays / total >= 0.6 && moved === 0)) band = 'RETROFIT-SHAPED';
+  return { band, before, stays, transforms, removed, agents, toilStays, total, landed };
+}
+
+// Slice C: persist the Coach's verdict onto the landing / constraint so it survives re-render, reaches
+// every device, AND feeds the Farrier debrief — without polluting the team chat. Returns the same result.
+function persistPersonaFlag(room, team, personId, result) {
+  if (!room || !team || !team.redesign) return result;
+  const land = (team.redesign.peopleLandings || []).find(p => p.personId === personId);
+  if (land) { land.coachFlag = result.flag || null; land.coachReq = result.require || null; broadcast(room); }
+  return result;
+}
+function persistRouteFlag(room, team, constraintId, result) {
+  if (!room || !team || !team.redesign) return result;
+  const c = (team.redesign.constraints || []).find(x => x.id === constraintId);
+  if (c) { c.coachFlag = result.flag || null; broadcast(room); }
+  return result;
+}
+
 function clampClusters(p) {
   if (!p || !Array.isArray(p.clusters)) return null;
   const clusters = p.clusters.filter(c => c && c.name && Array.isArray(c.items) && c.items.length)
@@ -1041,6 +1128,27 @@ app.post('/api/coach', async (req, res) => {
     if (team0 && room0) return res.json({ reply: degradedInterviewReply(room0, team0), degraded: true, interview: true, done: interviewReady(team0.canvas) });
     return res.json({ reply: interviewScript({ blocks: [] }, 0), degraded: true, interview: true, done: false });
   }
+  // Slice C: the redesign-challenger (persona landing / constraint routing) degrades to its OWN rule-based
+  // challenge bank — never a generic line. Same early-return exception as synth/interview (rule #8). The
+  // verdict is still persisted to the room so the Farrier debrief sees it even with the AI down.
+  if (req.body.challenge === 'persona' && (!AI_PROVIDER || !workshops.get(String(req.body.code || '').toUpperCase()))) {
+    const room0 = workshops.get(String(req.body.code || '').toUpperCase());
+    const team0 = room0 && room0.teams.find(t => t.id === req.body.teamId);
+    const land = team0 && team0.redesign && (team0.redesign.peopleLandings || []).find(p => p.personId === req.body.personId);
+    const out = (land && land.outcome) || req.body.outcome, note = (land && land.note) || req.body.note;
+    const role = (land && land.role) || req.body.role, cap = (land && land.capacity) || req.body.capacity;
+    const result = personaChallengeBank(out, note, role, cap);
+    persistPersonaFlag(room0, team0, req.body.personId, result);
+    return res.json(Object.assign({ degraded: true, challenge: 'persona' }, result));
+  }
+  if (req.body.challenge === 'route' && (!AI_PROVIDER || !workshops.get(String(req.body.code || '').toUpperCase()))) {
+    const room0 = workshops.get(String(req.body.code || '').toUpperCase());
+    const team0 = room0 && room0.teams.find(t => t.id === req.body.teamId);
+    const c = team0 && team0.redesign && (team0.redesign.constraints || []).find(x => x.id === req.body.constraintId);
+    const result = routeChallengeBank((c && c.source) || req.body.source, (c && c.text) || req.body.text);
+    persistRouteFlag(room0, team0, req.body.constraintId, result);
+    return res.json(Object.assign({ degraded: true, challenge: 'route' }, result));
+  }
   // Bank replies are free + deterministic — never gated (the degradation path IS the product, rule #8).
   if (!AI_PROVIDER) return res.json({ reply: bankReply(m), degraded: true });
   // Spending the key requires a LIVE room + budget; otherwise degrade honestly.
@@ -1080,6 +1188,48 @@ app.post('/api/coach', async (req, res) => {
       } catch (e) {
         log('coach_degraded', { kind: 'interview', err: String(e.message || e).slice(0, 200) });
         return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) });
+      }
+    }
+    // Slice C: live persona redesign-challenger — provoke ONE vague/retrofit landing into a stated claim.
+    // The Coach NEVER adjudicates; on any failure it falls to the rule-based bank (rule #8). Verdict persisted.
+    if (req.body.challenge === 'persona') {
+      const team = room.teams.find(t => t.id === req.body.teamId);
+      const land = team && team.redesign && (team.redesign.peopleLandings || []).find(p => p.personId === req.body.personId);
+      const role = (land && land.role) || req.body.role || 'this person';
+      const capacity = (land && land.capacity) || req.body.capacity || '';
+      const outcome = (land && land.outcome) || req.body.outcome || '';
+      const note = (land && land.note) || req.body.note || '';
+      try {
+        const ctx = `PERSON: ${role} (capacity: ${capacity || 'unspecified'})\nOUTCOME: ${outcome || '(not chosen)'}\nNOTE: ${note || '(blank)'}\nLOCKED intent: ${((team && team.redesign && team.redesign.locked) || {}).intent || ''}\nLOCKED outcome: ${((team && team.redesign && team.redesign.locked) || {}).outcome || ''}`;
+        const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.persona, [{ role: 'user', content: ctx }]) : await callAnthropic(SYSTEMS.persona, [{ role: 'user', content: ctx }]);
+        const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        const result = { reply: String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX), flag: j.flag || null, require: j.require || null, settled: !!j.settled };
+        persistPersonaFlag(room, team, req.body.personId, result);
+        return res.json(Object.assign({ challenge: 'persona' }, result));
+      } catch (e) {
+        log('coach_degraded', { kind: 'persona', err: String(e.message || e).slice(0, 160) });
+        const result = personaChallengeBank(outcome, note, role, capacity);
+        persistPersonaFlag(room, team, req.body.personId, result);
+        return res.json(Object.assign({ degraded: true, challenge: 'persona' }, result));
+      }
+    }
+    // Slice C: live constraint-routing challenge — push real-vs-habit. Degrades to the route bank.
+    if (req.body.challenge === 'route') {
+      const team = room.teams.find(t => t.id === req.body.teamId);
+      const c = team && team.redesign && (team.redesign.constraints || []).find(x => x.id === req.body.constraintId);
+      const text = (c && c.text) || req.body.text || '';
+      const source = (c && c.source) || req.body.source || '';
+      try {
+        const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.route, [{ role: 'user', content: `CONSTRAINT: ${text}\nROUTED AS: ${source || '(unrouted)'}` }]) : await callAnthropic(SYSTEMS.route, [{ role: 'user', content: `CONSTRAINT: ${text}\nROUTED AS: ${source || '(unrouted)'}` }]);
+        const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        const result = { reply: String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX), flag: j.flag || null, settled: !!j.settled };
+        persistRouteFlag(room, team, req.body.constraintId, result);
+        return res.json(Object.assign({ challenge: 'route' }, result));
+      } catch (e) {
+        log('coach_degraded', { kind: 'route', err: String(e.message || e).slice(0, 160) });
+        const result = routeChallengeBank(source, text);
+        persistRouteFlag(room, team, req.body.constraintId, result);
+        return res.json(Object.assign({ degraded: true, challenge: 'route' }, result));
       }
     }
     // R1b: optional AI recap-intro tier — a 3-4 sentence warm intro for the take-home recap.
@@ -1337,6 +1487,7 @@ wss.on('connection', ws => {
             const note = String(msg.note || '').trim();
             if (/freed up|higher.?value/i.test(note)) return send(ws, { type: 'error', error: '"Freed up for higher-value work" is rejected — name input, output, and the skill.' });
             land.outcome = msg.outcome; land.note = note.slice(0, 400);
+            land.coachFlag = null; land.coachReq = null;   // Slice C: a fresh landing resets the Coach's verdict — re-challenge to re-flag
             broadcast(w);
           }
         }
@@ -1347,6 +1498,16 @@ wss.on('connection', ws => {
         if (!team || !team.redesign) return;
         team.redesign.assumptions = team.redesign.assumptions || [];
         team.redesign.assumptions.push({ id: newId(6), text: String(msg.text || '').slice(0, 300), status: 'open' });
+        broadcast(w); break;
+      }
+      case 'constraint:route': {   // Slice C: team routes a candidate constraint real/habit; movable is SERVER-derived (rule #4)
+        const team = findTeam(w, ws.teamId);
+        if (!team || !team.redesign || w.state !== 'rebuild') return;
+        if (!ROUTE_SOURCES.includes(msg.source)) return send(ws, { type: 'error', error: 'Unknown constraint source.' });
+        const c = (team.redesign.constraints || []).find(x => x.id === String(msg.constraintId || '').slice(0, 40));
+        if (!c || c.status !== 'open') return;
+        c.source = msg.source;
+        c.movable = movableFromSource(msg.source);   // never trust a client-supplied `movable`
         broadcast(w); break;
       }
       case 'commitment:submit': {  // R1a: a seated member writes their OWN take-home commitment, in share/closed only
