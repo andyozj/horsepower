@@ -87,6 +87,24 @@ const AZURE_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2024-06-01';
 const AI_PROVIDER = process.env.AI_PROVIDER
   || (AZURE_ENDPOINT && AZURE_KEY && AZURE_DEPLOYMENT ? 'azure' : (ANTHROPIC_API_KEY ? 'anthropic' : ''));
 
+// Slice B — Azure Foundry speech config (all default-off → the voice button degrades to text).
+// The audio models may live on the same AOAI resource as the chat model, so fall back to AZURE_OPENAI_*.
+const AZURE_SPEECH_ENDPOINT = (process.env.AZURE_SPEECH_ENDPOINT || AZURE_ENDPOINT || '').replace(/\/+$/, '');
+const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY || AZURE_KEY || '';
+const AZURE_STT_DEPLOYMENT = process.env.AZURE_STT_DEPLOYMENT || '';      // e.g. gpt-4o-mini-transcribe / whisper
+const AZURE_TTS_DEPLOYMENT = process.env.AZURE_TTS_DEPLOYMENT || '';      // e.g. gpt-4o-mini-tts (optional)
+const AZURE_TTS_VOICE = process.env.AZURE_TTS_VOICE || 'alloy';
+const AZURE_VOICELIVE_ENDPOINT = (process.env.AZURE_VOICELIVE_ENDPOINT || '').replace(/\/+$/, '');  // wss base (Mode 2)
+const AZURE_VOICELIVE_MODEL = process.env.AZURE_VOICELIVE_MODEL || 'gpt-realtime-mini';
+const AZURE_AUDIO_API_VERSION = process.env.AZURE_AUDIO_API_VERSION || '2025-03-01-preview';
+function voiceCaps() {
+  return {
+    listen: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_STT_DEPLOYMENT),
+    speak: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_TTS_DEPLOYMENT),
+    converse: !!(AZURE_VOICELIVE_ENDPOINT && AZURE_SPEECH_KEY)
+  };
+}
+
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use((req, res, next) => {
@@ -872,6 +890,7 @@ app.get('/api/health', (req, res) => {
   if (shuttingDown) return res.status(503).json({ ok: false, shuttingDown: true });
   res.json({ ok: true, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
              db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
+             voice: voiceCaps(),
              workshops: workshops.size, uptime: Math.round(process.uptime()) });
 });
 // the room's REAL join address — so the projector never tells people "localhost"
@@ -1188,6 +1207,49 @@ async function callAzure(system, chat) {
   const data = await r.json();
   return ((data.choices || [])[0]?.message?.content || '').trim();
 }
+// Slice B Mode 1: Azure Foundry speech-to-text (multipart) + text-to-speech. Server-proxied (keys never
+// reach the browser). Both ride the coach spend buckets + the coach timeout, and degrade to silence.
+async function callAzureTranscribe(buf, mime) {
+  const url = `${AZURE_SPEECH_ENDPOINT}/openai/deployments/${encodeURIComponent(AZURE_STT_DEPLOYMENT)}/audio/transcriptions?api-version=${encodeURIComponent(AZURE_AUDIO_API_VERSION)}`;
+  const fd = new FormData();
+  fd.append('file', new Blob([buf], { type: mime || 'audio/webm' }), 'audio.webm');
+  const r = await fetch(url, { method: 'POST', headers: { 'api-key': AZURE_SPEECH_KEY }, body: fd, signal: AbortSignal.timeout(CONFIG.COACH_TIMEOUT_MS) });
+  if (!r.ok) throw new Error(`azure stt ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const data = await r.json();
+  return String(data.text || '').slice(0, 4000);
+}
+async function callAzureSpeech(text) {
+  const url = `${AZURE_SPEECH_ENDPOINT}/openai/deployments/${encodeURIComponent(AZURE_TTS_DEPLOYMENT)}/audio/speech?api-version=${encodeURIComponent(AZURE_AUDIO_API_VERSION)}`;
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'api-key': AZURE_SPEECH_KEY },
+    body: JSON.stringify({ model: AZURE_TTS_DEPLOYMENT, input: String(text).slice(0, 800), voice: AZURE_TTS_VOICE, response_format: 'mp3' }),
+    signal: AbortSignal.timeout(CONFIG.COACH_TIMEOUT_MS) });
+  if (!r.ok) throw new Error(`azure tts ${r.status}`);
+  return Buffer.from(await r.arrayBuffer());
+}
+// Mode 1 "Listen": transcribe a push-to-talk clip → text (the client then sends it as a normal interview
+// turn through /api/coach, so the WHOLE hardened text pipeline + extraction is reused). Never 500s.
+app.post('/api/stt', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '8mb' }), async (req, res) => {
+  if (!voiceCaps().listen) return res.json({ degraded: true, text: '' });
+  const room = workshops.get(String(req.query.code || '').toUpperCase());
+  if (!room) return res.json({ degraded: true, text: '' });
+  if (!coachSpendAllowed(reqIp(req), room)) { log('stt_capped', { code: room.code }); return res.json({ degraded: true, text: '' }); }
+  try {
+    if (!req.body || !req.body.length) return res.json({ degraded: true, text: '' });
+    const text = await callAzureTranscribe(req.body, req.headers['content-type']);
+    res.json({ text });
+  } catch (e) { log('stt_degraded', { err: String(e.message || e).slice(0, 160) }); res.json({ degraded: true, text: '' }); }
+});
+// Mode 1 (optional): speak the Coach's reply. No config / error → 204 (client just stays silent).
+app.post('/api/tts', async (req, res) => {
+  if (!voiceCaps().speak) return res.status(204).end();
+  const room = workshops.get(String((req.body || {}).code || '').toUpperCase());
+  if (!room) return res.status(204).end();
+  if (!coachSpendAllowed(reqIp(req), room)) return res.status(204).end();
+  try {
+    const audio = await callAzureSpeech(String((req.body || {}).text || ''));
+    res.set('content-type', 'audio/mpeg'); res.send(audio);
+  } catch (e) { log('tts_degraded', { err: String(e.message || e).slice(0, 160) }); res.status(204).end(); }
+});
 
 app.post('/api/coach', async (req, res) => {
   const { mode, context, messages } = req.body || {};
