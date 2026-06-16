@@ -179,18 +179,20 @@ label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin
 .pval b{color:var(--ink)}
 .pval .pico{width:38px; height:38px; flex:none; border-radius:50%; border:1.6px solid var(--line); background:var(--card); display:grid; place-items:center}
 .pval .pico .glyph{width:17px; height:17px; color:var(--ink)}
-/* join card: a paper ticket taped to the poster */
+/* join card: a clean, confident paper card (was tilted + taped — read amateur; now refined craft) */
 .landform{display:flex; align-items:center; justify-content:center; min-width:0; z-index:1}
-.landcard{color:var(--ink); transform:rotate(-.6deg); box-shadow:var(--shadow-stage); position:relative}
-.landcard::before{content:""; position:absolute; top:-13px; left:50%; width:118px; height:27px; background:rgba(224,169,58,.42);
-  transform:translateX(-50%) rotate(-2.6deg); border-radius:2px; box-shadow:0 1px 2px rgba(33,49,79,.2)}
-.landcard h2 .hl{box-shadow:inset 0 -11px 0 var(--highlighter)}
+.landcard{color:var(--ink); position:relative; border:1.5px solid var(--line); border-radius:var(--r-paper);
+  padding:clamp(22px,2vw,30px); box-shadow:0 28px 64px -28px rgba(33,49,79,.34), 0 1px 0 var(--card)}
+.landcard::before{display:none}                              /* drop the cutesy "tape" */
+.landcard h2{font-family:Fraunces,serif; font-size:27px; font-variation-settings:"opsz" 40; letter-spacing:-.01em}
+.landcard h2 .hl{box-shadow:inset 0 -10px 0 var(--highlighter)}
 .steedbox .nm{font-family:Caveat,cursive; font-size:23px; font-weight:600; line-height:1.05}
 .reroll .glyph{transition:transform .35s ease}
 .reroll:active .glyph{transform:rotate(220deg)}
-input.ticket{text-align:center; text-transform:uppercase; letter-spacing:.32em; font-family:Fraunces,serif; font-size:21px; font-weight:600;
-  border-style:dashed; border-color:var(--line); background:var(--paper); padding:12px}
-input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; font-family:Inter,sans-serif; text-transform:none}
+input.ticket{text-align:center; text-transform:uppercase; letter-spacing:.26em; font-family:Fraunces,serif; font-size:22px; font-weight:600;
+  border:1.5px solid var(--line); background:var(--paper); padding:13px; border-radius:var(--r-btn)}
+input.ticket:focus{border-color:var(--ink); box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 12%, transparent)}
+input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400; font-family:Inter,sans-serif; text-transform:none; color:var(--muted)}
 @media (prefers-reduced-motion: reduce){ .hann,.posterink path.leash,.posterink path.annarrow{opacity:1} }
 @media (max-width:980px){
   .landingwrap{grid-template-columns:1fr; align-items:start; gap:22px; padding:26px 18px 36px}
