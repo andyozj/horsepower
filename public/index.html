@@ -57,13 +57,13 @@
   --t-fast:.12s; --t-med:.2s; --t-enter:.5s; --t-feedback:.3s;
   --ease-settle:cubic-bezier(.2,.9,.3,1.2); --ease-pop:cubic-bezier(.18,1.5,.35,1);
   /* radius families: hand-drawn paper vs plain utility — pick per surface, never improvise */
-  --r-paper:14px 11px 15px 12px; --r-scrap:12px 10px 13px 11px; --r-btn:11px 9px 12px 10px; --r-plain:12px;
-  /* shadow model §12: rest / hover / floating panel / heavy pill — all ink-tinted */
-  --shadow-rest:0 2px 0 rgba(33,49,79,.10);
-  --shadow-hover:2px 3px 0 rgba(33,49,79,.12);
-  --shadow-float:0 2px 0 rgba(33,49,79,.12), 0 10px 18px -8px rgba(33,49,79,.22);
-  --shadow-lift:0 3px 0 rgba(33,49,79,.18), 0 8px 14px -6px rgba(33,49,79,.3);
-  --shadow-stage:0 3px 0 rgba(33,49,79,.12), 0 16px 30px -14px rgba(33,49,79,.3);
+  --r-paper:14px; --r-scrap:12px; --r-btn:10px; --r-plain:12px;   /* clean, consistent radii (was asymmetric "wonk" — read amateur) */
+  /* shadow model: soft, layered, modern depth (was hard ink-offset stickers — read amateur) */
+  --shadow-rest:0 1px 2px rgba(33,49,79,.06), 0 1px 1px rgba(33,49,79,.045);
+  --shadow-hover:0 6px 16px -4px rgba(33,49,79,.15), 0 2px 4px -2px rgba(33,49,79,.10);
+  --shadow-float:0 4px 14px -3px rgba(33,49,79,.13), 0 2px 5px -2px rgba(33,49,79,.08);
+  --shadow-lift:0 10px 24px -6px rgba(33,49,79,.18), 0 3px 7px -3px rgba(33,49,79,.10);
+  --shadow-stage:0 24px 56px -18px rgba(33,49,79,.30), 0 6px 14px -6px rgba(33,49,79,.14);
   /* §18 wash palette — ONE perceptual ramp: every type tellable apart by fill alone
      at projector distance (quiet washes lifted, outcome pulled down off its cliff) */
   --wash-lock:   color-mix(in srgb, var(--lock) 16%, var(--paper));
@@ -107,7 +107,7 @@ h3{font-variation-settings:"opsz" 24; font-weight:600; font-size:18px}
 button{font-family:inherit; font-size:14px; cursor:pointer; color:inherit}
 .btn{display:inline-flex; align-items:center; gap:7px; border:1.5px solid var(--ink); background:var(--card); color:var(--ink);
   border-radius:var(--r-btn); padding:9px 15px; font-weight:500; min-height:40px; transition:transform var(--t-fast) ease, box-shadow var(--t-fast) ease}
-.btn:hover{box-shadow:2px 3px 0 rgba(33,49,79,.12)}
+.btn:hover{box-shadow:var(--shadow-hover)}
 .btn:active{transform:translateY(1px)}
 .btn:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
 .btn.primary{background:var(--highlighter); border-color:var(--ink); font-weight:600}
@@ -167,7 +167,7 @@ label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin
   box-shadow:var(--shadow-float); animation:heroRise var(--t-enter) var(--ease-settle) both}
 .hnode .glyph{width:16px; height:16px; flex:none}
 .hmoment{position:absolute; display:flex; align-items:center; gap:6px; background:var(--wash-pain); color:var(--pain); font-size:13px; font-weight:500; padding:5px 10px 9px;
-  border-radius:10px 8px 11px 9px; border-left:3px solid var(--pain); --rot:1.8deg; transform:rotate(var(--rot));
+  border-radius:10px; border-left:3px solid var(--pain); --rot:1.8deg; transform:rotate(var(--rot));
   box-shadow:var(--shadow-float); animation:heroRise var(--t-enter) var(--ease-settle) both}
 .hmoment .glyph{width:14px; height:14px; flex:none}
 .hmoment .squiggle{left:8px; right:8px; bottom:2px}
@@ -397,7 +397,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .orphan{position:relative; padding-right:22px}
 .orphan .olet{position:absolute; top:2px; right:3px; border:none; background:none; color:var(--muted); font-size:13px; padding:1px 4px; cursor:pointer; line-height:1}
 .orphan .olet:hover{color:var(--red-pen)}
-.orphan{background:var(--paper); border:1.4px solid var(--line); border-radius:14px 11px 15px 10px; padding:6px 8px; font-size:12px; margin-bottom:6px; cursor:pointer; animation:wiggle 3s ease-in-out 3} /* restless on arrival, then calm (working canvas stays calm) */
+.orphan{background:var(--paper); border:1.4px solid var(--line); border-radius:12px; padding:6px 8px; font-size:12px; margin-bottom:6px; cursor:pointer; animation:wiggle 3s ease-in-out 3} /* restless on arrival, then calm (working canvas stays calm) */
 .orphan:hover,.orphan:focus-within{animation-play-state:paused} /* restless until engaged — then hold still for the click */
 @keyframes wiggle{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
 .addorphan{display:flex; gap:5px; margin-top:4px}
@@ -406,7 +406,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 /* dump→map proposals shelf (inside the parking lot) */
 .propshelf{border-top:1.5px dashed var(--line-soft); margin-top:6px; padding-top:6px}
 .propshelf .ph{font-size:15px; color:var(--red-pen); margin-bottom:5px}
-.prop{background:var(--card); border:1.4px solid var(--line); border-radius:10px 8px 11px 9px; padding:6px 8px; margin-bottom:6px; font-size:12px}
+.prop{background:var(--card); border:1.4px solid var(--line); border-radius:10px; padding:6px 8px; margin-bottom:6px; font-size:12px}
 .prop .pt{margin-bottom:4px; line-height:1.4}
 .prop b{text-transform:capitalize}
 /* gate-green polish pass (idle-state, vocabulary-safe) */
@@ -440,7 +440,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .briefblock .h{font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-strong); margin-bottom:4px}
 .briefblock .v{font-size:14px}
 .concern,.candidate,.person{border:1.4px solid var(--line); border-radius:var(--r-btn); padding:9px 11px; margin-bottom:9px; background:var(--paper); font-size:14px}
-.assumption{border:1.4px solid var(--line); border-radius:14px 11px 15px 10px; padding:9px 11px; margin-bottom:9px; background:var(--wash-blue); font-size:14px;
+.assumption{border:1.4px solid var(--line); border-radius:12px; padding:9px 11px; margin-bottom:9px; background:var(--wash-blue); font-size:14px;
   transform:rotate(var(--rot,0deg)); transition:transform var(--t-med) ease} /* §5: cousin of the orphan sticky — paper scraps carry a seeded tilt */
 .assumption:hover{transform:rotate(0deg)}
 .landperson{transform:rotate(var(--rot,0deg)); transition:transform var(--t-med) ease}
@@ -732,7 +732,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
    candidate = gold hand-stroked sticky with a folded corner (pressure-test me);
    concern = the Coach's red-pen note with a squiggle (a warning, not a step) */
 .ingcard.enter{animation:heroRise var(--t-enter) var(--ease-settle) both} /* B1: teardown cards ride the same left→right assembly as the locked blocks */
-.ingcard{position:absolute; border:none; border-radius:13px 10px 14px 11px; padding:10px 12px 9px; background:var(--card);
+.ingcard{position:absolute; border:none; border-radius:12px; padding:10px 12px 9px; background:var(--card);
   font-size:13px; max-width:222px; cursor:help; transform:rotate(var(--rot,0deg)); transition:transform var(--t-med) ease, box-shadow var(--t-med) ease;
   box-shadow:var(--shadow-float)} /* paper sticky: bottom-weighted shadow + seeded tilt */
 .ingcard:hover{transform:rotate(0deg)} /* flattens to the desk when you engage with it */
@@ -768,7 +768,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .modaldlg::backdrop{background:rgba(33,49,79,.45)}
 
 /* ---------- steeds + game layer ---------- */
-.steedbox{display:flex; align-items:center; gap:11px; background:var(--paper); border:1.5px dashed var(--line); border-radius:13px 10px 14px 11px; padding:10px 12px}
+.steedbox{display:flex; align-items:center; gap:11px; background:var(--paper); border:1.5px dashed var(--line); border-radius:12px; padding:10px 12px}
 .steedbox .nm{font-weight:600}
 .steedbox .sub{font-size:12px; color:var(--muted)}
 .reroll{border:1.4px solid var(--line); background:var(--card); border-radius:9px; padding:6px 11px; font-size:13px; margin-left:auto}
@@ -867,7 +867,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @keyframes raceIn{0%{transform:perspective(700px) rotateY(70deg); opacity:0}100%{transform:perspective(700px) rotateY(0); opacity:1}}
 /* the deal flip is gated on VISIBILITY (IntersectionObserver adds .dealt) — the card sits
    at the bottom of a tall scroll and used to finish its one cinematic flip off-screen */
-.racecard{background:var(--card); border:2px solid var(--ink); border-radius:18px 14px 18px 14px; padding:22px 26px; box-shadow:5px 6px 0 rgba(33,49,79,.1), 0 16px 28px -14px rgba(33,49,79,.25); max-width:520px; color:var(--ink); opacity:0}
+.racecard{background:var(--card); border:1.5px solid var(--ink); border-radius:16px; padding:24px 28px; box-shadow:var(--shadow-stage); max-width:520px; color:var(--ink); opacity:0}
 .racecard.dealt{animation:raceIn .5s cubic-bezier(.2,1.2,.3,1) both}
 .racecard .rc-top{display:flex; align-items:center; gap:13px; margin-bottom:12px}
 /* team name may run long: wrap to 2 lines, never hard-clip; the highlighter rides the
@@ -1011,7 +1011,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .vignette .vstage{height:108px; position:relative; margin:12px 0 4px; border:1.4px dashed var(--line-soft); border-radius:11px; overflow:hidden; background:var(--paper)}
 .vignette .vcap{font-size:13px; color:var(--muted)}
 /* brain-dump scraps: handwriting quotes on torn paper */
-.frag{position:absolute; background:var(--pop); border:1.3px dashed var(--line); border-radius:10px 8px 11px 9px; padding:3px 10px;
+.frag{position:absolute; background:var(--pop); border:1.3px dashed var(--line); border-radius:10px; padding:3px 10px;
   font-family:Caveat,cursive; font-size:18px; color:var(--muted-strong); transform:rotate(-1.6deg); animation:fragFly .6s ease both}
 .vblock{position:absolute; border:1.5px solid var(--ink); border-radius:9px; padding:4px 9px; font-size:12px; font-weight:500; animation:riseSettle var(--t-enter) var(--ease-settle) both}
 .vblock.coachchip{background:var(--pop); border-color:var(--red-pen); font-size:13px; padding:6px 11px; border-bottom-left-radius:3px}
