@@ -98,6 +98,7 @@ const AZURE_AUDIO_API_VERSION = process.env.AZURE_AUDIO_API_VERSION || '2025-03-
 // Mode 2 "Converse" — the Azure OpenAI Realtime API endpoint (the full URL incl. ?model=…), wss-ified.
 // e.g. https://<res>.cognitiveservices.azure.com/openai/v1/realtime?model=gpt-realtime-2 . Auth: api-key.
 const AZURE_REALTIME_URL = (process.env.AZURE_REALTIME_URL || '').replace(/^http/, 'ws');
+const AZURE_REALTIME_VOICE = process.env.AZURE_REALTIME_VOICE || 'marin';   // GA gpt-realtime natural voices: marin, cedar (alloy/echo/shimmer are the older, robotic ones)
 function voiceCaps() {
   return {
     listen: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_STT_DEPLOYMENT),
@@ -1463,23 +1464,26 @@ function startRealtime(ws, w, team) {
   try { rt = new WebSocket(AZURE_REALTIME_URL, { headers: { 'api-key': AZURE_SPEECH_KEY } }); }
   catch (e) { log('rt_open_failed', { err: String(e.message || e).slice(0, 120) }); return send(ws, { type: 'voice:event', event: 'error' }); }
   ws.rt = rt;
-  rt.on('error', e => { log('rt_error', { err: String(e && e.message || e).slice(0, 140) }); try { send(ws, { type: 'voice:event', event: 'error' }); } catch {} });
-  rt.on('close', () => { if (ws.rt === rt) ws.rt = null; try { send(ws, { type: 'voice:event', event: 'closed' }); } catch {} });
+  rt.on('error', e => { log('rt_error', { err: String(e && e.message || e).slice(0, 200) }); try { send(ws, { type: 'voice:event', event: 'error' }); } catch {} });
+  rt.on('close', (code, reason) => { log('rt_close', { code, reason: String(reason || '').slice(0, 200) }); if (ws.rt === rt) ws.rt = null; try { send(ws, { type: 'voice:event', event: 'closed' }); } catch {} });
   rt.on('open', () => {
     try {
+      const input = { format: { type: 'audio/pcm', rate: 24000 }, turn_detection: null };   // PTT: client commits; no auto-VAD
+      if (AZURE_STT_DEPLOYMENT) input.transcription = { model: AZURE_STT_DEPLOYMENT };        // so we get the user's words back
       rt.send(JSON.stringify({ type: 'session.update', session: {
+        type: 'realtime',                                                                     // GA realtime requires this
         instructions: VOICE_INSTRUCTIONS,
         output_modalities: ['audio'],
-        audio: { input: { format: { type: 'audio/pcm', rate: 24000 }, turn_detection: null },   // PTT: client commits; no auto-VAD
-                 output: { voice: 'alloy', format: { type: 'audio/pcm', rate: 24000 } } },
+        audio: { input, output: { voice: AZURE_REALTIME_VOICE, format: { type: 'audio/pcm', rate: 24000 } } },
         tools: [UPDATE_MAP_TOOL], tool_choice: 'auto'
       } }));
       send(ws, { type: 'voice:event', event: 'ready' });
-    } catch {}
+    } catch (e) { log('rt_session_failed', { err: String(e.message || e).slice(0, 140) }); }
   });
   rt.on('message', data => {
     let ev; try { ev = JSON.parse(data); } catch { return; }
     const t = ev.type || '';
+    if (t === 'error') { log('rt_api_error', { err: JSON.stringify(ev.error || ev).slice(0, 240) }); return send(ws, { type: 'voice:event', event: 'error', detail: (ev.error && ev.error.message || '').slice(0, 160) }); }
     if (t === 'response.output_audio.delta' || t === 'response.audio.delta') return send(ws, { type: 'voice:audio-out', audio: ev.delta });
     if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') return send(ws, { type: 'voice:coach-text', delta: ev.delta });
     if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });

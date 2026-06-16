@@ -2863,7 +2863,8 @@ const VC = {
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ toast('Live voice unavailable — type instead.'); this.active=false; }
       else if(m.event==='ready') this.ready=true;
-      else if(m.event==='closed'||m.event==='error') this.active=false;
+      else if(m.event==='error'){ this.active=false; if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
+      else if(m.event==='closed') this.active=false;
       this._status();
     } else if(m.type==='voice:audio-out'){ this._play(m.audio); }
     else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._status(); }
