@@ -278,7 +278,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .verifybanner .btn{flex:none}
 /* A2c: the Coach docked at the BOTTOM of the Surface map (Stage 2). Slim always-present composer bar;
    the conversation thread expands above it on demand. A flex-column member (doesn't float over the map). */
-.coachdock{display:flex; flex-direction:column; background:var(--card); border-top:1.5px solid var(--line-soft)}
+.coachdock{display:flex; flex-direction:column; background:var(--card); border-top:1px solid var(--line-soft); box-shadow:0 -3px 14px rgba(33,49,79,.05)}
 .coachdock .dockmsgs{max-height:22vh; overflow:auto; padding:8px 12px; display:flex; flex-direction:column; gap:7px; border-bottom:1.5px dashed var(--line-soft)}
 .coachdock .dockbar{display:flex; gap:8px; align-items:flex-end; padding:8px 12px}
 .coachdock .dockav{flex:none; display:flex; align-items:center}
@@ -363,7 +363,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .bendhandle{position:absolute; width:11px; height:11px; background:var(--highlighter); border:1.5px solid var(--ink); border-radius:50%; z-index:6; cursor:move}
 .dimbadge{position:absolute; background:var(--ink); color:var(--card); font-size:12px; padding:2px 6px; border-radius:5px; z-index:7; font-variant-numeric:tabular-nums}
 .hintbar{position:absolute; top:8px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--card); font-size:13px; padding:5px 13px; border-radius:999px; z-index:var(--z-canvas-ui); pointer-events:none}
-.viewctl{position:absolute; bottom:12px; right:12px; display:flex; gap:5px; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:10px; padding:4px 6px; z-index:var(--z-canvas-ui)}
+.viewctl{position:absolute; bottom:12px; right:12px; display:flex; gap:5px; align-items:center; background:var(--card); border:1.4px solid var(--line); border-radius:12px; padding:4px 6px; z-index:var(--z-canvas-ui); box-shadow:var(--shadow-rest)}
 .viewctl.ingate{position:static; margin-left:auto; border:none; background:none; padding:0}
 .viewctl button{border:none; background:transparent; font-size:16px; width:28px; height:28px; border-radius:6px}
 .viewctl .zlbl{font-size:12px; color:var(--muted); min-width:38px; text-align:center; font-variant-numeric:tabular-nums}
@@ -392,7 +392,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .baselinestrip .caveat{color:var(--red-pen)}
 
 /* orphan tray */
-.orphantray{position:absolute; left:12px; bottom:12px; width:190px; max-height:46%; overflow:auto; background:var(--card); border:1.5px dashed var(--thin); border-radius:var(--r-scrap); padding:8px; z-index:var(--z-panel)}
+.orphantray{position:absolute; left:12px; bottom:12px; width:200px; max-height:46%; overflow:auto; background:var(--card); border:1.4px dashed var(--line); border-radius:var(--r-paper); padding:10px; z-index:var(--z-panel); box-shadow:var(--shadow-float)}
 .orphantray h3{font-size:13px; color:var(--thin-text); display:flex; align-items:center; gap:6px; margin-bottom:6px}
 .orphan{position:relative; padding-right:22px}
 .orphan .olet{position:absolute; top:2px; right:3px; border:none; background:none; color:var(--muted); font-size:13px; padding:1px 4px; cursor:pointer; line-height:1}
@@ -417,7 +417,8 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 /* gate / governance bar */
 /* pointer-events:none so an undismissed banner never eats clicks on the baseline strip / canvas
    beneath it (live dry-run finding); only the × dismiss button stays interactive. */
-.goalnote{position:absolute; top:8px; left:10px; z-index:var(--z-canvas-ui); display:flex; align-items:center; gap:7px; background:var(--wash-outcome); border:1.4px solid var(--thin); border-radius:999px; padding:5px 13px; font-size:13px; font-weight:500; max-width:72%; box-shadow:0 2px 0 rgba(33,49,79,.08); pointer-events:none}
+.goalnote{position:absolute; top:10px; left:12px; z-index:var(--z-canvas-ui); display:flex; align-items:center; gap:7px; background:var(--card); border:1.4px solid var(--line); border-radius:999px; padding:7px 15px; font-size:13px; font-weight:500; max-width:72%; box-shadow:var(--shadow-rest); pointer-events:none}
+.goalnote .glyph{color:var(--gold-deep,#c9881f)}
 .goalnote .glyph{width:14px; height:14px; flex:none; color:var(--thin)}
 .goalnote button{border:none; background:none; padding:0 0 0 5px; color:var(--muted); font-size:15px; cursor:pointer; line-height:1; pointer-events:auto}
 /* the Agent block is the point of Rebuild — give it a short spotlight */
