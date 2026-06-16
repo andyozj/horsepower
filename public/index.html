@@ -947,6 +947,9 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .voiceorb.idle:hover .orbface{transform:scale(1.05)}
 .voiceorb.idle:active .orbface{transform:scale(.97)}
 .voiceorb.connecting{opacity:.7}
+/* while live, the mic badge becomes a "stop" square — tap the orb to end the conversation */
+.voiceorb:not(.idle):not(.connecting) .orbmic .glyph{display:none}
+.voiceorb:not(.idle):not(.connecting) .orbmic::after{content:''; width:12px; height:12px; border-radius:3px; background:var(--card)}
 .voiceorb.listening .orbhalo{background:radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--pop,#e23b3b) 36%, transparent) 0%, color-mix(in srgb,var(--pop,#e23b3b) 12%, transparent) 42%, transparent 62%); animation:halobreathe 1.4s ease-in-out infinite}
 .voiceorb.listening .orbmic{background:var(--pop,#e23b3b); transform:scale(1.1)}
 .voiceorb.listening .orbring{opacity:1; animation:ringout 1.6s ease-out infinite}
@@ -2888,12 +2891,12 @@ const VC = {
   captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'', youText:'',
   setPhase(p){ this.phase=p; this._render(); },
   ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start'}); this.active=true; this.ready=false; this.setPhase('connecting'); },
-  async toggle(){                                   // tap to start listening; tap again to send
-    if(this.recording){ this._stopCapture(); wsSend({type:'voice:commit'}); this.setPhase('thinking'); return; }
-    if(!voiceSupported()){ toast('Voice isn’t supported here — tap “type instead”.'); return; }
+  async toggle(){                                   // tap ONCE to go live; tap again to END (hands-free between)
+    if(this.recording){ this.hangup(); return; }    // already streaming → end (NOT this.active — the session pre-warms on entry)
+    if(!voiceSupported()){ toast('Voice isn’t supported here — tap “Type”.'); return; }
     this.ensureSession();
-    try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
-    catch(e){ toast('Mic blocked — tap “type instead”.'); return; }
+    try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
+    catch(e){ toast('Mic blocked — tap “Type” to write instead.'); this.hangup(); return; }
     try{
       this.captureCtx=this.captureCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
       if(this.captureCtx.state==='suspended') await this.captureCtx.resume();
@@ -2901,13 +2904,14 @@ const VC = {
       if(this.playCtx.state==='suspended') this.playCtx.resume();
       this.src=this.captureCtx.createMediaStreamSource(this.stream);
       this.proc=this.captureCtx.createScriptProcessor(4096,1,1);
+      // stream the mic CONTINUOUSLY while live — Azure server-VAD decides turns + barge-in (no per-turn tap)
       this.proc.onaudioprocess=e=>{ if(!this.recording) return; const f=e.inputBuffer.getChannelData(0); const i16=new Int16Array(f.length);
         for(let k=0;k<f.length;k++){ let s=Math.max(-1,Math.min(1,f[k])); i16[k]= s<0 ? s*0x8000 : s*0x7fff; }
         wsSend({type:'voice:audio', audio:bufToB64(i16.buffer)}); };
-      this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // muted sink so the processor runs (no mic echo)
+      this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // muted sink so the processor runs (no echo loop)
       this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(this.captureCtx.destination);
-      this.recording=true; this.coachText=''; this.setPhase('listening');
-    }catch(e){ toast('Couldn’t start the mic.'); this.setPhase('idle'); }
+      this.recording=true; this.coachText=''; this.setPhase('listening');   // live + streaming; just talk
+    }catch(e){ toast('Couldn’t start the mic.'); this.hangup(); }
   },
   _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
   sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this.youText=text; this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); return true; },
@@ -2915,11 +2919,13 @@ const VC = {
   onEvent(m){
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
-      else if(m.event==='ready'){ this.ready=true; if(this.phase==='connecting') this.setPhase('idle'); }
+      else if(m.event==='ready'){ this.ready=true; if(this.active && this.phase==='connecting') this.setPhase('listening'); }
       else if(m.event==='error'){ this.active=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
       else if(m.event==='closed'){ this.active=false; this.setPhase('idle'); }
-      else if(m.event==='turn-done'){ if(this.phase!=='listening') this.setPhase('idle'); }
-    } else if(m.type==='voice:audio-out'){ if(this.phase!=='listening') this.setPhase('speaking'); this._play(m.audio); }
+      else if(m.event==='speech-start'){ this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach)
+      else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
+      else if(m.event==='turn-done'){ this.setPhase(this.active ? 'listening' : 'idle'); }    // hands-free: back to listening
+    } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); }
     else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._render(); }
     else if(m.type==='voice:you-text'){ this.youText=m.text||''; this._render(); }
   },
@@ -2935,7 +2941,7 @@ const VC = {
     }catch(e){}
   },
   _render(){
-    const LB={ idle:'Tap to talk', connecting:'Waking the Coach…', listening:'Listening — tap when you’re done', thinking:'Thinking…', speaking:'Coach is speaking…' };
+    const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase;
     const lbl=document.querySelector('[data-testid=voice-status]'); if(lbl) lbl.textContent=LB[this.phase]||'';
     const cap=document.querySelector('[data-testid=voice-caption]');
@@ -2958,8 +2964,8 @@ function voiceStage(t){
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   stage.append(el('div',{class:'orbwrap'}, orb));
-  const LB={ idle:'Tap to talk', connecting:'Waking the Coach…', listening:'Listening — tap when you’re done', thinking:'Thinking…', speaking:'Coach is speaking…' };
-  stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
+  stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to start talking'));
   stage.append(el('div',{class:'voicecaption', 'data-testid':'voice-caption'}));
   const bar=el('div',{class:'voicebar'});
   bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));

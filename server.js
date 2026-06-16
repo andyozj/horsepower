@@ -1468,7 +1468,10 @@ function startRealtime(ws, w, team) {
   rt.on('close', (code, reason) => { log('rt_close', { code, reason: String(reason || '').slice(0, 200) }); if (ws.rt === rt) ws.rt = null; try { send(ws, { type: 'voice:event', event: 'closed' }); } catch {} });
   rt.on('open', () => {
     try {
-      const input = { format: { type: 'audio/pcm', rate: 24000 }, turn_detection: null };   // PTT: client commits; no auto-VAD
+      // Hands-free conversation: server VAD auto-detects when the user stops talking and replies
+      // (create_response) + allows barge-in. The client streams mic continuously; no per-turn commit.
+      const input = { format: { type: 'audio/pcm', rate: 24000 },
+        turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
       if (AZURE_STT_DEPLOYMENT) input.transcription = { model: AZURE_STT_DEPLOYMENT };        // so we get the user's words back
       rt.send(JSON.stringify({ type: 'session.update', session: {
         type: 'realtime',                                                                     // GA realtime requires this
@@ -1484,6 +1487,8 @@ function startRealtime(ws, w, team) {
     let ev; try { ev = JSON.parse(data); } catch { return; }
     const t = ev.type || '';
     if (t === 'error') { log('rt_api_error', { err: JSON.stringify(ev.error || ev).slice(0, 240) }); return send(ws, { type: 'voice:event', event: 'error', detail: (ev.error && ev.error.message || '').slice(0, 160) }); }
+    if (t === 'input_audio_buffer.speech_started') return send(ws, { type: 'voice:event', event: 'speech-start' });   // VAD: user started talking
+    if (t === 'input_audio_buffer.speech_stopped') return send(ws, { type: 'voice:event', event: 'speech-stop' });    // VAD: user paused → model will reply
     if (t === 'response.output_audio.delta' || t === 'response.audio.delta') return send(ws, { type: 'voice:audio-out', audio: ev.delta });
     if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') return send(ws, { type: 'voice:coach-text', delta: ev.delta });
     if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });

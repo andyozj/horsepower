@@ -19,8 +19,10 @@ function mockRealtime() {
   const wss = new WebSocketServer({ port: 0 });
   wss.on('connection', up => { state.sessions++; up.on('message', d => { let m; try { m = JSON.parse(d); } catch { return; }
     if (m.type === 'session.update') state.lastSession = m.session;
-    if (m.type === 'input_audio_buffer.append') state.gotAppend = true;
-    if (m.type === 'input_audio_buffer.commit') {
+    if (m.type === 'input_audio_buffer.append' && !state.gotAppend) {   // first frame → simulate server-VAD turn + reply (hands-free; no commit)
+      state.gotAppend = true;
+      up.send(J({ type: 'input_audio_buffer.speech_started' }));
+      up.send(J({ type: 'input_audio_buffer.speech_stopped' }));
       up.send(J({ type: 'response.output_audio.delta', delta: 'QUJD' }));
       up.send(J({ type: 'response.function_call_arguments.done', name: 'update_map', call_id: 'c1', arguments: J({ ops: [{ op: 'add', tmpId: 't1', type: 'persona', text: 'Voice Clerk', capacity: 'operates' }] }) }));
       up.send(J({ type: 'response.done' }));
@@ -54,12 +56,11 @@ function mockRealtime() {
     ok('a clear "I\'d rather type" escape is present', await A.locator('[data-testid=switch-type]').count() === 1);
     ok('the session warms on entry (mock saw a session before any tap)', mock.state.sessions >= 1, String(mock.state.sessions));
 
-    // tap to talk → tap again to send
+    // hands-free: ONE tap goes live, then server-VAD drives the turns (no per-turn tap)
     const orb = A.locator('[data-testid=voice-orb]');
-    await orb.click(); await wait(900);
-    ok('tapping shows the Listening state', /Listening/i.test(await A.locator('[data-testid=voice-status]').textContent()), await A.locator('[data-testid=voice-status]').textContent());
-    await orb.click(); await wait(900);
-
+    await orb.click(); await wait(400);
+    ok('one tap goes live (no longer idle)', !/Tap to start/i.test(await A.locator('[data-testid=voice-status]').textContent()), await A.locator('[data-testid=voice-status]').textContent());
+    await wait(1000);
     ok('opened the realtime upstream (mock saw a session)', mock.state.sessions >= 1, String(mock.state.sessions));
     ok('session.update carried the update_map tool', !!(mock.state.lastSession && (mock.state.lastSession.tools || []).some(t => t.name === 'update_map')));
     ok('the fake mic streamed audio frames to the relay', mock.state.gotAppend === true);
