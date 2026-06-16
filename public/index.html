@@ -1018,7 +1018,15 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceorb.blobform .orbhalo{inset:-7px}
 .voiceorb.blobform .orbring{inset:6%}
 .voiceorb.blobform:not(.idle):not(.connecting) .orbmic::after{width:9px; height:9px}
-@media (max-width:560px){ .voiceblob{right:10px; bottom:84px; max-width:64vw} .voiceblob .blobcap{max-width:64vw} }
+@media (max-width:760px){
+  /* phone: the orb pill sits bottom-right clear of the gate+palette lanes; the transcript (when expanded)
+     becomes a full-width bottom SHEET so it never floats over / crowds the map */
+  .voiceblob{right:8px; bottom:108px; left:8px; align-items:flex-end; max-width:none; gap:8px}
+  .voiceblob.min{left:auto}                                  /* minimized → just the corner orb */
+  .voiceblob .blobrow{align-self:flex-end}
+  .voiceblob .blobtype{align-self:flex-end}
+  .voiceblob .blobcap{width:100%; max-width:none; max-height:38vh}
+}
 .landpill{position:absolute; left:12px; bottom:12px; z-index:var(--z-panel); display:flex; align-items:center; gap:7px; background:var(--ink); color:var(--card); font-size:14px; font-weight:600; padding:7px 15px; border-radius:999px; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-lift)}
 .landpill .glyph{width:15px; height:15px}
 .landpill.done{background:var(--ok)}
@@ -2631,7 +2639,7 @@ function catchUpCard(phase){
 function voiceCoachBlob(t){
   if(ui.voice && ui.voice.converse && !VC.active) setTimeout(()=>VC.ensureSession(),0);   // warm the session
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript into the fresh caption box
-  const min=!!ui.blobMin;
+  const min = ui.blobMin==null ? isPhone() : !!ui.blobMin;   // phones default to just-the-orb so the map stays visible; desktop opens the transcript
   const blob=el('div',{class:'voiceblob'+(VC.active?' live':'')+(min?' min':''), 'data-testid':'voice-blob'});
   if(!min) blob.append(el('div',{class:'voicecaption blobcap', 'data-testid':'voice-caption'}));    // the running transcript, above the orb (hidden when minimized)
   const LB={ idle:'Tap to talk', connecting:'Connecting…', listening:'Listening', thinking:'Thinking…', speaking:'Coach speaking' };
