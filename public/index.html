@@ -983,6 +983,22 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .vbtn{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:10px 18px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); cursor:pointer; transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vbtn:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
 .vbtn .glyph{width:16px; height:16px}
+/* voice-live corner "coach blob" — orb shrunk to the bottom-right over the full map */
+.voiceblob{position:absolute; right:18px; bottom:18px; z-index:var(--z-panel); display:flex; flex-direction:column; align-items:flex-end; gap:9px; pointer-events:none}
+.voiceblob>*{pointer-events:auto}
+.voiceblob .blobrow{display:flex; align-items:center; gap:13px; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:7px 9px 7px 18px; box-shadow:var(--shadow-float)}
+.voiceblob.live .blobrow{border-color:var(--ink)}
+.voiceblob .blobstatus{font-family:Fraunces,serif; font-size:15px; font-variation-settings:"opsz" 24; white-space:nowrap}
+.voiceblob .blobcap{max-width:300px; font-size:13px; line-height:1.45; text-align:right; color:var(--ink); background:var(--card); border:1.4px solid var(--line); border-radius:14px 14px 4px 14px; padding:9px 13px; box-shadow:var(--shadow-rest)}
+.voiceblob .blobcap:empty{display:none}
+.voiceorb.blobform{position:relative; inset:auto; width:64px; height:64px; flex:none}
+.voiceorb.blobform .orbface{width:54px; height:54px}
+.voiceorb.blobform .orbmic{width:24px; height:24px; bottom:0; right:0; box-shadow:var(--shadow-rest)}
+.voiceorb.blobform .orbmic .glyph{width:12px; height:12px}
+.voiceorb.blobform .orbhalo{inset:-7px}
+.voiceorb.blobform .orbring{inset:6%}
+.voiceorb.blobform:not(.idle):not(.connecting) .orbmic::after{width:9px; height:9px}
+@media (max-width:560px){ .voiceblob{right:10px; bottom:84px; max-width:64vw} .voiceblob .blobcap{max-width:64vw} }
 .landpill{position:absolute; left:12px; bottom:12px; z-index:var(--z-panel); display:flex; align-items:center; gap:7px; background:var(--ink); color:var(--card); font-size:14px; font-weight:600; padding:7px 15px; border-radius:999px; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-lift)}
 .landpill .glyph{width:15px; height:15px}
 .landpill.done{background:var(--ok)}
@@ -2590,15 +2606,35 @@ function catchUpCard(phase){
   ov.append(card);
   return ov;
 }
+// Voice-live corner "coach blob": once you're talking, the orb shrinks to the bottom-right and the FULL
+// map fills the screen, building as you speak — no text dock (you're already talking). Tap to start/stop.
+function voiceCoachBlob(t){
+  if(ui.voice && ui.voice.converse && !VC.active) setTimeout(()=>VC.ensureSession(),0);   // warm the session
+  const blob=el('div',{class:'voiceblob'+(VC.active?' live':''), 'data-testid':'voice-blob'});
+  blob.append(el('div',{class:'voicecaption blobcap', 'data-testid':'voice-caption'}));    // the Coach's live words, above the orb
+  const LB={ idle:'Tap to talk', connecting:'Connecting…', listening:'Listening', thinking:'Thinking…', speaking:'Coach speaking' };
+  const row=el('div',{class:'blobrow'});
+  row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label':'Talk to the Coach (tap to start or stop)', onclick:()=>VC.toggle()});
+  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
+  row.append(orb);
+  blob.append(row);
+  blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  return blob;
+}
 function viewSurface(){
   const t = myTeam();
   flushScratch(t);
-  // A2/A2c: Surface OPENS in the AI interview (Stage 1, chat-hero). It hands off to the map (Stage 2)
-  // when the Coach is satisfied (done) OR the team chose "draw it myself". skip + done persist per-team.
+  // A2/A2c: Surface OPENS in the interview. TEXT → chat hero → map+dock. VOICE → big-orb start → once you
+  // go live (or the map starts forming), the orb drops to a corner blob and the map fills the screen.
   const skipped = ui.interviewSkip || (me.ivSkip && me.ivSkip[t.id]);
   const handedOff = (me.ivDone && me.ivDone[t.id]) || interviewReadyClient(t.canvas);
-  if(!handedOff && !skipped) return interviewHero(t);
-  // ---- Stage 2: the map is the HERO; the Coach docks at the BOTTOM (not a right rail) ----
+  const converse = !!(ui.voice && ui.voice.converse) && ui.voiceMode!=='type';
+  const voiceLive = converse && VC.active;
+  const mapStarted = (t.canvas.blocks || []).length > 0;
+  if(converse && !skipped){ if(!voiceLive && !mapStarted) return interviewHero(t); }   // big-orb start screen
+  else if(!handedOff && !skipped) return interviewHero(t);                              // text chat hero / type panel
+  // ---- Stage 2: the map is the HERO; voice → corner blob, text → bottom dock ----
   const work = el('div',{class:'work stage2'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
@@ -2610,7 +2646,7 @@ function viewSurface(){
     onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } }); canvasCache[ckey]=cv; }
   // A2c: the Coach's verify hand-off banner — only when it handed off (not on a plain "draw it myself")
   // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.
-  if(handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));
+  if(!converse && handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));   // voice is live → no text verify banner
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
   cv.querySelector('.scene').append(baselineStrip(t));   // R4b: today's numbers (a side-note, never a gate item)
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
@@ -2621,7 +2657,7 @@ function viewSurface(){
   // control hovering 12px above it (desktop only; phones keep their fixed lanes)
   if(!isPhone()){ const vc=cv.querySelector('.viewctl'); if(vc){ vc.classList.add('ingate'); bar.append(vc); } }
   left.append(bar);
-  left.append(interviewDock(t));   // A2c: the Coach docked at the bottom (keeps refining the map)
+  left.append(converse && !skipped ? voiceCoachBlob(t) : interviewDock(t));   // voice → corner blob; text → bottom dock
   work.append(left);
   return work;
 }
@@ -2914,11 +2950,12 @@ const VC = {
       this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // muted sink so the processor runs (no echo loop)
       this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(this.captureCtx.destination);
       this.recording=true; this.coachText=''; this.setPhase('listening');   // live + streaming; just talk
+      if(typeof render==='function') render();                              // drop into the corner blob → map fills the screen
     }catch(e){ toast('Couldn’t start the mic.'); this.hangup(); }
   },
   _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
   sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this.youText=text; this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); return true; },
-  hangup(){ if(this.recording) this._stopCapture(); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} },
+  hangup(){ if(this.recording) this._stopCapture(); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
   onEvent(m){
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
@@ -2945,7 +2982,7 @@ const VC = {
   },
   _render(){
     const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
-    const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase;
+    const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
     const lbl=document.querySelector('[data-testid=voice-status]'); if(lbl) lbl.textContent=LB[this.phase]||'';
     const cap=document.querySelector('[data-testid=voice-caption]');
     if(cap){ cap.innerHTML=''; if(this.youText) cap.append(el('div',{class:'vcap-you'}, '“'+this.youText+'”')); if(this.coachText) cap.append(el('div',{class:'vcap-coach'}, this.coachText)); }
