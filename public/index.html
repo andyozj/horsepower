@@ -1251,6 +1251,7 @@ function connect(){
     if (m.type === 'state'){ state = m.state; afterState(); render(); }
     else if (m.type === 'joined'){ if(m.hostKey) me.hostKey=m.hostKey; if(m.teamId) me.teamId=m.teamId; if(m.memberId) me.memberId=m.memberId; saveMe(); state=m.state; afterState(); render(); }
     else if (m.type === 'seated'){ me.teamId=m.teamId; me.memberId=m.memberId; if(m.token) me.seatToken=m.token; saveMe(); if(state && state.state!=='lobby') ui.joinedMid=true; }
+    else if (m.type && m.type.indexOf('voice:')===0){ if(window.VC) VC.onEvent(m); }   // Slice B Mode 2 realtime relay events
     else if (m.type === 'error'){ toast(m.error, true); }
   };
   ws.onclose = () => { retryMs = Math.min(retryMs * 1.7, 10000); setTimeout(connect, retryMs + Math.random() * 1500); };
@@ -2624,7 +2625,7 @@ function interviewDock(t){
   const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.dockOpen=true; sendInterviewTurn(v); };   // open the thread so the reply is seen
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   bar.append(inp,
-    voiceButton(txt=>{ inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(txt); }),
+    voiceControls(txt=>{ inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(txt); }),
     el('button',{class:'btn primary sm', 'data-testid':'coach-send', onclick:fire},'Send'),
     el('button',{class:'docktoggle', 'data-testid':'dock-toggle', title: open?'Hide the thread':'Show the conversation', 'aria-label':'Toggle the Coach conversation', onclick:()=>{ ui.dockOpen=!open; render(); }, html: glyph(open?'i-down':'i-chev')}));
   dock.append(bar);
@@ -2824,14 +2825,85 @@ function voiceButton(onText){
 }
 // tiny helper: build a document fragment from an HTML string (for swapping glyph+label inside the button)
 function elFrag(html){ const t=document.createElement('template'); t.innerHTML=html; return t.content; }
-// Slice B (optional): speak the Coach's reply via Azure TTS (server-proxied). Silent if unconfigured/muted.
-async function speakReply(text){
-  if(!(ui.voice && ui.voice.speak) || ui.voiceMute || !text) return;
-  try{
-    const r=await fetch('/api/tts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text, code:me.code})});
-    if(!r.ok || r.status===204) return;
-    const url=URL.createObjectURL(await r.blob()); const a=new Audio(url); a.onended=()=>URL.revokeObjectURL(url); a.play().catch(()=>{});
-  }catch(e){}
+// base64 ⇄ ArrayBuffer (for streaming pcm16 audio frames over the WS as JSON)
+function bufToB64(buf){ const b=new Uint8Array(buf); let s=''; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+function b64ToBuf(b64){ const s=atob(b64); const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b.buffer; }
+
+// Slice B Mode 2 "Converse": realtime speech-to-speech. Push-to-talk captures mic → pcm16 24kHz frames
+// stream over the WS to our server's relay → Azure realtime; the Coach's audio streams back and plays,
+// and the map builds via the server-applied update_map tool. Degrades to a toast if the relay is off.
+const VC = {
+  active:false, recording:false, ready:false, captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'',
+  async holdStart(){
+    if(!(ui.voice && ui.voice.converse)) { toast('Live voice isn’t configured.'); return; }
+    if(!this.active){ wsSend({type:'voice:start'}); this.active=true; this.ready=false; }
+    if(!voiceSupported()){ toast('Voice isn’t supported in this browser.'); return; }
+    try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast('Mic blocked — type instead.'); return; }
+    try{
+      this.captureCtx=this.captureCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+      if(this.captureCtx.state==='suspended') await this.captureCtx.resume();
+      this.src=this.captureCtx.createMediaStreamSource(this.stream);
+      this.proc=this.captureCtx.createScriptProcessor(4096,1,1);
+      this.proc.onaudioprocess=e=>{ if(!this.recording) return; const f=e.inputBuffer.getChannelData(0); const i16=new Int16Array(f.length);
+        for(let k=0;k<f.length;k++){ let s=Math.max(-1,Math.min(1,f[k])); i16[k]= s<0 ? s*0x8000 : s*0x7fff; }
+        wsSend({type:'voice:audio', audio:bufToB64(i16.buffer)}); };
+      this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // route to a muted sink so the processor runs (no mic echo)
+      this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(this.captureCtx.destination);
+      this.recording=true; this.coachText=''; this._status();
+    }catch(e){ toast('Couldn’t start the mic.'); }
+  },
+  holdEnd(){
+    if(!this.recording) return; this.recording=false;
+    try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){}
+    try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+    wsSend({type:'voice:commit'}); this._status();
+  },
+  hangup(){ if(this.recording) this.holdEnd(); this.active=false; this.ready=false; try{ wsSend({type:'voice:stop'}); }catch(_){} this._status(); },
+  onEvent(m){
+    if(m.type==='voice:event'){
+      if(m.event==='unavailable'){ toast('Live voice unavailable — type instead.'); this.active=false; }
+      else if(m.event==='ready') this.ready=true;
+      else if(m.event==='closed'||m.event==='error') this.active=false;
+      this._status();
+    } else if(m.type==='voice:audio-out'){ this._play(m.audio); }
+    else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._status(); }
+  },
+  _play(b64){
+    if(!b64) return;
+    try{
+      this.playCtx=this.playCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+      const i16=new Int16Array(b64ToBuf(b64)); const f=new Float32Array(i16.length);
+      for(let k=0;k<i16.length;k++) f[k]=i16[k]/0x8000;
+      const buf=this.playCtx.createBuffer(1,f.length,24000); buf.getChannelData(0).set(f);
+      const s=this.playCtx.createBufferSource(); s.buffer=buf; s.connect(this.playCtx.destination);
+      const now=this.playCtx.currentTime; this.nextPlay=Math.max(this.nextPlay, now); s.start(this.nextPlay); this.nextPlay+=buf.duration;
+    }catch(e){}
+  },
+  _status(){ const el2=document.querySelector('[data-testid=voice-status]'); if(!el2) return;
+    el2.textContent = !this.active ? '' : (this.recording ? 'listening…' : (this.coachText ? ('Coach: '+this.coachText.slice(-90)) : (this.ready ? 'hold to talk' : 'connecting…'))); }
+};
+window.VC=VC;
+// Unified voice control: a Listen/Converse toggle (when realtime is available) + the right button.
+function voiceControls(onText){
+  const caps=ui.voice||{};
+  if(!caps.converse && !caps.listen) return voiceButton(onText);   // disabled stub (degraded)
+  const wrap=el('span',{class:'voicewrap', style:'display:inline-flex; align-items:center; gap:6px'});
+  if(caps.converse){
+    if(ui.voiceMode==null) ui.voiceMode='converse';                // prefer the live experience when available
+    wrap.append(el('button',{class:'btn xs ghost', 'data-testid':'voice-mode', title:'Switch between live conversation and dictation', onclick:()=>{ const was=ui.voiceMode; ui.voiceMode = ui.voiceMode==='converse'?'listen':'converse'; if(was==='converse') VC.hangup(); render(); }}, ui.voiceMode==='converse'?'● live':'○ live'));
+  } else ui.voiceMode='listen';
+  if(ui.voiceMode==='converse' && caps.converse) wrap.append(converseButton());
+  else wrap.append(voiceButton(onText));
+  return wrap;
+}
+function converseButton(){
+  const frag=el('span',{style:'display:inline-flex; align-items:center; gap:6px'});
+  if(!voiceSupported()){ frag.append(el('button',{class:'btn sm ghost ivmic', disabled:'', html:glyph('g-mic')+'Voice n/a'})); return frag; }
+  const btn=el('button',{class:'btn sm ghost ivmic', 'data-testid':'voice-converse', title:'Hold to talk to the Coach (live)', html:glyph('g-mic')+'Hold to talk'});
+  btn.addEventListener('pointerdown',e=>{ e.preventDefault(); btn.classList.add('recording'); VC.holdStart(); });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,()=>{ btn.classList.remove('recording'); VC.holdEnd(); }));
+  frag.append(btn, el('span',{class:'voicestatus meta', 'data-testid':'voice-status', style:'font-size:12px; min-width:0'}));
+  return frag;
 }
 async function sendInterviewTurn(text){
   text=(text||'').trim(); if(!text||coachBusy) return;
@@ -2844,7 +2916,8 @@ async function sendInterviewTurn(text){
       body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
     const d=await r.json();
     coachBusy=false; coachStatus=d.degraded?'offline':'idle';
-    if(d.reply) speakReply(d.reply);                                 // Slice B: voice the reply if TTS is on
+    // Mode 1 is STT-only by design: the transcript came in by voice, the Coach replies in TEXT (typed
+    // into the thread). No TTS — Converse (Mode 2) is the spoken back-and-forth.
     // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
     // post it, or each member's client duplicates it in the shared thread.
     // A2c: when the Coach hands off (done), persist it per-team + render so Surface flips to the verify stage.
@@ -2869,7 +2942,7 @@ function interviewHero(t){
   const fire=()=>{ const v=inp.value; inp.value=''; sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   comp.append(inp,
-    voiceButton(txt=>{ inp.value=''; ui.coachDraft=''; sendInterviewTurn(txt); }),
+    voiceControls(txt=>{ inp.value=''; ui.coachDraft=''; sendInterviewTurn(txt); }),
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire}, 'Send'));
   hero.append(comp);
   hero.append(el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }}, 'I’d rather draw it myself →'));
