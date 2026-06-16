@@ -50,14 +50,17 @@ function mockRealtime() {
     await F.click('[data-testid=phase-surface]'); await wait(400);
     await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });
 
-    ok('Converse mode available: the live toggle renders', await A.locator('[data-testid=voice-mode]').count() === 1);
-    ok('"Hold to talk" (converse) button renders by default', await A.locator('[data-testid=voice-converse]').count() === 1);
+    ok('voice-first by default: the Coach orb renders', await A.locator('[data-testid=voice-orb]').count() === 1);
+    ok('a clear "I\'d rather type" escape is present', await A.locator('[data-testid=switch-type]').count() === 1);
+    ok('the session warms on entry (mock saw a session before any tap)', mock.state.sessions >= 1, String(mock.state.sessions));
 
-    // hold to talk → release
-    const btn = A.locator('[data-testid=voice-converse]');
-    await btn.hover(); await A.mouse.down(); await wait(900); await A.mouse.up(); await wait(900);
+    // tap to talk → tap again to send
+    const orb = A.locator('[data-testid=voice-orb]');
+    await orb.click(); await wait(900);
+    ok('tapping shows the Listening state', /Listening/i.test(await A.locator('[data-testid=voice-status]').textContent()), await A.locator('[data-testid=voice-status]').textContent());
+    await orb.click(); await wait(900);
 
-    ok('holding opened the realtime upstream (mock saw a session)', mock.state.sessions >= 1, String(mock.state.sessions));
+    ok('opened the realtime upstream (mock saw a session)', mock.state.sessions >= 1, String(mock.state.sessions));
     ok('session.update carried the update_map tool', !!(mock.state.lastSession && (mock.state.lastSession.tools || []).some(t => t.name === 'update_map')));
     ok('the fake mic streamed audio frames to the relay', mock.state.gotAppend === true);
     await wait(400);

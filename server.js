@@ -1817,6 +1817,13 @@ wss.on('connection', ws => {
         try { if (ws.rt && ws.rt.readyState === 1) { ws.rt.send(JSON.stringify({ type: 'input_audio_buffer.commit' })); ws.rt.send(JSON.stringify({ type: 'response.create' })); } } catch {}
         break;
       }
+      case 'voice:text': {    // typed turn routed THROUGH the realtime session → spoken reply + same brain
+        try { if (ws.rt && ws.rt.readyState === 1 && typeof msg.text === 'string' && msg.text.trim()) {
+          ws.rt.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: msg.text.slice(0, 2000) }] } }));
+          ws.rt.send(JSON.stringify({ type: 'response.create' }));
+        } } catch {}
+        break;
+      }
       case 'voice:stop': {    // hang up the realtime session
         try { if (ws.rt) ws.rt.close(); } catch {} ws.rt = null;
         break;

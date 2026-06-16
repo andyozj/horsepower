@@ -930,6 +930,35 @@ input.ticket::placeholder{letter-spacing:.1em; font-size:14px; font-weight:400; 
 .ivmic.working{opacity:.65}
 @keyframes micpulse{0%,100%{opacity:1} 50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.ivmic.recording::before{animation:none}}
+/* Slice B Mode 2 — the voice-first stage (tappable Coach orb + explicit phases). Mobbin-pattern. */
+.voicestage{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:30px 20px 16px; text-align:center; flex:1}
+.voicestage .vshead{display:flex; align-items:center; gap:10px; max-width:440px; text-align:left}
+.voicestage .vshead b{font-family:Fraunces,serif; font-size:18px}
+.orbwrap{position:relative; width:180px; height:180px; display:grid; place-items:center; margin:4px 0}
+.voiceorb{position:relative; width:150px; height:150px; border-radius:50%; border:none; cursor:pointer; background:transparent; padding:0; display:grid; place-items:center; -webkit-tap-highlight-color:transparent}
+.voiceorb .orbface{width:104px; height:104px; border-radius:50%; overflow:hidden; display:grid; place-items:center; box-shadow:var(--shadow-float); transition:transform var(--t-med) var(--ease-pop), box-shadow var(--t-med) ease; position:relative; z-index:2; background:var(--card)}
+.voiceorb .orbface img,.voiceorb .orbface svg{width:100%; height:100%; object-fit:cover}
+.voiceorb .orbmic{position:absolute; bottom:8px; right:8px; z-index:3; width:32px; height:32px; border-radius:50%; background:var(--ink); color:var(--card); display:grid; place-items:center; box-shadow:var(--shadow-rest); transition:background var(--t-fast) ease}
+.voiceorb .orbmic .glyph{width:16px; height:16px}
+.voiceorb .orbpulse{position:absolute; inset:0; border-radius:50%; z-index:1; opacity:0; will-change:transform,opacity}
+.voiceorb.idle:hover .orbface{transform:scale(1.05)}
+.voiceorb.idle:active .orbface{transform:scale(.97)}
+.voiceorb.listening .orbpulse{opacity:1; background:radial-gradient(circle, color-mix(in srgb,var(--pop,#e23b3b) 30%, transparent) 0%, transparent 70%); animation:orbpulse 1.4s ease-out infinite}
+.voiceorb.listening .orbmic{background:var(--pop,#e23b3b)}
+.voiceorb.listening .orbface{box-shadow:0 0 0 4px color-mix(in srgb,var(--pop,#e23b3b) 42%, transparent), var(--shadow-float)}
+.voiceorb.thinking .orbface{animation:orbbreathe 1.1s ease-in-out infinite}
+.voiceorb.speaking .orbpulse{opacity:1; background:radial-gradient(circle, color-mix(in srgb,var(--moment-blue,#3b6fe2) 28%, transparent) 0%, transparent 70%); animation:orbpulse 1.8s ease-out infinite}
+.voiceorb.speaking .orbface{box-shadow:0 0 0 4px color-mix(in srgb,var(--moment-blue,#3b6fe2) 40%, transparent), var(--shadow-float); animation:orbbreathe 1.7s ease-in-out infinite}
+.voiceorb.connecting .orbface{opacity:.65}
+@keyframes orbpulse{0%{transform:scale(.92); opacity:.7} 100%{transform:scale(1.9); opacity:0}}
+@keyframes orbbreathe{0%,100%{transform:scale(1)} 50%{transform:scale(1.06)}}
+.voicestatus{font-family:Fraunces,serif; font-size:17px; color:var(--ink); min-height:22px; font-variation-settings:"opsz" 24}
+.voicecaption{max-width:520px; min-height:22px; font-size:14px; line-height:1.5; color:var(--muted-strong)}
+.voicecaption .vcap-you{font-family:Caveat,cursive; font-size:18px; color:var(--muted); margin-bottom:4px}
+.voicecaption .vcap-coach{color:var(--ink)}
+.vstype{margin-top:4px}
+.typecap{margin:0 auto 10px; text-align:center; max-width:520px}
+@media (prefers-reduced-motion:reduce){ .voiceorb .orbpulse,.voiceorb .orbface{animation:none !important} }
 .landpill{position:absolute; left:12px; bottom:12px; z-index:var(--z-panel); display:flex; align-items:center; gap:7px; background:var(--ink); color:var(--card); font-size:14px; font-weight:600; padding:7px 15px; border-radius:999px; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-lift)}
 .landpill .glyph{width:15px; height:15px}
 .landpill.done{background:var(--ok)}
@@ -2622,10 +2651,12 @@ function interviewDock(t){
   const inp=el('textarea',{class:'dockinput', placeholder:'Tell the Coach more, or just fix the map…', 'data-testid':'coach-input', rows:'1'});
   if(ui.coachDraft) inp.value=ui.coachDraft;
   inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
-  const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.dockOpen=true; sendInterviewTurn(v); };   // open the thread so the reply is seen
+  const converse = !!(ui.voice && ui.voice.converse);
+  // In a realtime session, both voice AND typed turns flow through the live session (spoken reply + same brain).
+  const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.coachDraft=''; ui.dockOpen=true; if(converse) VC.sendText(v); else sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   bar.append(inp,
-    voiceControls(txt=>{ inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(txt); }),
+    converse ? dockMicButton() : voiceButton(txt=>{ inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(txt); }),
     el('button',{class:'btn primary sm', 'data-testid':'coach-send', onclick:fire},'Send'),
     el('button',{class:'docktoggle', 'data-testid':'dock-toggle', title: open?'Hide the thread':'Show the conversation', 'aria-label':'Toggle the Coach conversation', onclick:()=>{ ui.dockOpen=!open; render(); }, html: glyph(open?'i-down':'i-chev')}));
   dock.append(bar);
@@ -2829,45 +2860,49 @@ function elFrag(html){ const t=document.createElement('template'); t.innerHTML=h
 function bufToB64(buf){ const b=new Uint8Array(buf); let s=''; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
 function b64ToBuf(b64){ const s=atob(b64); const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b.buffer; }
 
-// Slice B Mode 2 "Converse": realtime speech-to-speech. Push-to-talk captures mic → pcm16 24kHz frames
-// stream over the WS to our server's relay → Azure realtime; the Coach's audio streams back and plays,
-// and the map builds via the server-applied update_map tool. Degrades to a toast if the relay is off.
+// Slice B Mode 2 "Converse": realtime speech-to-speech, voice-FIRST. A tappable Coach orb with explicit
+// phases (idle → listening → thinking → speaking) — you always know who's talking. Tap to talk, tap to
+// send; typing routes through the SAME live session (spoken reply). Map builds via the server update_map
+// tool. The session warms on entry so the first turn never races the handshake. Degrades to text if off.
 const VC = {
-  active:false, recording:false, ready:false, captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'',
-  async holdStart(){
-    if(!(ui.voice && ui.voice.converse)) { toast('Live voice isn’t configured.'); return; }
-    if(!this.active){ wsSend({type:'voice:start'}); this.active=true; this.ready=false; }
-    if(!voiceSupported()){ toast('Voice isn’t supported in this browser.'); return; }
-    try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ toast('Mic blocked — type instead.'); return; }
+  active:false, recording:false, ready:false, phase:'idle',   // idle|connecting|listening|thinking|speaking
+  captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'', youText:'',
+  setPhase(p){ this.phase=p; this._render(); },
+  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start'}); this.active=true; this.ready=false; this.setPhase('connecting'); },
+  async toggle(){                                   // tap to start listening; tap again to send
+    if(this.recording){ this._stopCapture(); wsSend({type:'voice:commit'}); this.setPhase('thinking'); return; }
+    if(!voiceSupported()){ toast('Voice isn’t supported here — tap “type instead”.'); return; }
+    this.ensureSession();
+    try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+    catch(e){ toast('Mic blocked — tap “type instead”.'); return; }
     try{
       this.captureCtx=this.captureCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
       if(this.captureCtx.state==='suspended') await this.captureCtx.resume();
+      this.playCtx=this.playCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});  // create under the user gesture
+      if(this.playCtx.state==='suspended') this.playCtx.resume();
       this.src=this.captureCtx.createMediaStreamSource(this.stream);
       this.proc=this.captureCtx.createScriptProcessor(4096,1,1);
       this.proc.onaudioprocess=e=>{ if(!this.recording) return; const f=e.inputBuffer.getChannelData(0); const i16=new Int16Array(f.length);
         for(let k=0;k<f.length;k++){ let s=Math.max(-1,Math.min(1,f[k])); i16[k]= s<0 ? s*0x8000 : s*0x7fff; }
         wsSend({type:'voice:audio', audio:bufToB64(i16.buffer)}); };
-      this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // route to a muted sink so the processor runs (no mic echo)
+      this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // muted sink so the processor runs (no mic echo)
       this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(this.captureCtx.destination);
-      this.recording=true; this.coachText=''; this._status();
-    }catch(e){ toast('Couldn’t start the mic.'); }
+      this.recording=true; this.coachText=''; this.setPhase('listening');
+    }catch(e){ toast('Couldn’t start the mic.'); this.setPhase('idle'); }
   },
-  holdEnd(){
-    if(!this.recording) return; this.recording=false;
-    try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){}
-    try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){}
-    wsSend({type:'voice:commit'}); this._status();
-  },
-  hangup(){ if(this.recording) this.holdEnd(); this.active=false; this.ready=false; try{ wsSend({type:'voice:stop'}); }catch(_){} this._status(); },
+  _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
+  sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this.youText=text; this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); return true; },
+  hangup(){ if(this.recording) this._stopCapture(); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} },
   onEvent(m){
     if(m.type==='voice:event'){
-      if(m.event==='unavailable'){ toast('Live voice unavailable — type instead.'); this.active=false; }
-      else if(m.event==='ready') this.ready=true;
-      else if(m.event==='error'){ this.active=false; if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
-      else if(m.event==='closed') this.active=false;
-      this._status();
-    } else if(m.type==='voice:audio-out'){ this._play(m.audio); }
-    else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._status(); }
+      if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
+      else if(m.event==='ready'){ this.ready=true; if(this.phase==='connecting') this.setPhase('idle'); }
+      else if(m.event==='error'){ this.active=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
+      else if(m.event==='closed'){ this.active=false; this.setPhase('idle'); }
+      else if(m.event==='turn-done'){ if(this.phase!=='listening') this.setPhase('idle'); }
+    } else if(m.type==='voice:audio-out'){ if(this.phase!=='listening') this.setPhase('speaking'); this._play(m.audio); }
+    else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._render(); }
+    else if(m.type==='voice:you-text'){ this.youText=m.text||''; this._render(); }
   },
   _play(b64){
     if(!b64) return;
@@ -2880,31 +2915,55 @@ const VC = {
       const now=this.playCtx.currentTime; this.nextPlay=Math.max(this.nextPlay, now); s.start(this.nextPlay); this.nextPlay+=buf.duration;
     }catch(e){}
   },
-  _status(){ const el2=document.querySelector('[data-testid=voice-status]'); if(!el2) return;
-    el2.textContent = !this.active ? '' : (this.recording ? 'listening…' : (this.coachText ? ('Coach: '+this.coachText.slice(-90)) : (this.ready ? 'hold to talk' : 'connecting…'))); }
+  _render(){
+    const LB={ idle:'Tap to talk', connecting:'Waking the Coach…', listening:'Listening — tap when you’re done', thinking:'Thinking…', speaking:'Coach is speaking…' };
+    const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase;
+    const lbl=document.querySelector('[data-testid=voice-status]'); if(lbl) lbl.textContent=LB[this.phase]||'';
+    const cap=document.querySelector('[data-testid=voice-caption]');
+    if(cap){ cap.innerHTML=''; if(this.youText) cap.append(el('div',{class:'vcap-you'}, '“'+this.youText+'”')); if(this.coachText) cap.append(el('div',{class:'vcap-coach'}, this.coachText)); }
+    const dk=document.querySelector('[data-testid=voice-dock]');   // keep the Stage-2 dock mic live too
+    if(dk){ const rec=this.phase==='listening'; dk.classList.toggle('recording',rec); dk.innerHTML=''; dk.append(elFrag(glyph('g-mic')+(rec?'Send':(this.phase==='thinking'||this.phase==='speaking'?'…':'Talk')))); }
+  }
 };
 window.VC=VC;
-// Unified voice control: a Listen/Converse toggle (when realtime is available) + the right button.
-function voiceControls(onText){
-  const caps=ui.voice||{};
-  if(!caps.converse && !caps.listen) return voiceButton(onText);   // disabled stub (degraded)
-  const wrap=el('span',{class:'voicewrap', style:'display:inline-flex; align-items:center; gap:6px'});
-  if(caps.converse){
-    if(ui.voiceMode==null) ui.voiceMode='converse';                // prefer the live experience when available
-    wrap.append(el('button',{class:'btn xs ghost', 'data-testid':'voice-mode', title:'Switch between live conversation and dictation', onclick:()=>{ const was=ui.voiceMode; ui.voiceMode = ui.voiceMode==='converse'?'listen':'converse'; if(was==='converse') VC.hangup(); render(); }}, ui.voiceMode==='converse'?'● live':'○ live'));
-  } else ui.voiceMode='listen';
-  if(ui.voiceMode==='converse' && caps.converse) wrap.append(converseButton());
-  else wrap.append(voiceButton(onText));
-  return wrap;
+// The voice-first stage: a big tappable Coach orb + an unmistakable state label + a live caption, with a
+// clean "I'd rather type" escape. Modeled on the ChatGPT/Gemini/Grok voice pattern (Mobbin).
+function voiceStage(t){
+  const stage=el('div',{class:'voicestage'});
+  if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
+  stage.append(el('div',{class:'vshead', html: coachAvatar(40)+'<div><b>Talk me through your workflow</b><div class="meta">Tap the orb and just talk — I’ll listen and build your map as you go.</div></div>'}));
+  const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
+  orb.append(el('span',{class:'orbpulse'}), el('span',{class:'orbface', html: coachAvatar(96)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
+  stage.append(el('div',{class:'orbwrap'}, orb));
+  const LB={ idle:'Tap to talk', connecting:'Waking the Coach…', listening:'Listening — tap when you’re done', thinking:'Thinking…', speaking:'Coach is speaking…' };
+  stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  stage.append(el('div',{class:'voicecaption', 'data-testid':'voice-caption'}));
+  stage.append(el('button',{class:'btn sm subtle vstype', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }}, 'I’d rather type →'));
+  return stage;
 }
-function converseButton(){
-  const frag=el('span',{style:'display:inline-flex; align-items:center; gap:6px'});
-  if(!voiceSupported()){ frag.append(el('button',{class:'btn sm ghost ivmic', disabled:'', html:glyph('g-mic')+'Voice n/a'})); return frag; }
-  const btn=el('button',{class:'btn sm ghost ivmic', 'data-testid':'voice-converse', title:'Hold to talk to the Coach (live)', html:glyph('g-mic')+'Hold to talk'});
-  btn.addEventListener('pointerdown',e=>{ e.preventDefault(); btn.classList.add('recording'); VC.holdStart(); });
-  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,()=>{ btn.classList.remove('recording'); VC.holdEnd(); }));
-  frag.append(btn, el('span',{class:'voicestatus meta', 'data-testid':'voice-status', style:'font-size:12px; min-width:0'}));
-  return frag;
+// The type panel inside a realtime session: typed turns go THROUGH the live session (spoken reply + same
+// brain), with a live caption and a one-tap return to voice.
+function converseTypePanel(t){
+  const panel=el('div',{class:'work interviewing', 'data-testid':'interview-hero'});
+  panel.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll answer out loud and build your map. Or go back to talking.</div></div>'}));
+  panel.append(el('div',{class:'voicecaption typecap', 'data-testid':'voice-caption'}));
+  const comp=el('div',{class:'composer ivcomposer'});
+  const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
+  if(ui.coachDraft) inp.value=ui.coachDraft; inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
+  const fire=()=>{ const v=inp.value.trim(); if(!v) return; inp.value=''; ui.coachDraft=''; VC.sendText(v); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
+  comp.append(inp,
+    el('button',{class:'btn sm ghost', 'data-testid':'switch-voice', title:'Back to talking', html:glyph('g-mic')+'Talk', onclick:()=>{ ui.voiceMode='voice'; render(); }}),
+    el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire},'Send'));
+  panel.append(comp);
+  return panel;
+}
+// Stage-2 dock: a compact tap-to-talk mic that drives the same VC session (label/phase kept live by _render).
+function dockMicButton(){
+  const rec=VC.recording;
+  const b=el('button',{class:'btn sm ghost ivmic'+(rec?' recording':''), 'data-testid':'voice-dock', title:'Tap to talk to the Coach', html:glyph('g-mic')+(rec?'Send':'Talk')});
+  b.onclick=()=>{ VC.toggle(); };
+  return b;
 }
 async function sendInterviewTurn(text){
   text=(text||'').trim(); if(!text||coachBusy) return;
@@ -2930,6 +2989,14 @@ async function sendInterviewTurn(text){
 // (Stage 2) once the map has >=3 blocks. "Draw it myself" is the agency / degradation escape.
 function interviewHero(t){
   if(!isPhone()) ui.railOpen=true;   // on phones, don't leave the rail open — it would cover the bottom palette in Stage 2
+  // Realtime voice available → voice-FIRST (a tappable Coach orb), with a clean "type" panel that still
+  // routes through the live session. Otherwise → the classic typed interview (sendInterviewTurn).
+  if(ui.voice && ui.voice.converse){
+    const wrap = ui.voiceMode==='type' ? converseTypePanel(t) : (el('div',{class:'work interviewing', 'data-testid':'interview-hero'}, voiceStage(t)));
+    const skip=el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ VC.hangup(); ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }}, 'I’d rather draw it myself →');
+    wrap.append(skip);
+    return wrap;
+  }
   const wrap=el('div',{class:'work interviewing'});
   const hero=el('div',{class:'interviewhero','data-testid':'interview-hero'});
   hero.append(el('div',{class:'ivhead', html: coachAvatar(44)+'<div><b>Talk me through your workflow</b><div class="meta">I’ll ask, you answer — and I’ll build the map as we go.</div></div>'}));
@@ -2943,7 +3010,7 @@ function interviewHero(t){
   const fire=()=>{ const v=inp.value; inp.value=''; sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   comp.append(inp,
-    voiceControls(txt=>{ inp.value=''; ui.coachDraft=''; sendInterviewTurn(txt); }),
+    voiceButton(txt=>{ inp.value=''; ui.coachDraft=''; sendInterviewTurn(txt); }),   // Mode-1 dictation if configured, else a disabled stub
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire}, 'Send'));
   hero.append(comp);
   hero.append(el('button',{class:'btn sm subtle ivskip', 'data-testid':'interview-skip', title:'Switch to drawing the map by hand', onclick:()=>{ ui.interviewSkip=true; me.ivSkip=me.ivSkip||{}; me.ivSkip[t.id]=true; saveMe(); render(); }}, 'I’d rather draw it myself →'));
