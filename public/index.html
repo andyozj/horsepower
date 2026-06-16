@@ -3097,7 +3097,7 @@ function voiceStage(t){
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
   stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'},'Tap the orb and just talk — I’ll listen and build your map as you go.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
-  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
+  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
   stage.append(el('div',{class:'orbwrap'}, orb));
   const wave=el('div',{class:'vwave','aria-hidden':'true'}); for(let i=0;i<9;i++) wave.append(el('span',{class:'bar', style:'animation-delay:'+(i*0.08).toFixed(2)+'s'}));
   stage.append(wave);   // a listening waveform under the orb — comes alive only while the Coach is hearing you
