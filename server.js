@@ -1472,7 +1472,7 @@ function startRealtime(ws, w, team) {
       // (create_response) + allows barge-in. The client streams mic continuously; no per-turn commit.
       const input = { format: { type: 'audio/pcm', rate: 24000 },
         turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
-      if (AZURE_STT_DEPLOYMENT) input.transcription = { model: AZURE_STT_DEPLOYMENT };        // so we get the user's words back
+      input.transcription = { model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe' };      // always stream the user's words back (for the on-screen transcript)
       rt.send(JSON.stringify({ type: 'session.update', session: {
         type: 'realtime',                                                                     // GA realtime requires this
         instructions: VOICE_INSTRUCTIONS,
@@ -1491,7 +1491,8 @@ function startRealtime(ws, w, team) {
     if (t === 'input_audio_buffer.speech_stopped') return send(ws, { type: 'voice:event', event: 'speech-stop' });    // VAD: user paused → model will reply
     if (t === 'response.output_audio.delta' || t === 'response.audio.delta') return send(ws, { type: 'voice:audio-out', audio: ev.delta });
     if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') return send(ws, { type: 'voice:coach-text', delta: ev.delta });
-    if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });
+    if (t === 'conversation.item.input_audio_transcription.delta') return send(ws, { type: 'voice:you-text', delta: ev.delta || '' });        // stream the user's words as they're recognized
+    if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });   // final corrected transcript
     if (t === 'response.done' || t === 'response.completed') return send(ws, { type: 'voice:event', event: 'turn-done' });
     if (t === 'response.function_call_arguments.done' && ev.name === 'update_map') {
       let args; try { args = JSON.parse(ev.arguments || '{}'); } catch { args = {}; }

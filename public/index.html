@@ -256,6 +256,10 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .bubble.farriernote .glyph{width:14px; height:14px; vertical-align:-2px; margin-right:4px}
 .bubble .nm{font-size:12px; color:var(--muted-strong); margin-bottom:2px}
 .bubble .lead{font-weight:600}
+.bubble .lead.msgstream{white-space:pre-wrap}
+.bubble .lead.typing::after{content:'▌'; font-weight:400; color:var(--muted); margin-left:1px; animation:caretblink 1.05s steps(1) infinite}
+@keyframes caretblink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){ .bubble .lead.typing::after{display:none} }
 .msgactions{display:flex; gap:8px; margin-top:5px}
 .msgactions button{border:none; background:transparent; color:var(--muted); font-size:12px; padding:2px 4px; cursor:pointer}
 .chips{display:flex; gap:7px; flex-wrap:wrap; padding:8px 12px 0}
@@ -968,6 +972,17 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voicecaption{max-width:540px; min-height:22px; font-size:14.5px; line-height:1.55; color:var(--muted-strong)}
 .voicecaption .vcap-you{font-family:Caveat,cursive; font-size:19px; color:var(--muted); margin-bottom:4px}
 .voicecaption .vcap-coach{color:var(--ink)}
+/* the scrollable conversation log (you ↔ coach), shared by the full stage, the corner blob, and the type panel */
+.vtranscript{display:flex; flex-direction:column; gap:8px; overflow-y:auto; scrollbar-width:thin; scroll-behavior:smooth; -webkit-overflow-scrolling:touch}
+.vtranscript .vline{display:flex; gap:7px; align-items:flex-end; max-width:100%}
+.vline .vcf{flex:none; align-self:flex-start}
+.vline .vtxt{font-size:14px; line-height:1.5; padding:7px 12px; border-radius:14px; max-width:80%; word-break:break-word; text-align:left}
+.vline.vyou{justify-content:flex-end; flex-direction:row-reverse}
+.vline.vyou .vtxt{background:var(--ink); color:var(--paper); border-bottom-right-radius:5px}
+.vline.vcoach{justify-content:flex-start}
+.vline.vcoach .vtxt{background:var(--card); border:1.3px solid var(--line); color:var(--ink); border-bottom-left-radius:5px}
+.voicestage .voicecaption.vtranscript{width:min(560px,92vw); max-height:38vh; margin:2px auto 0; padding:2px 4px}
+.typecap.vtranscript{max-height:34vh; padding:2px 4px}
 .vstype{margin-top:6px; display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:9px 17px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vstype:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
 .vstype .glyph{width:16px; height:16px}
@@ -989,8 +1004,13 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobrow{display:flex; align-items:center; gap:13px; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:7px 9px 7px 18px; box-shadow:var(--shadow-float)}
 .voiceblob.live .blobrow{border-color:var(--ink)}
 .voiceblob .blobstatus{font-family:Fraunces,serif; font-size:15px; font-variation-settings:"opsz" 24; white-space:nowrap}
-.voiceblob .blobcap{max-width:300px; font-size:13px; line-height:1.45; text-align:right; color:var(--ink); background:var(--card); border:1.4px solid var(--line); border-radius:14px 14px 4px 14px; padding:9px 13px; box-shadow:var(--shadow-rest)}
+.voiceblob .blobcap{width:340px; max-width:62vw; max-height:46vh; padding:2px; align-items:stretch}
+.voiceblob .blobcap .vtxt{box-shadow:var(--shadow-rest)}
 .voiceblob .blobcap:empty{display:none}
+.voiceblob .blobmin{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; background:transparent; color:var(--muted); cursor:pointer; border-radius:50%; flex:none}
+.voiceblob .blobmin:hover{background:color-mix(in srgb,var(--ink) 8%,transparent); color:var(--ink)}
+.voiceblob .blobmin .glyph{width:15px; height:15px}
+.voiceblob.min .blobrow{padding:6px}   /* just the orb + the expand control */
 .voiceorb.blobform{position:relative; inset:auto; width:64px; height:64px; flex:none}
 .voiceorb.blobform .orbface{width:54px; height:54px}
 .voiceorb.blobform .orbmic{width:24px; height:24px; bottom:0; right:0; box-shadow:var(--shadow-rest)}
@@ -1318,8 +1338,8 @@ function connect(){
   ws.onopen = () => { retryMs = 1200; if (me.code) sendJoin(); };
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.type === 'state'){ state = m.state; afterState(); render(); }
-    else if (m.type === 'joined'){ if(m.hostKey) me.hostKey=m.hostKey; if(m.teamId) me.teamId=m.teamId; if(m.memberId) me.memberId=m.memberId; saveMe(); state=m.state; afterState(); render(); }
+    if (m.type === 'state'){ noteFreshCoach(m.state); state = m.state; afterState(); render(); }
+    else if (m.type === 'joined'){ if(m.hostKey) me.hostKey=m.hostKey; if(m.teamId) me.teamId=m.teamId; if(m.memberId) me.memberId=m.memberId; saveMe(); noteFreshCoach(m.state); state=m.state; afterState(); render(); }
     else if (m.type === 'seated'){ me.teamId=m.teamId; me.memberId=m.memberId; if(m.token) me.seatToken=m.token; saveMe(); if(state && state.state!=='lobby') ui.joinedMid=true; }
     else if (m.type && m.type.indexOf('voice:')===0){ if(window.VC) VC.onEvent(m); }   // Slice B Mode 2 realtime relay events
     else if (m.type === 'error'){ toast(m.error, true); }
@@ -2610,16 +2630,20 @@ function catchUpCard(phase){
 // map fills the screen, building as you speak — no text dock (you're already talking). Tap to start/stop.
 function voiceCoachBlob(t){
   if(ui.voice && ui.voice.converse && !VC.active) setTimeout(()=>VC.ensureSession(),0);   // warm the session
-  const blob=el('div',{class:'voiceblob'+(VC.active?' live':''), 'data-testid':'voice-blob'});
-  blob.append(el('div',{class:'voicecaption blobcap', 'data-testid':'voice-caption'}));    // the Coach's live words, above the orb
+  setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript into the fresh caption box
+  const min=!!ui.blobMin;
+  const blob=el('div',{class:'voiceblob'+(VC.active?' live':'')+(min?' min':''), 'data-testid':'voice-blob'});
+  if(!min) blob.append(el('div',{class:'voicecaption blobcap', 'data-testid':'voice-caption'}));    // the running transcript, above the orb (hidden when minimized)
   const LB={ idle:'Tap to talk', connecting:'Connecting…', listening:'Listening', thinking:'Thinking…', speaking:'Coach speaking' };
   const row=el('div',{class:'blobrow'});
-  row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
-  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label':'Talk to the Coach (tap to start or stop)', onclick:()=>VC.toggle()});
+  // minimize/expand the chatbot to just the orb (accessibility — keep the map clear)
+  row.append(el('button',{class:'blobmin', title: min?'Show the conversation':'Minimize to the orb', 'aria-label': min?'Show the conversation':'Minimize the Coach', 'data-testid':'blob-min', onclick:()=>{ ui.blobMin=!min; render(); }, html: glyph(min?'i-chev':'i-down')}));
+  if(!min) row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label':'Talk to the Coach — tap to talk or pause', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
   row.append(orb);
   blob.append(row);
-  blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  if(!min) blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   return blob;
 }
 function viewSurface(){
@@ -2630,10 +2654,12 @@ function viewSurface(){
   const skipped = ui.interviewSkip || (me.ivSkip && me.ivSkip[t.id]);
   const handedOff = (me.ivDone && me.ivDone[t.id]) || interviewReadyClient(t.canvas);
   const converse = !!(ui.voice && ui.voice.converse) && ui.voiceMode!=='type';
-  const voiceLive = converse && VC.active;
-  const mapStarted = (t.canvas.blocks || []).length > 0;
-  if(converse && !skipped){ if(!voiceLive && !mapStarted) return interviewHero(t); }   // big-orb start screen
-  else if(!handedOff && !skipped) return interviewHero(t);                              // text chat hero / type panel
+  // VOICE: keep the big "talk to the Coach" stage until the map has actually FORMED (≥3 blocks) — no
+  // staring at a blank map. Once there's enough, the map graduates to the hero and the Coach drops to the
+  // bottom-right corner blob (still live). TEXT: chat-hero until the Coach hands off.
+  const mapReady = (t.canvas.blocks || []).length >= 3;
+  if(converse && !skipped){ if(!mapReady) return interviewHero(t); }   // big talking stage while the map is sparse
+  else if(!handedOff && !skipped) return interviewHero(t);             // text chat hero / type panel
   // ---- Stage 2: the map is the HERO; voice → corner blob, text → bottom dock ----
   const work = el('div',{class:'work stage2'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
@@ -2928,10 +2954,17 @@ function b64ToBuf(b64){ const s=atob(b64); const b=new Uint8Array(s.length); for
 const VC = {
   active:false, recording:false, ready:false, phase:'idle',   // idle|connecting|listening|thinking|speaking
   captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'', youText:'',
+  transcript:[],   // [{role:'you'|'coach', text, done}] — the readable, scrollable conversation log
+  // transcript helpers: a "live" entry is the in-progress turn we keep appending streamed deltas to.
+  _live(role){ const e=this.transcript[this.transcript.length-1]; return (e && e.role===role && !e.done) ? e : null; },
+  _append(role, delta){ if(!delta) return; let e=this._live(role); if(!e){ e={role, text:'', done:false}; this.transcript.push(e); } e.text+=delta; if(role==='coach') this.coachText=e.text; else this.youText=e.text; },
+  _finishYou(text){ let e=this._live('you'); if(!e){ e={role:'you', text:'', done:false}; this.transcript.push(e); } e.text=(text||e.text||''); e.done=true; this.youText=e.text; },
+  _seal(){ this.transcript.forEach(e=>{ e.done=true; }); },
   setPhase(p){ this.phase=p; this._render(); },
   ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start'}); this.active=true; this.ready=false; this.setPhase('connecting'); },
-  async toggle(){                                   // tap ONCE to go live; tap again to END (hands-free between)
-    if(this.recording){ this.hangup(); return; }    // already streaming → end (NOT this.active — the session pre-warms on entry)
+  pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
+  async toggle(){                                   // tap to talk; tap again to PAUSE listening (session stays live — resume instantly)
+    if(this.recording){ this.pause(); return; }     // already streaming → pause (the session pre-warms/stays on entry)
     if(!voiceSupported()){ toast('Voice isn’t supported here — tap “Type”.'); return; }
     this.ensureSession();
     try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
@@ -2954,20 +2987,20 @@ const VC = {
     }catch(e){ toast('Couldn’t start the mic.'); this.hangup(); }
   },
   _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
-  sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this.youText=text; this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); return true; },
+  sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this._seal(); this._finishYou(text); this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); this._render(); return true; },
   hangup(){ if(this.recording) this._stopCapture(); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
   onEvent(m){
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
-      else if(m.event==='ready'){ this.ready=true; if(this.active && this.phase==='connecting') this.setPhase('listening'); }
+      else if(m.event==='ready'){ this.ready=true; if(this.active && !this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed but not yet streaming → "Tap to talk" (don't claim we're listening before the mic is on)
       else if(m.event==='error'){ this.active=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
       else if(m.event==='closed'){ this.active=false; this.setPhase('idle'); }
-      else if(m.event==='speech-start'){ this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach)
+      else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
-      else if(m.event==='turn-done'){ this.setPhase(this.active ? 'listening' : 'idle'); }    // hands-free: back to listening
+      else if(m.event==='turn-done'){ this._seal(); this.setPhase(this.active ? 'listening' : 'idle'); }   // hands-free: back to listening
     } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); }
-    else if(m.type==='voice:coach-text'){ this.coachText=(this.coachText||'')+(m.delta||''); this._render(); }
-    else if(m.type==='voice:you-text'){ this.youText=m.text||''; this._render(); }
+    else if(m.type==='voice:coach-text'){ this._append('coach', m.delta||''); this._render(); }
+    else if(m.type==='voice:you-text'){ if(m.delta!=null) this._append('you', m.delta); else this._finishYou(m.text||''); this._render(); }
   },
   _play(b64){
     if(!b64) return;
@@ -2983,11 +3016,24 @@ const VC = {
   _render(){
     const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
-    const lbl=document.querySelector('[data-testid=voice-status]'); if(lbl) lbl.textContent=LB[this.phase]||'';
-    const cap=document.querySelector('[data-testid=voice-caption]');
-    if(cap){ cap.innerHTML=''; if(this.youText) cap.append(el('div',{class:'vcap-you'}, '“'+this.youText+'”')); if(this.coachText) cap.append(el('div',{class:'vcap-coach'}, this.coachText)); }
+    document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
+    document.querySelectorAll('[data-testid=voice-caption]').forEach(cap=>this._paint(cap));
     const dk=document.querySelector('[data-testid=voice-dock]');   // keep the Stage-2 dock mic live too
     if(dk){ const rec=this.phase==='listening'; dk.classList.toggle('recording',rec); dk.innerHTML=''; dk.append(elFrag(glyph('g-mic')+(rec?'Send':(this.phase==='thinking'||this.phase==='speaking'?'…':'Talk')))); }
+  },
+  // paint the running conversation as a scrollable log (newest at the bottom, auto-followed) — the user
+  // can scroll back to re-read anything. Streamed turns show a trailing "…" until sealed.
+  _paint(box){
+    if(!box) return;
+    box.classList.add('vtranscript'); box.innerHTML='';
+    for(const e of this.transcript){
+      if(!e.text) continue;
+      const line=el('div',{class:'vline '+(e.role==='you'?'vyou':'vcoach')});
+      if(e.role==='coach') line.append(el('span',{class:'vcf', html:coachAvatar(20)}));
+      line.append(el('span',{class:'vtxt'}, e.text + (e.done?'':' …')));
+      box.append(line);
+    }
+    box.scrollTop=box.scrollHeight;   // auto-follow the newest line
   }
 };
 window.VC=VC;
@@ -3000,6 +3046,7 @@ function ivSkipBtn(t){
 function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
+  setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
   stage.append(el('div',{class:'vshead'}, el('b',{},'Talk me through your workflow'), el('div',{class:'meta'},'Tap the orb and just talk — I’ll listen and build your map as you go.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
@@ -3019,6 +3066,7 @@ function converseTypePanel(t){
   const panel=el('div',{class:'work interviewing', 'data-testid':'interview-hero'});
   panel.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll answer out loud and build your map. Or go back to talking.</div></div>'}));
   panel.append(el('div',{class:'voicecaption typecap', 'data-testid':'voice-caption'}));
+  setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
   if(ui.coachDraft) inp.value=ui.coachDraft; inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
@@ -3181,12 +3229,34 @@ async function requestSynth(synthMode){
 }
 function chatNow(mode){ const t=myTeam(); if(!t) return []; return (mode==='rebuild'&&t.redesign)?(t.redesign.canvas.chat||[]):(t.canvas.chat||[]); }
 function coachStatusText(){ return {idle:'Coach is reading along…', thinking:'Coach is thinking…', working:'Structuring your dump… this takes a sec', offline:'Coach is offline — the map & checks still work'}[coachStatus]||'Coach is reading along…'; }
+// STREAMING TEXT: every device reveals a newly-arrived Coach reply word-by-word (a typewriter), so the
+// chat "streams" consistently for the whole team straight from the broadcast — no per-client SSE, works on
+// the degraded/offline path too. We mark only GENUINELY-new assistant messages fresh: the backlog on load
+// (and re-renders of an already-revealed message) render instantly. coachTsHigh is the high-water mark.
+let coachTsHigh = 0; const freshCoachMsgs = new Set();
+function noteFreshCoach(st){
+  if(!st) return; let max=coachTsHigh;
+  const scan = arr => (arr||[]).forEach(m=>{ if(m && m.role==='assistant' && m.ts){ if(coachTsHigh>0 && m.ts>coachTsHigh) freshCoachMsgs.add(m.ts); if(m.ts>max) max=m.ts; } });
+  (st.teams||[]).forEach(t=>{ scan(t.canvas && t.canvas.chat); scan(t.redesign && t.redesign.canvas && t.redesign.canvas.chat); });
+  coachTsHigh = max;   // first state just seeds the mark (coachTsHigh was 0) → backlog never animates
+}
+function typeReveal(container, text){
+  text=String(text||''); if(REDUCED || !text){ container.textContent=text; return; }
+  const words=text.split(/(\s+)/), total=words.length;
+  const per=Math.max(12, Math.min(45, Math.round(2200/Math.max(1,total))));   // whole reply lands in ≤~2.2s
+  let i=0; container.textContent=''; container.classList.add('typing');
+  const sc=container.closest('.msgs,.ivmsgs,.vtranscript');
+  (function step(){ if(i>=total){ container.classList.remove('typing'); return; }
+    container.textContent+=words[i++]; if(sc) sc.scrollTop=sc.scrollHeight; setTimeout(step, per); })();
+}
 function bubble(m){
   if(m.role==='farrier') return el('div',{class:'bubble farriernote','data-testid':'farrier-note', html: glyph('g-flag')+'<b>From the Farrier:</b> '+esc(m.content)});
   if(m.role==='system') return el('div',{class:'bubble sys'}, m.content);
   const b=el('div',{class:'bubble '+(m.role==='assistant'?'coach':'user')});
   if(m.name&&m.role!=='assistant') b.append(el('div',{class:'nm'}, m.name));
-  if(m.role==='assistant'){ b.append(el('span',{class:'cf', html:coachAvatar(24)})); const parts=String(m.content).split('\n'); b.append(el('div',{class:'lead'}, parts[0])); if(parts.length>1) b.append(el('div',{}, parts.slice(1).join('\n'))); }
+  if(m.role==='assistant'){ b.append(el('span',{class:'cf', html:coachAvatar(24)}));
+    if(m.ts && freshCoachMsgs.has(m.ts)){ freshCoachMsgs.delete(m.ts); const c=el('div',{class:'lead msgstream'}); b.append(c); setTimeout(()=>typeReveal(c, m.content),0); }   // newly-arrived → stream it in
+    else { const parts=String(m.content).split('\n'); b.append(el('div',{class:'lead'}, parts[0])); if(parts.length>1) b.append(el('div',{}, parts.slice(1).join('\n'))); } }
   else b.append(document.createTextNode(m.content));
   if(m.role==='assistant'){ const a=el('div',{class:'msgactions'}); a.append(el('button',{onclick:()=>{try{navigator.clipboard.writeText(m.content);}catch(e){} toast('copied');}},'copy'),el('button',{title:'helpful', html:glyph('i-thumb','glyph')+'', onclick:()=>toast('thanks')})); b.append(a); }
   return b;
