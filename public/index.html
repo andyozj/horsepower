@@ -208,6 +208,8 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 
 /* topbar */
 .topbar{display:flex; align-items:center; gap:14px; padding:10px 18px; border-bottom:1.5px solid var(--line-soft); background:var(--card); flex:none; flex-wrap:wrap}
+.topbar .endws{color:var(--red-pen); border-color:color-mix(in srgb, var(--red-pen) 38%, var(--line))}
+.topbar .endws:hover{background:var(--removed-wash,#f7e8e6); border-color:var(--red-pen)}
 .brand{display:flex; align-items:center; gap:9px; font-family:Fraunces,serif; font-weight:600; font-size:20px; font-variation-settings:"opsz" 36,"WONK" 1}
 .brand .glyph{width:26px; height:26px; color:var(--ink)}
 .codechip{font-family:Fraunces,serif; font-weight:600; letter-spacing:.12em; font-size:18px; background:var(--paper); border:1.5px dashed var(--line); border-radius:9px; padding:3px 12px}
@@ -1611,6 +1613,7 @@ function topbar(){
   }
   if (me.role==='farrier'){
     bar.append(el('button',{class:'btn sm ghost', onclick:()=>{ui.roomView=!ui.roomView; render();}, 'data-testid':'toggle-room'}, ui.roomView?'← Console':'Open room view'));
+    if (state && state.state!=='closed') bar.append(el('button',{class:'btn sm ghost endws', 'data-testid':'end-workshop', title:'End the workshop for everyone', onclick:async()=>{ if(await confirmModal('Teams keep their export and take-home recap. This stops the live room for everyone (you can re-host later).', {title:'End the workshop?', confirmText:'End workshop', danger:true})) wsSend({type:'phase:set', phase:'closed'}); }}, 'End workshop'));
   }
   return bar;
 }
@@ -2750,13 +2753,13 @@ function voiceCoachBlob(t, opts){
   row.append(orb);
   blob.append(row);
   if(!min && opts.rebuild){
-    // "type instead" — same sparring session, just typed: routes through VC.sendText (spoken+text reply,
-    // can still drop Agent blocks). Map stays visible. + a link to the full Coach chat (whispers, verdicts).
+    // "type instead" — typing gets a TEXT reply in the Coach chat (never spoken); the spoken sparring stays
+    // in the orb above. Sending opens the full chat so you SEE the answer. (Only dictation adds audio-in.)
     const comp=el('div',{class:'blobcomp'});
     const inp=el('textarea',{class:'blobinput', 'data-testid':'spar-input', rows:'1', placeholder:'…or type your move'});
     if(ui.coachDraft) inp.value=ui.coachDraft;
     inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
-    const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; VC.sendText(v); inp.value=''; ui.coachDraft=''; };
+    const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.coachDraft=''; ui.railOpen=true; render(); sendCoachTurn(v,'rebuild'); };
     inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
     comp.append(inp, el('button',{class:'blobsend', 'data-testid':'spar-send', title:'Send', 'aria-label':'Send', onclick:fire, html: glyph('i-chev')}));
     blob.append(comp);
@@ -2857,12 +2860,12 @@ function interviewDock(t){
   const inp=el('textarea',{class:'dockinput', placeholder:'Tell the Coach more, or just fix the map…', 'data-testid':'coach-input', rows:'1'});
   if(ui.coachDraft) inp.value=ui.coachDraft;
   inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
-  const converse = !!(ui.voice && ui.voice.converse);
-  // In a realtime session, both voice AND typed turns flow through the live session (spoken reply + same brain).
-  const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.coachDraft=''; ui.dockOpen=true; if(converse) VC.sendText(v); else sendInterviewTurn(v); };
+  // This dock is TEXT: every turn (typed or dictated) replies in the thread below — never spoken. The
+  // spoken Coach lives in the Conversation interview, not here, so nothing surprises you with audio.
+  const fire=()=>{ const v=(inp.value||'').trim(); if(!v) return; inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   bar.append(inp,
-    converse ? dockMicButton() : voiceButton(txt=>{ inp.value=''; ui.coachDraft=''; ui.dockOpen=true; sendInterviewTurn(txt); }),
+    voiceButton(txt=>{ inp.value=(inp.value? inp.value.replace(/\s*$/,'')+' ':'')+txt; ui.coachDraft=inp.value; inp.focus(); }),   // Dictate → fills the box, you Send
     el('button',{class:'btn primary sm', 'data-testid':'coach-send', onclick:fire},'Send'),
     el('button',{class:'docktoggle', 'data-testid':'dock-toggle', title: open?'Hide the thread':'Show the conversation', 'aria-label':'Toggle the Coach conversation', onclick:()=>{ ui.dockOpen=!open; render(); }, html: glyph(open?'i-down':'i-chev')}));
   dock.append(bar);
@@ -3257,6 +3260,24 @@ async function sendInterviewTurn(text){
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
   }catch(e){ coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
 }
+// TEXT turn for Rebuild (and any non-surface chat): replies in the text thread, NEVER spoken. Used by the
+// rail composer AND the rebuild "type your move" — so typing always stays text (only dictation/STT adds audio-IN).
+async function sendCoachTurn(text, mode){
+  text=(text||'').trim(); if(!text||coachBusy) return;
+  if(mode==='surface') return sendInterviewTurn(text);
+  ui.coachDraft='';
+  wsSend({type:'chat:post', role:'user', name:me.name, content:text});
+  coachBusy=true; coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+  const ctx=buildCoachContext(mode);
+  const hist=(chatNow(mode)||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
+  try{
+    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode, context:ctx, messages:hist, code:me.code})});
+    const d=await r.json();
+    coachBusy=false; coachStatus=d.degraded?'offline':'idle'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+    wsSend({type:'chat:post', role:'assistant', content:d.reply});
+    if(d.degraded) toast('Coach is offline — running on the built-in question bank. The map & checks still work.',true);
+  }catch(e){ coachBusy=false; coachStatus='offline'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); } wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
+}
 // A2: Surface Stage 1 — the chat-hero "talk me through it" screen. Graduates to the normal map+rail
 // (Stage 2) once the map has >=3 blocks. "Draw it myself" is the agency / degradation escape.
 function interviewHero(t){
@@ -3344,26 +3365,7 @@ function buildCoachRail(mode, chat, opts){
   async function doSend(){
     const text=(inp.value||'').trim(); if(!text||coachBusy) return;
     inp.value=''; ui.coachDraft='';
-    if(mode==='surface') return sendInterviewTurn(text);   // A2: the Surface coach IS the interview (drives the map via ops)
-    wsSend({type:'chat:post', role:'user', name:me.name, content:text});
-    // a long multi-clause message in Surface is a brain-dump → ask for typed blocks back
-    const isDump = mode==='surface' && (text.length>110 || (text.match(/[.;\n]|, /g)||[]).length>=2);
-    coachBusy=true; coachStatus=isDump?'working':'thinking'; setStatus();
-    const ctx = buildCoachContext(mode);
-    const hist = (chatNow(mode)||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
-    try{
-      const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode, context:ctx, messages:hist, structure:isDump, code:me.code})});
-      const d=await r.json();
-      coachBusy=false; coachStatus=d.degraded?'offline':'idle'; setStatus();
-      wsSend({type:'chat:post', role:'assistant', content:d.reply});
-      if(d.proposal && Array.isArray(d.proposal.blocks) && d.proposal.blocks.length){
-        ui.pendingProposals={teamId:me.teamId, blocks:d.proposal.blocks, orphans:d.proposal.orphans||[]};
-        toast('The Coach heard a map in that — proposals are in the parking lot.');
-        render();
-      } else if(isDump && d.degraded){
-        toast('Coach is offline — long dumps won’t auto-structure. Your words are safe in the thread; draw the blocks or park lines in the parking lot.', true);
-      } else if(d.degraded) toast('Coach is offline — running on the built-in question bank. The map & checks still work.',true);
-    }catch(e){ coachBusy=false; coachStatus='offline'; setStatus(); wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
+    return sendCoachTurn(text, mode);   // surface → the interview (ops); rebuild/share → a TEXT reply in the thread
   }
   function setStatus(){ const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
   return pane;
