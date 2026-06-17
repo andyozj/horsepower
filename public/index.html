@@ -1255,8 +1255,8 @@ const glyph = (id, cls='glyph') => `<svg class="${cls}" aria-hidden="true"><use 
 // B3: role-based main landmark + one sr-only heading per view (roles, not retagging — zero layout fallout)
 function asMain(node, title){ node.setAttribute('role','main'); node.prepend(el('h1',{class:'sr-only'}, title)); return node; }
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function toast(msg, warn){ const t = el('div',{class:'toast'+(warn?' warn':''), role: warn?'alert':null},msg); $('#toasts').append(t);
-  setTimeout(()=>{ if(REDUCED){ t.remove(); return; } t.classList.add('out'); setTimeout(()=>t.remove(),240); }, 3360); }
+function toast(msg, warn, ms){ const t = el('div',{class:'toast'+(warn?' warn':''), role: warn?'alert':null},msg); $('#toasts').append(t);
+  setTimeout(()=>{ if(REDUCED){ t.remove(); return; } t.classList.add('out'); setTimeout(()=>t.remove(),240); }, ms||3360); }
 // B1/§2.7: SR-only announcer (canvas outcomes, phase changes). Polite, outside #app so render() never destroys it.
 let _annT=null;
 function announce(msg){ if(!msg) return; const n=$('#sr-status'); if(!n) return;
@@ -1416,6 +1416,7 @@ function sendJoin(){
 }
 
 let railPhase = null;
+let whisperSeenTs = -1;   // R7: highest Farrier-whisper ts already surfaced to this member (-1 = uninitialized)
 function afterState(){
   // A11: stash the ids as RECEIVED from the server, before any local mutation.
   // DELETE-RESURRECTION FIX: only refresh known ids when NOT mid-edit. Under editingLock render() is
@@ -1424,6 +1425,19 @@ function afterState(){
   // server-lacks + known-lacks = "new"). Keeping the pre-edit known means the commit is correctly read
   // as a stale echo of a peer-deleted item → skipped. Self-corrects on the next broadcast after blur.
   const t0 = myTeam();
+  // R7 whisper reach: a Farrier whisper lands in canvas.chat, but the voice-first interview (and a
+  // collapsed rail) never render canvas.chat — so members missed it entirely. Toast every NEW farrier
+  // note for MY team, in any view. Baseline on first render so old whispers don't replay on join.
+  if (me.role === 'member' && t0){
+    const fw = [...((t0.canvas && t0.canvas.chat) || []), ...((t0.redesign && t0.redesign.canvas && t0.redesign.canvas.chat) || [])]
+      .filter(m => m && m.role === 'farrier' && m.ts);
+    const maxTs = fw.reduce((mx, m) => Math.max(mx, m.ts), 0);
+    if (whisperSeenTs < 0) whisperSeenTs = maxTs;                                  // first render → baseline, no replay
+    else if (maxTs > whisperSeenTs){
+      fw.filter(m => m.ts > whisperSeenTs).forEach(m => toast('From the Farrier — ' + m.content, true, 9000));
+      whisperSeenTs = maxTs;
+    }
+  }
   if (!editingLock) ui.known = {
     surface: t0 ? idsOf(t0.canvas) : null,
     rebuild: (t0 && t0.redesign) ? idsOf(t0.redesign.canvas) : null
@@ -3167,9 +3181,12 @@ function voiceStage(t){
 // The type panel inside a realtime session: typed turns go THROUGH the live session (spoken reply + same
 // brain), with a live caption and a one-tap return to voice.
 function converseTypePanel(t){
-  const panel=el('div',{class:'work interviewing', 'data-testid':'interview-hero'});
-  panel.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll answer out loud and build your map. Or go back to talking.</div></div>'}));
-  panel.append(el('div',{class:'voicecaption typecap', 'data-testid':'voice-caption'}));
+  // .work is a flex ROW — children must live inside a single column card (like the classic interview /
+  // voice stage), or the header, caption and composer scatter across the row. Mirror .interviewhero.
+  const panel=el('div',{class:'work interviewing'});
+  const card=el('div',{class:'interviewhero', 'data-testid':'interview-hero'});
+  card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll answer out loud and build your map. Or go back to talking.</div></div>'}));
+  card.append(el('div',{class:'voicecaption typecap', 'data-testid':'voice-caption'}));
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
@@ -3179,7 +3196,9 @@ function converseTypePanel(t){
   comp.append(inp,
     el('button',{class:'btn sm ghost', 'data-testid':'switch-voice', title:'Back to talking', html:glyph('g-mic')+'Talk', onclick:()=>{ ui.voiceMode='voice'; render(); }}),
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire},'Send'));
-  panel.append(comp);
+  card.append(comp);
+  card.append(ivSkipBtn(t));
+  panel.append(card);
   return panel;
 }
 // Stage-2 dock: a compact tap-to-talk mic that drives the same VC session (label/phase kept live by _render).
@@ -3216,7 +3235,7 @@ function interviewHero(t){
   // Realtime voice available → voice-FIRST (a tappable Coach orb), with a clean "type" panel that still
   // routes through the live session. Otherwise → the classic typed interview (sendInterviewTurn).
   if(ui.voice && ui.voice.converse){
-    if(ui.voiceMode==='type'){ const w=converseTypePanel(t); w.append(ivSkipBtn(t)); return w; }
+    if(ui.voiceMode==='type'){ return converseTypePanel(t); }   // skip button lives inside the card
     // voice: a full-bleed, centered, immersive stage (voiceStage owns its own controls incl. the skip)
     return el('div',{class:'work interviewing voicefull', 'data-testid':'interview-hero'}, voiceStage(t));
   }
