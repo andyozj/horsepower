@@ -1021,6 +1021,14 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @keyframes waveb{0%,100%{height:16%} 50%{height:92%}}
 @media (prefers-reduced-motion:reduce){ .voicefull::before{animation:none !important} .vwave .bar{animation:none !important; height:42%} }
 .voicebar{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center}
+/* mic-mode segmented control — both options shown, active filled (intuitive, not an ambiguous toggle) */
+.turnseg{display:inline-flex; align-items:stretch; margin:8px auto 0; border:1.5px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card); box-shadow:var(--shadow-rest)}
+.turnseg .tseg{border:none; background:transparent; padding:7px 18px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px; color:var(--muted-strong); transition:background var(--t-fast,.15s) ease, color var(--t-fast,.15s) ease}
+.turnseg .tseg b{font-family:Fraunces,serif; font-size:13.5px; font-weight:600; font-variation-settings:"opsz" 20}
+.turnseg .tseg .tsub{font-size:10.5px; opacity:.82}
+.turnseg .tseg.on{background:var(--ink); color:var(--paper)}
+.turnseg .tseg:not(.on):hover{background:color-mix(in srgb,var(--ink) 7%, transparent)}
+.turnseg .tseg+.tseg{border-left:1.5px solid var(--line)}
 .vbtn{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:10px 18px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); cursor:pointer; transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vbtn:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
 .vbtn .glyph{width:16px; height:16px}
@@ -3080,7 +3088,7 @@ const VC = {
   restart(p){ this.phaseFor=p; this.restarting=true; this.ready=false; this.setPhase('connecting'); try{ wsSend({type:'voice:start', turn: ui.voiceTurn}); }catch(_){} clearTimeout(this._restartT); this._restartT=setTimeout(()=>{ this.restarting=false; }, 4000); },
   pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
   // switch turn-taking live (push-to-talk ⇄ hands-free) — re-opens the session so the new turn_detection applies
-  switchTurn(){ ui.voiceTurn = ui.voiceTurn==='ptt' ? 'hands' : 'ptt'; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
+  switchTurn(to){ const next = to || (ui.voiceTurn==='ptt' ? 'hands' : 'ptt'); if(next===ui.voiceTurn) return; ui.voiceTurn = next; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
   async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
     if(this.recording){
       if(ui.voiceTurn==='ptt'){ this._stopCapture(); try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
@@ -3188,8 +3196,14 @@ function voiceStage(t){
   const panel=el('div',{class:'vpanel'}, cap);   // the transcript inside a hand-drawn paper frame
   stage.append(panel);
   setTimeout(()=>{ drawVframe(panel); try{ const ro=new ResizeObserver(()=>drawVframe(panel)); ro.observe(panel); }catch(_){} },0);
+  // intuitive segmented control — BOTH mic modes visible, the active one filled (not a single ambiguous
+  // button that reads like "tap to enable"). The subtitle above already describes the active mode's behavior.
+  const seg=(mode,label,sub)=>el('button',{class:'tseg'+(ui.voiceTurn===mode?' on':''), 'data-testid': mode==='ptt'?'turn-ptt':'turn-hands', 'aria-pressed': ui.voiceTurn===mode?'true':'false', title: sub, onclick:()=>VC.switchTurn(mode)},
+    el('b',{}, label), el('span',{class:'tsub'}, sub));
+  stage.append(el('div',{class:'turnseg', role:'group', 'aria-label':'How the mic works'},
+    seg('ptt','Push to talk','tap to start & send'),
+    seg('hands','Hands-free','I reply when you pause')));
   const bar=el('div',{class:'voicebar'});
-  bar.append(el('button',{class:'vbtn', 'data-testid':'switch-turn', title:'How the Coach takes turns — tap to switch', onclick:()=>VC.switchTurn(), html: glyph('g-mic')+(ui.voiceTurn==='ptt'?'Push-to-talk':'Hands-free')}));
   bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   bar.append(ivSkipBtn(t));
   stage.append(bar);
@@ -3198,20 +3212,23 @@ function voiceStage(t){
 // The type panel inside a realtime session: typed turns go THROUGH the live session (spoken reply + same
 // brain), with a live caption and a one-tap return to voice.
 function converseTypePanel(t){
-  // .work is a flex ROW — children must live inside a single column card (like the classic interview /
-  // voice stage), or the header, caption and composer scatter across the row. Mirror .interviewhero.
+  // PURE TEXT mode: the Coach replies in TEXT (no audio). Typed turns go through the proven /api/coach
+  // interview pipeline (sendInterviewTurn) — same map-building, but read, not spoken. So we hang up any
+  // live spoken session and render the text thread (canvas.chat), not the voice transcript.
+  if(window.VC && VC.active) VC.hangup();
   const panel=el('div',{class:'work interviewing'});
   const card=el('div',{class:'interviewhero', 'data-testid':'interview-hero'});
-  card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll answer out loud and build your map. Or go back to talking.</div></div>'}));
-  card.append(el('div',{class:'voicecaption typecap', 'data-testid':'voice-caption'}));
-  setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint the transcript
+  card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll reply right here and build your map — no talking back. Or switch to voice.</div></div>'}));
+  const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
+  (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+  card.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
   if(ui.coachDraft) inp.value=ui.coachDraft; inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
-  const fire=()=>{ const v=inp.value.trim(); if(!v) return; inp.value=''; ui.coachDraft=''; VC.sendText(v); };
+  const fire=()=>{ const v=inp.value; inp.value=''; ui.coachDraft=''; sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
   comp.append(inp,
-    el('button',{class:'btn sm ghost', 'data-testid':'switch-voice', title:'Back to talking', html:glyph('g-mic')+'Talk', onclick:()=>{ ui.voiceMode='voice'; render(); }}),
+    (ui.voice && ui.voice.converse) ? el('button',{class:'btn sm ghost', 'data-testid':'switch-voice', title:'Switch to talking', html:glyph('g-mic')+'Talk', onclick:()=>{ ui.voiceMode='voice'; render(); }}) : null,
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire},'Send'));
   card.append(comp);
   card.append(ivSkipBtn(t));
