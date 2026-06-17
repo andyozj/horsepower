@@ -99,6 +99,10 @@ const AZURE_AUDIO_API_VERSION = process.env.AZURE_AUDIO_API_VERSION || '2025-03-
 // e.g. https://<res>.cognitiveservices.azure.com/openai/v1/realtime?model=gpt-realtime-2 . Auth: api-key.
 const AZURE_REALTIME_URL = (process.env.AZURE_REALTIME_URL || '').replace(/^http/, 'ws');
 const AZURE_REALTIME_VOICE = process.env.AZURE_REALTIME_VOICE || 'marin';   // GA gpt-realtime natural voices: marin, cedar (alloy/echo/shimmer are the older, robotic ones)
+const VOICE_LANG = process.env.AZURE_REALTIME_LANG || 'en';                 // pin the transcription language (auto-detect mistook accented English for Japanese); set '' to auto-detect
+const VOICE_LANG_NAME = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese', zh: 'Chinese', pt: 'Portuguese', it: 'Italian', nl: 'Dutch' }[VOICE_LANG] || VOICE_LANG;
+// realtime-2 prompting guidance: lock language in the PROMPT, never let the model infer it from accent.
+const LANG_LOCK = VOICE_LANG ? `\n\nLANGUAGE: The conversation is in ${VOICE_LANG_NAME}. Always speak ${VOICE_LANG_NAME}. Do NOT switch languages based on the speaker's accent, pronunciation, filler sounds, names, or isolated foreign words.` : '';
 function voiceCaps() {
   return {
     listen: !!(AZURE_SPEECH_ENDPOINT && AZURE_SPEECH_KEY && AZURE_STT_DEPLOYMENT),
@@ -1523,11 +1527,15 @@ function startRealtime(ws, w, team) {
       // Hands-free conversation: server VAD auto-detects when the user stops talking and replies
       // (create_response) + allows barge-in. The client streams mic continuously; no per-turn commit.
       const input = { format: { type: 'audio/pcm', rate: 24000 },
+        // near_field: tuned for a phone/laptop mic close to the speaker — trims room background + crosstalk
+        noise_reduction: { type: 'near_field' },
         turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
-      input.transcription = { model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe' };      // always stream the user's words back (for the on-screen transcript)
+      // PIN the language so the transcriber never guesses (accented English was being read as Japanese);
+      // the prompt biases it toward business-workflow vocabulary. AZURE_REALTIME_LANG='' → auto-detect.
+      input.transcription = Object.assign({ model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe', prompt: 'A spoken business-workflow interview.' }, VOICE_LANG ? { language: VOICE_LANG } : {});
       rt.send(JSON.stringify({ type: 'session.update', session: {
         type: 'realtime',                                                                     // GA realtime requires this
-        instructions: rebuild ? (REBUILD_VOICE_INSTRUCTIONS + '\n\nWHAT THEY INHERITED (reference, never read aloud):\n' + rebuildVoiceContext(team)) : VOICE_INSTRUCTIONS,
+        instructions: (rebuild ? (REBUILD_VOICE_INSTRUCTIONS + '\n\nWHAT THEY INHERITED (reference, never read aloud):\n' + rebuildVoiceContext(team)) : VOICE_INSTRUCTIONS) + LANG_LOCK,
         output_modalities: ['audio'],
         audio: { input, output: { voice: AZURE_REALTIME_VOICE, format: { type: 'audio/pcm', rate: 24000 } } },
         tools: [rebuild ? REBUILD_MAP_TOOL : UPDATE_MAP_TOOL], tool_choice: 'auto'
