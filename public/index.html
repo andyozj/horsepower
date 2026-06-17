@@ -988,6 +988,14 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .vline.vcoach .vtxt{background:var(--pop); border:1.5px solid color-mix(in srgb,var(--red-pen) 42%, var(--line)); color:var(--ink); border-bottom-left-radius:6px; box-shadow:var(--shadow-rest)}
 /* WARM, on-brand transcript: a paper card inside a hand-drawn wobble frame (the brand's signature) */
 .voicestage .vpanel{position:relative; width:min(600px,92vw); max-height:42vh; margin:4px auto 0; display:flex; flex-direction:column; min-height:0; background:var(--card); border-radius:20px; box-shadow:var(--shadow-float); overflow:hidden}
+/* glass transcription panel — a frosted sheet of live captions, NOT a chatbox; the dot-grid shows through */
+.voicestage .vpanel.glass{background:color-mix(in srgb, var(--card) 52%, transparent); -webkit-backdrop-filter:blur(14px) saturate(1.15); backdrop-filter:blur(14px) saturate(1.15); border:1px solid color-mix(in srgb, var(--ink) 12%, transparent); box-shadow:0 10px 34px -14px rgba(33,49,79,.3)}
+.voicestage .vpanel.glass.empty{display:none}   /* nothing said yet → no empty sheet */
+/* inside the glass: lighten the lines into a transcript (no heavy chat bubbles) */
+.voicestage .vline .vtxt{box-shadow:none; padding:6px 12px; border-radius:12px}
+.voicestage .vline.vcoach .vtxt{background:color-mix(in srgb, var(--pop) 50%, transparent); border:none; color:var(--ink)}
+.voicestage .vline.vyou .vtxt{background:color-mix(in srgb, var(--ink) 86%, transparent)}
+.ivfoot{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:6px}
 .voicestage .vpanel:has(.voicecaption:empty){display:none}   /* no transcript yet → no empty framed card */
 .voicestage .vpanel .voicecaption{width:auto; max-height:none; min-height:0; margin:0; padding:17px 19px; background:transparent; border:none; box-shadow:none; overflow-y:auto}
 .vframe{position:absolute; inset:0; z-index:2; pointer-events:none; overflow:visible}
@@ -3031,10 +3039,10 @@ function gateBar(t){
 function voiceSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
 function voiceButton(onText){
   if(!(ui.voice && ui.voice.listen) || !voiceSupported())
-    return el('button',{class:'btn sm ghost ivmic', disabled:'', title:(ui.voice&&!ui.voice.listen)?'Voice needs Azure speech configured on the server':'Voice isn’t supported in this browser', html: glyph('g-mic')+'Voice'});
-  const btn=el('button',{class:'btn sm ghost ivmic', 'data-testid':'voice-ptt', title:'Hold to talk — release to send', html: glyph('g-mic')+'Hold to talk'});
+    return el('button',{class:'btn sm ghost ivmic', disabled:'', title:(ui.voice&&!ui.voice.listen)?'Dictation needs Azure speech configured on the server':'Dictation isn’t supported in this browser', html: glyph('g-mic')+'Dictate'});
+  const btn=el('button',{class:'btn sm ghost ivmic', 'data-testid':'voice-ptt', title:'Hold to dictate — speak and it fills the box', html: glyph('g-mic')+'Dictate'});
   let rec=null, chunks=[], stream=null, recording=false;
-  const reset=()=>{ btn.classList.remove('recording','working'); btn.innerHTML=''; btn.append(elFrag(glyph('g-mic')+'Hold to talk')); };
+  const reset=()=>{ btn.classList.remove('recording','working'); btn.innerHTML=''; btn.append(elFrag(glyph('g-mic')+'Dictate')); };
   const start=async(e)=>{ e.preventDefault(); if(recording||btn.classList.contains('working')) return;
     try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(err){ toast('Mic blocked — type instead.'); return; }
     chunks=[]; try{ rec=new MediaRecorder(stream); }catch(err){ stream.getTracks().forEach(t=>t.stop()); toast('Can’t record here — type instead.'); return; }
@@ -3193,9 +3201,9 @@ function voiceStage(t){
   const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
   stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to start talking'));
   const cap=el('div',{class:'voicecaption', 'data-testid':'voice-caption'});
-  const panel=el('div',{class:'vpanel'}, cap);   // the transcript inside a hand-drawn paper frame
+  const panel=el('div',{class:'vpanel glass'}, cap);   // a light glass transcription panel (not a chatbox)
+  panel.classList.toggle('empty', !VC.transcript.length);   // hide the frame until there's something to show
   stage.append(panel);
-  setTimeout(()=>{ drawVframe(panel); try{ const ro=new ResizeObserver(()=>drawVframe(panel)); ro.observe(panel); }catch(_){} },0);
   // intuitive segmented control — BOTH mic modes visible, the active one filled (not a single ambiguous
   // button that reads like "tap to enable"). The subtitle above already describes the active mode's behavior.
   const seg=(mode,label,sub)=>el('button',{class:'tseg'+(ui.voiceTurn===mode?' on':''), 'data-testid': mode==='ptt'?'turn-ptt':'turn-hands', 'aria-pressed': ui.voiceTurn===mode?'true':'false', title: sub, onclick:()=>VC.switchTurn(mode)},
@@ -3216,9 +3224,10 @@ function converseTypePanel(t){
   // interview pipeline (sendInterviewTurn) — same map-building, but read, not spoken. So we hang up any
   // live spoken session and render the text thread (canvas.chat), not the voice transcript.
   if(window.VC && VC.active) VC.hangup();
+  const conv = ui.voice && ui.voice.converse, canDict = ui.voice && ui.voice.listen;
   const panel=el('div',{class:'work interviewing'});
   const card=el('div',{class:'interviewhero', 'data-testid':'interview-hero'});
-  card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">I’ll reply right here and build your map — no talking back. Or switch to voice.</div></div>'}));
+  card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">'+(canDict?'Type or dictate':'Type')+' — I’ll reply in text and build your map'+(conv?'. Or switch to a spoken conversation.':'.')+'</div></div>'}));
   const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
   (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
   card.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
@@ -3227,11 +3236,14 @@ function converseTypePanel(t){
   if(ui.coachDraft) inp.value=ui.coachDraft; inp.addEventListener('input',()=>{ ui.coachDraft=inp.value; });
   const fire=()=>{ const v=inp.value; inp.value=''; ui.coachDraft=''; sendInterviewTurn(v); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); fire(); } });
-  comp.append(inp,
-    (ui.voice && ui.voice.converse) ? el('button',{class:'btn sm ghost', 'data-testid':'switch-voice', title:'Switch to talking', html:glyph('g-mic')+'Talk', onclick:()=>{ ui.voiceMode='voice'; render(); }}) : null,
+  // the mic DICTATES into the box (speech-to-text) — you review, then Send. It never auto-sends or talks back.
+  comp.append(inp, voiceButton(txt=>{ inp.value=(inp.value? inp.value.replace(/\s*$/,'')+' ':'')+txt; ui.coachDraft=inp.value; inp.focus(); }),
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire},'Send'));
   card.append(comp);
-  card.append(ivSkipBtn(t));
+  const foot=el('div',{class:'ivfoot'});
+  if(conv) foot.append(el('button',{class:'vbtn', 'data-testid':'switch-voice', title:'Switch to a spoken conversation', onclick:()=>{ ui.voiceMode='voice'; render(); }, html:glyph('g-mic')+'Conversation'}));
+  foot.append(ivSkipBtn(t));
+  card.append(foot);
   panel.append(card);
   return panel;
 }
