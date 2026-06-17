@@ -1146,9 +1146,17 @@ const INTERVIEW_QS = [
 function interviewScript(canvas, n) { return INTERVIEW_QS[Math.min(Math.max(0, n | 0), INTERVIEW_QS.length - 1)]; }
 // A2c: the workflow is "captured" (Coach can hand off to verify) when the core ontology is on the map.
 // Rule-based readiness — used as the degraded "done" signal and as a backstop if the live AI omits it.
-function interviewReady(canvas) {
-  const has = ty => (canvas.blocks || []).some(b => b.type === ty);
-  return has('trigger') && has('persona') && has('phase') && has('intent') && has('outcome');
+function interviewReady(canvas, opts) {
+  const blocks = canvas.blocks || [];
+  const has = ty => blocks.some(b => b.type === ty);
+  const base = has('trigger') && has('persona') && has('phase') && has('intent') && has('outcome');
+  // AI-driven interviews must ALSO have captured the SERVED party (methodology-locked) before auto-completing,
+  // so the Coach's "who is this for?" probing actually lands a served persona. The offline/degraded path stays
+  // loose (no requireServed) so a keyless room can always finish (rule #8). The AI may still set done itself.
+  if (opts && opts.requireServed) {
+    return base && blocks.some(b => b.type === 'persona' && b.meta && /served/i.test(b.meta.capacity || ''));
+  }
+  return base;
 }
 // A2: the server OWNS the interview reply (greeting + every degraded turn) so it's appended + broadcast
 // exactly once — the client never posts it (per-client posting duplicated it in multi-member rooms).
@@ -1331,7 +1339,7 @@ app.post('/api/coach', async (req, res) => {
         team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
         broadcast(room);
         // A2c: hand off to verify when the AI says done OR the map is ontology-complete (backstop)
-        return res.json({ reply, interview: true, done: !!j.done || interviewReady(team.canvas) });
+        return res.json({ reply, interview: true, done: !!j.done || interviewReady(team.canvas, { requireServed: true }) });
       } catch (e) {
         log('coach_degraded', { kind: 'interview', err: String(e.message || e).slice(0, 200) });
         return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) });
