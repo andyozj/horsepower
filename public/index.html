@@ -1373,7 +1373,7 @@ let view = 'landing';
 let revealShown = false;
 let coachStatus = 'idle';
 let coachBusy = false;
-let ui = { drillTeamId:null, roomView:false, railWidth: 340, railOpen:null, seenChatLen:0, zoom:1, pan:{x:0,y:0}, challengeLock:null };
+let ui = { drillTeamId:null, roomView:false, railWidth: 340, railOpen:null, seenChatLen:0, zoom:1, pan:{x:0,y:0}, challengeLock:null, voiceTurn:'ptt' };   // voiceTurn: 'ptt' (tap-to-send, good for rooms) | 'hands' (VAD auto-reply)
 // Defer full re-renders while a canvas label is being edited, so a state broadcast
 // (incl. the echo of our own edit) never clobbers the node the user is typing into.
 let editingLock = false, pendingRender = false;
@@ -3068,10 +3068,16 @@ const VC = {
   _finishYou(text){ let e=this._live('you'); if(!e){ e={role:'you', text:'', done:false}; this.transcript.push(e); } e.text=(text||e.text||''); e.done=true; this.youText=e.text; },
   _seal(){ this.transcript.forEach(e=>{ e.done=true; }); },
   setPhase(p){ this.phase=p; this._render(); },
-  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start'}); this.active=true; this.ready=false; this.setPhase('connecting'); },
+  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting'); },
   pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
-  async toggle(){                                   // tap to talk; tap again to PAUSE listening (session stays live — resume instantly)
-    if(this.recording){ this.pause(); return; }     // already streaming → pause (the session pre-warms/stays on entry)
+  // switch turn-taking live (push-to-talk ⇄ hands-free) — re-opens the session so the new turn_detection applies
+  switchTurn(){ ui.voiceTurn = ui.voiceTurn==='ptt' ? 'hands' : 'ptt'; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
+  async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
+    if(this.recording){
+      if(ui.voiceTurn==='ptt'){ this._stopCapture(); try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
+      else { this.pause(); }
+      return;
+    }
     if(!voiceSupported()){ toast('Voice isn’t supported here — tap “Type”.'); return; }
     this.ensureSession();
     try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
@@ -3104,7 +3110,7 @@ const VC = {
       else if(m.event==='closed'){ this.active=false; this.setPhase('idle'); }
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
-      else if(m.event==='turn-done'){ this._seal(); this.setPhase(this.active ? 'listening' : 'idle'); }   // hands-free: back to listening
+      else if(m.event==='turn-done'){ this._seal(); this.setPhase(this.active && ui.voiceTurn!=='ptt' ? 'listening' : 'idle'); }   // hands-free: back to listening · PTT: idle until the next tap
     } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); }
     else if(m.type==='voice:coach-text'){ this._append('coach', m.delta||''); this._render(); }
     else if(m.type==='voice:you-text'){ if(m.delta!=null) this._append('you', m.delta); else this._finishYou(m.text||''); this._render(); }
@@ -3121,7 +3127,8 @@ const VC = {
     }catch(e){}
   },
   _render(){
-    const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
+    const ptt = ui.voiceTurn==='ptt';
+    const LB={ idle: ptt?'Tap to talk':'Tap to start talking', connecting:'Connecting…', listening: ptt?'Listening — tap when you’re done':'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
     document.querySelectorAll('[data-testid=voice-blob]').forEach(b=>{ b.dataset.phase=this.phase; });   // lets the pill show a clear listening/thinking/speaking state
     document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
@@ -3160,7 +3167,7 @@ function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
-  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'},'Tap the orb and just talk — I’ll listen and build your map as you go.')));
+  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, ui.voiceTurn==='ptt' ? 'Tap the orb to talk — tap again when you’re done, and I’ll reply.' : 'Tap the orb and just talk — I’ll reply when you pause.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
   stage.append(el('div',{class:'orbwrap'}, orb));
@@ -3173,6 +3180,7 @@ function voiceStage(t){
   stage.append(panel);
   setTimeout(()=>{ drawVframe(panel); try{ const ro=new ResizeObserver(()=>drawVframe(panel)); ro.observe(panel); }catch(_){} },0);
   const bar=el('div',{class:'voicebar'});
+  bar.append(el('button',{class:'vbtn', 'data-testid':'switch-turn', title:'How the Coach takes turns — tap to switch', onclick:()=>VC.switchTurn(), html: glyph('g-mic')+(ui.voiceTurn==='ptt'?'Push-to-talk':'Hands-free')}));
   bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   bar.append(ivSkipBtn(t));
   stage.append(bar);

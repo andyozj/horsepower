@@ -1526,10 +1526,13 @@ function startRealtime(ws, w, team) {
     try {
       // Hands-free conversation: server VAD auto-detects when the user stops talking and replies
       // (create_response) + allows barge-in. The client streams mic continuously; no per-turn commit.
+      // PTT (tap-to-send) → no server VAD, the client commits the buffer on release; best for a room with
+      // several voices. Hands-free → server VAD auto-replies when the speaker pauses (one-person magic).
+      const ptt = ws.voiceTurn === 'ptt';
       const input = { format: { type: 'audio/pcm', rate: 24000 },
         // near_field: tuned for a phone/laptop mic close to the speaker — trims room background + crosstalk
         noise_reduction: { type: 'near_field' },
-        turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
+        turn_detection: ptt ? null : { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
       // PIN the language so the transcriber never guesses (accented English was being read as Japanese);
       // the prompt biases it toward business-workflow vocabulary. AZURE_REALTIME_LANG='' → auto-detect.
       input.transcription = Object.assign({ model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe', prompt: 'A spoken business-workflow interview.' }, VOICE_LANG ? { language: VOICE_LANG } : {});
@@ -1872,9 +1875,10 @@ wss.on('connection', ws => {
         }
         broadcast(w); break;
       }
-      case 'voice:start': {   // Mode 2: open the realtime upstream for this seated member (PTT session)
+      case 'voice:start': {   // Mode 2: open the realtime upstream for this seated member
         if (ws.role !== 'member' || !ws.teamId) return;
         if (!voiceCaps().converse) return send(ws, { type: 'voice:event', event: 'unavailable' });
+        ws.voiceTurn = msg.turn === 'ptt' ? 'ptt' : 'hands';   // ptt = tap-to-send (best for noisy rooms); hands = server-VAD auto-reply
         const team = findTeam(w, ws.teamId);
         if (team) startRealtime(ws, w, team);
         break;
