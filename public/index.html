@@ -3072,7 +3072,12 @@ const VC = {
   ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; this.phaseFor=(typeof state!=='undefined'&&state)?state.state:null; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting'); },
   // the Coach has a DIFFERENT persona+tool per phase (Surface interview vs Rebuild sparring), chosen by the
   // server at session-open. If the phase changes under a live session, restart it so the right persona loads.
-  syncPhase(p){ if(!this.active || this.phaseFor===p) return; this.hangup(); if((p==='surface'||p==='rebuild') && ui.voice && ui.voice.converse) setTimeout(()=>this.ensureSession(),200); },
+  syncPhase(p){ if(!this.active || this.phaseFor===p) return; if((p==='surface'||p==='rebuild') && ui.voice && ui.voice.converse) this.restart(p); else this.hangup(); },
+  // restart the upstream IN PLACE for the new phase's persona — stay 'active' so the warm survives the swap.
+  // The server closes the old upstream (whose 'closed' event we suppress via `restarting`) and opens the new;
+  // the new session's 'ready' re-arms us. Without this, the old session's teardown reset active=false after
+  // the new one opened, so the first Rebuild turn hit a cold handshake.
+  restart(p){ this.phaseFor=p; this.restarting=true; this.ready=false; this.setPhase('connecting'); try{ wsSend({type:'voice:start', turn: ui.voiceTurn}); }catch(_){} clearTimeout(this._restartT); this._restartT=setTimeout(()=>{ this.restarting=false; }, 4000); },
   pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
   // switch turn-taking live (push-to-talk ⇄ hands-free) — re-opens the session so the new turn_detection applies
   switchTurn(){ ui.voiceTurn = ui.voiceTurn==='ptt' ? 'hands' : 'ptt'; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
@@ -3109,9 +3114,9 @@ const VC = {
   onEvent(m){
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
-      else if(m.event==='ready'){ this.ready=true; if(this.active && !this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed but not yet streaming → "Tap to talk" (don't claim we're listening before the mic is on)
-      else if(m.event==='error'){ this.active=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
-      else if(m.event==='closed'){ this.active=false; this.setPhase('idle'); }
+      else if(m.event==='ready'){ this.ready=true; this.active=true; this.restarting=false; clearTimeout(this._restartT); if(!this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed (incl. after a phase restart) → "Tap to talk"; don't claim we're listening before the mic is on
+      else if(m.event==='error'){ this.active=false; this.restarting=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
+      else if(m.event==='closed'){ if(this.restarting) return; this.active=false; this.setPhase('idle'); }   // ignore the OLD upstream's teardown during a phase restart
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
       else if(m.event==='turn-done'){ this._seal(); this.setPhase(this.active && ui.voiceTurn!=='ptt' ? 'listening' : 'idle'); }   // hands-free: back to listening · PTT: idle until the next tap

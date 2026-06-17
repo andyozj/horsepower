@@ -87,6 +87,8 @@ function mockRealtime() {
     const rebTool = J((mock.state.lastSession && mock.state.lastSession.tools) || []);
     ok('phase change RESTARTED the voice session (new upstream opened)', mock.state.sessions > sessBefore, `${sessBefore}→${mock.state.sessions}`);
     ok('Rebuild session = sparring persona + agent tool (intent/outcome locked out)', /retrofit|sparring/i.test(rebInstr) && /"agent"/.test(rebTool) && !/"intent"/.test(rebTool), rebInstr.slice(0, 50));
+    const vc = await A.evaluate(() => ({ active: (typeof VC !== 'undefined') && VC.active, restarting: (typeof VC !== 'undefined') && !!VC.restarting })).catch(() => ({}));
+    ok('Rebuild session stays WARM after the switch (no cold first turn)', vc.active === true && vc.restarting === false, JSON.stringify(vc));
     await A.screenshot({ path: __dirname + '/qa-slicec-shots/converse.png' }).catch(() => {});
   } catch (e) { console.log('converse-ui threw:', e.message.slice(0, 300)); fail++; }
   finally { await b.close(); srv.kill('SIGKILL'); mock.wss.close(); try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
