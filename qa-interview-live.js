@@ -20,6 +20,7 @@ const SCRIPT = [
   "If they don't line up it goes on hold and we chase the supplier by email — that drags for days and we lose early-payment discounts.",
   "The real decision this drives is pay, dispute, or hold — so we capture discounts and never pay a duplicate.",
   "At the end the invoice is settled correctly with a clean audit trail for month-end.",
+  "Ultimately this whole process is FOR the supplier — they need paying correctly and on time so they keep delivering to us.",
   "That's the whole thing.",
 ];
 
@@ -38,7 +39,7 @@ async function main() {
   fac.send(J({ type: 'phase:set', workshopCode: code, phase: 'surface' }));
   await wait(300);
 
-  const convo = [];
+  const convo = [], replies = [];
   let degraded = 0, done = false, turns = 0;
   for (const answer of SCRIPT) {
     convo.push({ role: 'user', content: answer });
@@ -46,6 +47,7 @@ async function main() {
       body: J({ mode: 'surface', interview: true, code, teamId, messages: convo }) }).then(x => x.json());
     turns++;
     if (r.degraded) degraded++;
+    if (!r.degraded && r.reply) replies.push(r.reply);
     convo.push({ role: 'assistant', content: r.reply || '' });
     console.log(`  turn ${turns}${r.degraded ? ' (DEGRADED)' : ''}: ${(r.reply || '').slice(0, 90)}`);
     await wait(500);
@@ -58,7 +60,11 @@ async function main() {
   const personas = of('persona');
   const withCap = personas.filter(p => p.meta && p.meta.capacity && !/^unspecified$/i.test(p.meta.capacity));
   const accountable = personas.filter(p => /accountable/i.test((p.meta || {}).capacity || ''));
+  const served = personas.filter(p => /served/i.test((p.meta || {}).capacity || ''));
   const intent = of('intent')[0], outcome = of('outcome')[0];
+  // plain-prose: the 2026-06-17 fix says surface/interview replies carry no markdown markers.
+  const mdRe = /\*\*|`|(^|\n)\s{0,3}#{1,6}\s|(^|\n)\s{0,3}[-*+]\s/;
+  const mdLeaks = replies.filter(r => mdRe.test(r));
 
   console.log('\n  --- extracted map ---');
   console.log('  personas:', personas.map(p => p.text + (p.meta && p.meta.capacity ? '/' + p.meta.capacity : '/—')).join(' · '));
@@ -72,6 +78,8 @@ async function main() {
     ok('≥3 named people became persona blocks (no one folded into a step)', personas.length >= 3, personas.length);
     ok('most personas have an INFERRED capacity (not left unspecified)', withCap.length >= 3, withCap.map(p => p.text + ':' + p.meta.capacity));
     ok('the on-the-hook person is marked accountable', accountable.length >= 1, accountable.map(p => p.text));
+    ok('the SERVED party (the supplier) was captured as a served persona', served.length >= 1, personas.map(p => p.text + '/' + ((p.meta || {}).capacity || '—')));
+    ok('coach replies are plain prose (no markdown leak)', mdLeaks.length === 0, mdLeaks.map(r => r.slice(0, 80)));
     ok('a distinct intent AND outcome both exist', !!intent && !!outcome, { intent: !!intent, outcome: !!outcome });
     ok('intent is not a restatement of the outcome', intent && outcome && intent.text.trim().toLowerCase() !== outcome.text.trim().toLowerCase(), { i: intent && intent.text, o: outcome && outcome.text });
     ok('the interview reached a hand-off (done)', done, { done, turns });

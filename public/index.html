@@ -3336,16 +3336,31 @@ function typeReveal(container, text){
   (function step(){ if(i>=total){ container.classList.remove('typing'); return; }
     container.textContent+=words[i++]; if(sc) sc.scrollTop=sc.scrollHeight; setTimeout(step, per); })();
 }
+// Coach replies are rendered as plain text (textContent — XSS-safe), so any stray markdown the model
+// emits would show as literal characters (**bold**, `code`, - bullets). Strip it to readable prose.
+// Conservative: only paired/bounded markers + line-leading syntax, so normal text (a*b, client_id) survives.
+function plainText(s){
+  return String(s==null?'':s)
+    .replace(/```([\s\S]*?)```/g, '$1')                      // fenced code → keep contents, drop fences
+    .replace(/`([^`]+)`/g, '$1')                             // inline `code`
+    .replace(/\*\*([^*]+)\*\*/g, '$1')                       // **bold**
+    .replace(/__([^_]+)__/g, '$1')                           // __bold__
+    .replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1$2')   // *italic* (bounded — never a*b)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')                 // [text](url) → text
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')                      // # headings
+    .replace(/^\s{0,3}[-*+]\s+/gm, '• ');                    // - bullets → •
+}
 function bubble(m){
   if(m.role==='farrier') return el('div',{class:'bubble farriernote','data-testid':'farrier-note', html: glyph('g-flag')+'<b>From the Farrier:</b> '+esc(m.content)});
   if(m.role==='system') return el('div',{class:'bubble sys'}, m.content);
   const b=el('div',{class:'bubble '+(m.role==='assistant'?'coach':'user')});
   if(m.name&&m.role!=='assistant') b.append(el('div',{class:'nm'}, m.name));
   if(m.role==='assistant'){ b.append(el('span',{class:'cf', html:coachAvatar(24)}));
-    if(m.ts && freshCoachMsgs.has(m.ts)){ freshCoachMsgs.delete(m.ts); const c=el('div',{class:'lead msgstream'}); b.append(c); setTimeout(()=>typeReveal(c, m.content),0); }   // newly-arrived → stream it in
-    else { const parts=String(m.content).split('\n'); b.append(el('div',{class:'lead'}, parts[0])); if(parts.length>1) b.append(el('div',{}, parts.slice(1).join('\n'))); } }
+    const content = plainText(m.content);
+    if(m.ts && freshCoachMsgs.has(m.ts)){ freshCoachMsgs.delete(m.ts); const c=el('div',{class:'lead msgstream'}); b.append(c); setTimeout(()=>typeReveal(c, content),0); }   // newly-arrived → stream it in
+    else { const parts=String(content).split('\n'); b.append(el('div',{class:'lead'}, parts[0])); if(parts.length>1) b.append(el('div',{}, parts.slice(1).join('\n'))); } }
   else b.append(document.createTextNode(m.content));
-  if(m.role==='assistant'){ const a=el('div',{class:'msgactions'}); a.append(el('button',{onclick:()=>{try{navigator.clipboard.writeText(m.content);}catch(e){} toast('copied');}},'copy'),el('button',{title:'helpful', html:glyph('i-thumb','glyph')+'', onclick:()=>toast('thanks')})); b.append(a); }
+  if(m.role==='assistant'){ const a=el('div',{class:'msgactions'}); a.append(el('button',{onclick:()=>{try{navigator.clipboard.writeText(plainText(m.content));}catch(e){} toast('copied');}},'copy'),el('button',{title:'helpful', html:glyph('i-thumb','glyph')+'', onclick:()=>toast('thanks')})); b.append(a); }
   return b;
 }
 function buildCoachContext(mode){
