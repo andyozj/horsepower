@@ -390,10 +390,6 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .inspector .painchip{display:flex; align-items:center; gap:6px; width:100%; margin-top:8px; padding:5px 9px; font-size:12px; border-radius:8px; border:1.3px dashed var(--line); background:var(--card); color:var(--muted-strong); text-align:left; cursor:pointer}
 .inspector .painchip .glyph{width:13px; height:13px; flex:none}
 .inspector .painchip.on{border:1.3px solid var(--pain); background:var(--wash-pain); color:var(--pain); font-weight:600}
-/* R4b today-baseline side-note (never a gate chip) */
-.baselinestrip{display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin:6px 0 0 2px; font-size:13px; color:var(--muted-strong)}
-.baselinestrip input{width:120px; font-size:12px; padding:3px 7px; border:1.2px solid var(--line); border-radius:7px; background:var(--card)}
-.baselinestrip .caveat{color:var(--red-pen)}
 
 /* orphan tray */
 .orphantray{position:absolute; left:12px; bottom:12px; width:200px; max-height:46%; overflow:auto; background:var(--card); border:1.4px dashed var(--line); border-radius:var(--r-paper); padding:10px; z-index:var(--z-panel); box-shadow:var(--shadow-float)}
@@ -1399,8 +1395,8 @@ let editingLock = false, pendingRender = false;
 // destroy+recreate it mid-typing and wipe uncommitted text. Fields exempt from this list:
 // per-keystroke draft-persisted (.coach-input via ui.coachDraft), document.body-appended
 // modals (lock-challenge — outside the render tree), and non-text controls (range sliders).
-document.addEventListener('focusin', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .baselinestrip input, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')) editingLock=true; });
-document.addEventListener('focusout', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .baselinestrip input, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')){ editingLock=false; if(pendingRender){ pendingRender=false; setTimeout(render,0); } } });
+document.addEventListener('focusin', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')) editingLock=true; });
+document.addEventListener('focusout', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')){ editingLock=false; if(pendingRender){ pendingRender=false; setTimeout(render,0); } } });
 
 function myTeam(){ return state && me.teamId ? state.teams.find(t=>t.id===me.teamId) : null; }
 
@@ -2798,7 +2794,6 @@ function viewSurface(){
   // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.
   if(!converse && handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));   // voice is live → no text verify banner
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
-  cv.querySelector('.scene').append(baselineStrip(t));   // R4b: today's numbers (a side-note, never a gate item)
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
   cv.append(orphanTray(t));
   left.append(cv);
@@ -2880,18 +2875,6 @@ function goalNote(htmlTxt){
   const n=el('div',{class:'goalnote', html: glyph('g-flag')+'<span>'+htmlTxt+'</span>'});
   n.append(el('button',{title:'dismiss', onclick:()=>{ ui[key]=true; n.remove(); }},'×'));
   return n;
-}
-// R4b: a one-line "today" widget (Surface only) — evidence of today, NOT a target. Writes
-// canvas.baseline through the normal canvas:update path; never a gate chip.
-function baselineStrip(t){
-  const b=(t.canvas.baseline)||{frequency:'',cycleTime:''};
-  const wrap=el('div',{class:'baselinestrip','data-testid':'baseline-strip'});
-  wrap.append(el('span',{class:'caveat'},'today (optional): '));
-  const mk=(k,ph,al)=>{ const i=el('input',{placeholder:ph, maxlength:'80', 'aria-label':al, value:b[k]||''});
-    const save=()=>{ const c=t.canvas; c.baseline=c.baseline||{frequency:'',cycleTime:''}; if((c.baseline[k]||'')!==i.value.trim()){ c.baseline[k]=i.value.trim().slice(0,80); wsSend({type:'canvas:update',canvas:c}); } };
-    i.addEventListener('blur',save); let bt; i.addEventListener('input',()=>{clearTimeout(bt);bt=setTimeout(save,900);}); i.addEventListener('keydown',e=>e.stopPropagation()); return i; };
-  wrap.append(el('span',{},'runs '), mk('frequency','e.g. 40×/month','today: how often this workflow runs'), el('span',{},' · takes '), mk('cycleTime','e.g. 3 days','today: how long one cycle takes'));
-  return wrap;
 }
 function orphanTray(t){
   // phones: a collapsed pill that opens as a bottom sheet (screen space is precious)

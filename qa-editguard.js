@@ -47,7 +47,6 @@ const REGISTRY = [
   { name: 'commit-input',      kind: 'protected', selector: '.commitcard textarea', match: { testid: 'commit-input' } },
   { name: 'pulse aha',         kind: 'protected', selector: '.pulsecard textarea',  match: { testid: 'pulse-aha' } },
   { name: 'pulse diff',        kind: 'protected', selector: '.pulsecard textarea',  match: { testid: 'pulse-diff' } },
-  { name: 'baseline strip',    kind: 'protected', selector: '.baselinestrip input', match: { phEquals: 'ph' } },
   { name: 'land-tray note',    kind: 'protected', selector: '.landperson textarea', match: { phIncludes: 'what do they ride' } },
   { name: 'assumption-input',  kind: 'protected', selector: '.assumefloat textarea',match: { testid: 'assumption-input' } },
   { name: 'lobby scratchpad',  kind: 'protected', selector: '.scratch textarea',    match: { testid: 'scratch-input' } },
