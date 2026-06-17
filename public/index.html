@@ -1484,6 +1484,7 @@ function afterState(){
   }
   // rail default open-state per phase: open in Surface (brain-dump is the Coach), collapsed in Rebuild (map is the build)
   if (state && state.state !== railPhase){ railPhase = state.state; ui.railOpen = (state.state==='surface' && !isPhone()); ui.seenChatLen = 0; ui.rosetteShown = false; }
+  if (window.VC && state) VC.syncPhase(state.state);   // swap the voice Coach persona+tool when the phase changes under a live session
   // rosette micro-win: first time the team's gate goes green in Surface
   const mt = myTeam();
   if (me.role==='member' && state && state.state==='surface' && mt && mt.governance && mt.governance.gate.ready){
@@ -3068,7 +3069,10 @@ const VC = {
   _finishYou(text){ let e=this._live('you'); if(!e){ e={role:'you', text:'', done:false}; this.transcript.push(e); } e.text=(text||e.text||''); e.done=true; this.youText=e.text; },
   _seal(){ this.transcript.forEach(e=>{ e.done=true; }); },
   setPhase(p){ this.phase=p; this._render(); },
-  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting'); },
+  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; this.phaseFor=(typeof state!=='undefined'&&state)?state.state:null; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting'); },
+  // the Coach has a DIFFERENT persona+tool per phase (Surface interview vs Rebuild sparring), chosen by the
+  // server at session-open. If the phase changes under a live session, restart it so the right persona loads.
+  syncPhase(p){ if(!this.active || this.phaseFor===p) return; this.hangup(); if((p==='surface'||p==='rebuild') && ui.voice && ui.voice.converse) setTimeout(()=>this.ensureSession(),200); },
   pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
   // switch turn-taking live (push-to-talk ⇄ hands-free) — re-opens the session so the new turn_detection applies
   switchTurn(){ ui.voiceTurn = ui.voiceTurn==='ptt' ? 'hands' : 'ptt'; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
