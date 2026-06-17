@@ -1483,6 +1483,7 @@ Before you speak, silently pick the SINGLE most consequential gap or weak spot f
 
 # Message Channels
 You SPEAK your questions and read-backs aloud. You build the map silently by calling the update_map tool. Never say JSON, tool names, field names, or block types out loud — talk like a human.
+NEVER tell the user to refresh, reload, or restart the page — it drops this live session and loses the whole conversation; if something seems stuck, just keep going. You can't move or arrange blocks yourself; if the map looks messy, tell them to tap the "Tidy up" button on the canvas.
 
 # Preambles
 You're interviewing a TEAM, not one person: several may speak in a turn, building on each other or disagreeing. Briefly tie their points together so each voice feels heard, name any disagreement, THEN ask your one sharp question. Don't let the quiet voice get dropped.
@@ -1537,6 +1538,7 @@ Silently find the single weakest or most retrofit-shaped move and push there. On
 
 # Message Channels
 Speak aloud; build the map silently with the update_map tool. Never read JSON, tool names, or field names out loud.
+NEVER tell the user to refresh, reload, or restart — it drops this live session and loses the conversation; keep going instead. You can't move blocks; if the map looks messy, tell them to tap the "Tidy up" button.
 
 # Preambles
 You're sparring with a TEAM — several may talk at once, iterating and disagreeing. Synthesize what they said so each voice feels heard, name where they disagree, THEN push with one sharp challenge.
@@ -1610,6 +1612,18 @@ function startRealtime(ws, w, team) {
         audio: { input, output: { voice: AZURE_REALTIME_VOICE, format: { type: 'audio/pcm', rate: 24000 } } },
         tools: [rebuild ? REBUILD_MAP_TOOL : UPDATE_MAP_TOOL], tool_choice: 'auto'
       } }));
+      // Seed the session from the DURABLE record (canvas.chat) so a refresh loses the audio, NOT the context,
+      // and from the live map ids so cross-turn connect ops can link to blocks made in earlier turns (#1).
+      try {
+        const cv = rebuild ? team.redesign.canvas : team.canvas;
+        const recent = (cv.chat || []).filter(m => m.role === 'user' || m.role === 'assistant').slice(-12)
+          .map(m => (m.role === 'assistant' ? 'Coach' : 'Team') + ': ' + String(m.content || '').slice(0, 300)).join('\n');
+        const mapSnap = (cv.blocks || []).map(b => `${b.id} = ${b.type}: ${String(b.text || '').slice(0, 60)}`).join('\n');
+        let ctx = '';
+        if (recent) ctx += 'CONVERSATION SO FAR (continue from here — do not repeat your earlier questions):\n' + recent + '\n\n';
+        if (mapSnap) ctx += 'CURRENT MAP (these blocks already exist — use these EXACT ids in connect ops to link to them):\n' + mapSnap;
+        if (ctx) rt.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: ctx.slice(0, 6000) }] } }));
+      } catch (e) { log('rt_seed_failed', { err: String(e.message || e).slice(0, 120) }); }
       send(ws, { type: 'voice:event', event: 'ready' });
     } catch (e) { log('rt_session_failed', { err: String(e.message || e).slice(0, 140) }); }
   });
@@ -1620,10 +1634,18 @@ function startRealtime(ws, w, team) {
     if (t === 'input_audio_buffer.speech_started') return send(ws, { type: 'voice:event', event: 'speech-start' });   // VAD: user started talking
     if (t === 'input_audio_buffer.speech_stopped') return send(ws, { type: 'voice:event', event: 'speech-stop' });    // VAD: user paused → model will reply
     if (t === 'response.output_audio.delta' || t === 'response.audio.delta') return send(ws, { type: 'voice:audio-out', audio: ev.delta });
-    if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') return send(ws, { type: 'voice:coach-text', delta: ev.delta });
+    if (t === 'response.output_audio_transcript.delta' || t === 'response.audio_transcript.delta') { ws._coachBuf = (ws._coachBuf || '') + (ev.delta || ''); return send(ws, { type: 'voice:coach-text', delta: ev.delta }); }
     if (t === 'conversation.item.input_audio_transcription.delta') return send(ws, { type: 'voice:you-text', delta: ev.delta || '' });        // stream the user's words as they're recognized
-    if (t === 'conversation.item.input_audio_transcription.completed') return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });   // final corrected transcript
-    if (t === 'response.done' || t === 'response.completed') return send(ws, { type: 'voice:event', event: 'turn-done' });
+    if (t === 'conversation.item.input_audio_transcription.completed') {
+      const txt = String(ev.transcript || '').trim();
+      if (txt) { const cv = rebuild ? team.redesign.canvas : team.canvas; cv.chat = cv.chat || []; const mem = (team.members || []).find(x => x.id === ws.memberId); cv.chat.push({ role: 'user', name: (mem && mem.name) || '(voice)', content: txt.slice(0, 4000), ts: Date.now() }); if (cv.chat.length > 200) cv.chat = cv.chat.slice(-200); broadcast(w); }   // PERSIST the voice turn → survives refresh, seeds the next session
+      return send(ws, { type: 'voice:you-text', text: ev.transcript || '' });
+    }
+    if (t === 'response.done' || t === 'response.completed') {
+      const reply = String(ws._coachBuf || '').trim(); ws._coachBuf = '';
+      if (reply) { const cv = rebuild ? team.redesign.canvas : team.canvas; cv.chat = cv.chat || []; cv.chat.push({ role: 'assistant', content: reply.slice(0, 4000), ts: Date.now() }); if (cv.chat.length > 200) cv.chat = cv.chat.slice(-200); broadcast(w); }   // PERSIST the Coach's spoken reply as text
+      return send(ws, { type: 'voice:event', event: 'turn-done' });
+    }
     if (t === 'response.function_call_arguments.done' && ev.name === 'update_map') {
       let args; try { args = JSON.parse(ev.arguments || '{}'); } catch { args = {}; }
       if (Array.isArray(args.ops)) { applyOps(rebuild ? team.redesign.canvas : team.canvas, args.ops); broadcast(w); }   // server-applied → reconciler renders live (rebuild → the redesign canvas)

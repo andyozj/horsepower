@@ -1028,13 +1028,6 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 @media (prefers-reduced-motion:reduce){ .voicefull::before{animation:none !important} .vwave .bar{animation:none !important; height:42%} }
 .voicebar{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center}
 /* mic-mode segmented control — both options shown, active filled (intuitive, not an ambiguous toggle) */
-.turnseg{display:inline-flex; align-items:stretch; margin:8px auto 0; border:1.5px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card); box-shadow:var(--shadow-rest)}
-.turnseg .tseg{border:none; background:transparent; padding:7px 18px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px; color:var(--muted-strong); transition:background var(--t-fast,.15s) ease, color var(--t-fast,.15s) ease}
-.turnseg .tseg b{font-family:Fraunces,serif; font-size:13.5px; font-weight:600; font-variation-settings:"opsz" 20}
-.turnseg .tseg .tsub{font-size:10.5px; opacity:.82}
-.turnseg .tseg.on{background:var(--ink); color:var(--paper)}
-.turnseg .tseg:not(.on):hover{background:color-mix(in srgb,var(--ink) 7%, transparent)}
-.turnseg .tseg+.tseg{border-left:1.5px solid var(--line)}
 .vbtn{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:10px 18px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-size:13.5px; color:var(--ink); box-shadow:var(--shadow-rest); cursor:pointer; transition:border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) ease}
 .vbtn:hover{border-color:var(--ink); box-shadow:var(--shadow-hover); transform:translateY(-1px)}
 .vbtn .glyph{width:16px; height:16px}
@@ -2212,6 +2205,23 @@ function makeCanvas(opts){
   const local = { zoom: opts.compact?1:ui.zoom, pan: opts.compact?{x:0,y:0}:ui.pan };
   const root = el('div',{class:'canvaspane'});
 
+  // Tidy up: auto-arrange every block into clean type-lanes (trigger → who → inputs → phases → moments →
+  // agents → intent → outcome), top-to-bottom narrative, evenly spaced, no overlaps. Arrows redraw to fit.
+  function tidy(){
+    const LANES=['trigger','persona','input','phase','moment','agent','intent','outcome'];
+    const COLW=250, ROWH=148, X0=60, Y0=44, BW=210;
+    const byLane={};
+    (c.blocks||[]).forEach(b=>{ const k=LANES.includes(b.type)?b.type:'phase'; (byLane[k]=byLane[k]||[]).push(b); });
+    let lane=0;
+    LANES.forEach(k=>{ const arr=byLane[k]; if(!arr||!arr.length) return;
+      arr.sort((a,b)=>(a.x-b.x)||(a.y-b.y));
+      arr.forEach((b,i)=>{ b.x=X0+i*COLW; b.y=Y0+lane*ROWH; b.w=Math.max(b.w||BW,BW); });
+      lane++; });
+    commit(); draw();
+    local.zoom=1; local.pan.x=0; local.pan.y=0; applyTransform();
+    toast('Map tidied into lanes — drag anything to fine-tune.');
+  }
+
   if (editable){
     const tb = el('div',{class:'toolbar'});
     const tools = ['select','persona','trigger','input','phase','moment','intent','outcome'];
@@ -2227,6 +2237,7 @@ function makeCanvas(opts){
       tb.append(btn);
     });
     tb.append(el('div',{class:'spacer'}));
+    tb.append(el('button',{class:'btn sm ghost', 'data-testid':'tidy-map', title:'Auto-arrange the map into clean lanes', onclick:tidy}, el('span',{html:glyph('i-stroke')}), ' Tidy up'));
     tb.append(el('button',{class:'btn sm ghost', title:'Help', 'aria-label':'Canvas shortcuts help', onclick:showShortcuts},'?'));
     root.append(tb);
     function updateTools(){ tb.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.tool===activeTool)); }
@@ -3081,8 +3092,6 @@ const VC = {
   // the new one opened, so the first Rebuild turn hit a cold handshake.
   restart(p){ this.phaseFor=p; this.restarting=true; this.ready=false; this.setPhase('connecting'); try{ wsSend({type:'voice:start', turn: ui.voiceTurn}); }catch(_){} clearTimeout(this._restartT); this._restartT=setTimeout(()=>{ this.restarting=false; }, 4000); },
   pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
-  // switch turn-taking live (push-to-talk ⇄ hands-free) — re-opens the session so the new turn_detection applies
-  switchTurn(to){ const next = to || (ui.voiceTurn==='ptt' ? 'hands' : 'ptt'); if(next===ui.voiceTurn) return; ui.voiceTurn = next; const was=this.active; if(was){ this.hangup(); } if(typeof render==='function') render(); if(was) setTimeout(()=>this.ensureSession(),150); },
   async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
     if(this.recording){
       if(ui.voiceTurn==='ptt'){ this._stopCapture(); try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
@@ -3178,7 +3187,7 @@ function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
-  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, ui.voiceTurn==='ptt' ? 'Tap the orb to talk — tap again when you’re done, and I’ll reply.' : 'Tap the orb and just talk — I’ll reply when you pause.')));
+  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Tap the orb to talk — tap again when you’re done, and I’ll reply.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
   stage.append(el('div',{class:'orbwrap'}, orb));
@@ -3190,13 +3199,6 @@ function voiceStage(t){
   const panel=el('div',{class:'vpanel glass'}, cap);   // a light glass transcription panel (not a chatbox)
   panel.classList.toggle('empty', !VC.transcript.length);   // hide the frame until there's something to show
   stage.append(panel);
-  // intuitive segmented control — BOTH mic modes visible, the active one filled (not a single ambiguous
-  // button that reads like "tap to enable"). The subtitle above already describes the active mode's behavior.
-  const seg=(mode,label,sub)=>el('button',{class:'tseg'+(ui.voiceTurn===mode?' on':''), 'data-testid': mode==='ptt'?'turn-ptt':'turn-hands', 'aria-pressed': ui.voiceTurn===mode?'true':'false', title: sub, onclick:()=>VC.switchTurn(mode)},
-    el('b',{}, label), el('span',{class:'tsub'}, sub));
-  stage.append(el('div',{class:'turnseg', role:'group', 'aria-label':'How the mic works'},
-    seg('ptt','Push to talk','tap to start & send'),
-    seg('hands','Hands-free','I reply when you pause')));
   const bar=el('div',{class:'voicebar'});
   bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   bar.append(ivSkipBtn(t));
