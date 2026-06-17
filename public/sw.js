@@ -1,6 +1,8 @@
-// public/sw.js — Horsepower app-shell cache. Bump V on every deploy that changes index.html.
+// public/sw.js — Horsepower app-shell cache. Navigation is NETWORK-FIRST (cache only offline), so a deploy
+// is never served stale — the old stale-while-revalidate served the previous index.html on the first reload
+// after every deploy, which kept hiding fresh UI fixes from returning users.
 // Secure-context only (https/localhost); on http-LAN it never registers (see the guard in index.html).
-const V = 'hp-shell-v1';
+const V = 'hp-shell-v3';
 const SHELL = ['/', '/fonts/fraunces-latin-var.woff2', '/fonts/inter-latin-var.woff2',
                '/fonts/caveat-latin-var.woff2', '/manifest.json'];
 
@@ -19,13 +21,12 @@ self.addEventListener('fetch', e => {
   // Rule #8: never let the cache impersonate the server — a stale coach reply is worse than a failure.
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
   if (e.request.mode === 'navigate') {
-    // stale-while-revalidate for the shell: instant offline reload, fresh on the next one (so a forgotten
-    // V bump is a freshness miss, not a correctness bug)
-    e.respondWith(caches.open(V).then(async c => {
-      const hit = await c.match('/');
-      const net = fetch('/').then(r => { if (r.ok) c.put('/', r.clone()); return r; }).catch(() => hit);
-      return hit || net;
-    }));
+    // NETWORK-FIRST: always try the live shell; fall back to cache only when offline. Online users always
+    // get the deployed index.html (no more stale UI after a deploy); offline still gets an instant reload.
+    e.respondWith(
+      fetch('/').then(r => { if (r.ok) caches.open(V).then(c => c.put('/', r.clone())); return r; })
+        .catch(() => caches.open(V).then(c => c.match('/')))
+    );
     return;
   }
   // cache-first for static assets (fonts are immutable per-version)

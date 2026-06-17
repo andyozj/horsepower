@@ -3115,7 +3115,7 @@ const VC = {
     if(m.type==='voice:event'){
       if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
       else if(m.event==='ready'){ this.ready=true; this.active=true; this.restarting=false; clearTimeout(this._restartT); if(!this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed (incl. after a phase restart) → "Tap to talk"; don't claim we're listening before the mic is on
-      else if(m.event==='error'){ this.active=false; this.restarting=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true); console.warn('[voice] error', m.detail||''); }
+      else if(m.event==='error'){ this.active=false; this.restarting=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true, 14000); console.warn('[voice] error', m.detail||''); }   // linger so a config/schema rejection is readable
       else if(m.event==='closed'){ if(this.restarting) return; this.active=false; this.setPhase('idle'); }   // ignore the OLD upstream's teardown during a phase restart
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming

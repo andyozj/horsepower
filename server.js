@@ -1595,13 +1595,14 @@ function startRealtime(ws, w, team) {
       // PTT (tap-to-send) → no server VAD, the client commits the buffer on release; best for a room with
       // several voices. Hands-free → server VAD auto-replies when the speaker pauses (one-person magic).
       const ptt = ws.voiceTurn === 'ptt';
+      // Keep this object MINIMAL — Azure rejects the WHOLE session.update if it carries a field it doesn't
+      // accept, which silently drops our instructions+tools and the Coach degrades to a generic assistant.
+      // (noise_reduction + transcription.prompt were removed for exactly this reason.)
       const input = { format: { type: 'audio/pcm', rate: 24000 },
-        // near_field: tuned for a phone/laptop mic close to the speaker — trims room background + crosstalk
-        noise_reduction: { type: 'near_field' },
         turn_detection: ptt ? null : { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true } };
-      // PIN the language so the transcriber never guesses (accented English was being read as Japanese);
-      // the prompt biases it toward business-workflow vocabulary. AZURE_REALTIME_LANG='' → auto-detect.
-      input.transcription = Object.assign({ model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe', prompt: 'A spoken business-workflow interview.' }, VOICE_LANG ? { language: VOICE_LANG } : {});
+      // PIN the transcription language so it never guesses (accented English was read as Japanese). 'language'
+      // is a documented field; AZURE_REALTIME_LANG='' falls back to auto-detect.
+      input.transcription = Object.assign({ model: AZURE_STT_DEPLOYMENT || 'gpt-4o-mini-transcribe' }, VOICE_LANG ? { language: VOICE_LANG } : {});
       rt.send(JSON.stringify({ type: 'session.update', session: {
         type: 'realtime',                                                                     // GA realtime requires this
         instructions: (rebuild ? (REBUILD_VOICE_INSTRUCTIONS + '\n\nWHAT THEY INHERITED (reference, never read aloud):\n' + rebuildVoiceContext(team)) : VOICE_INSTRUCTIONS) + LANG_LOCK,
