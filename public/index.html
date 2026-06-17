@@ -961,7 +961,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceorb:not(.idle):not(.connecting) .orbmic::after{content:''; width:12px; height:12px; border-radius:3px; background:var(--card)}
 .voiceorb.listening .orbhalo{background:radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--pop,#e23b3b) 36%, transparent) 0%, color-mix(in srgb,var(--pop,#e23b3b) 12%, transparent) 42%, transparent 62%); animation:halobreathe 1.4s ease-in-out infinite}
 .voiceorb.listening .orbmic{background:var(--pop,#e23b3b); transform:scale(1.1)}
-.voiceorb.listening .orbring{opacity:1; animation:ringout 1.6s ease-out infinite}
+.voiceorb.listening .orbring{opacity:1; border-color:color-mix(in srgb,var(--red-pen) 55%, transparent); animation:ringout 1.6s ease-out infinite}
 .voiceorb.listening .orbring.r2{animation-delay:.55s}
 .voiceorb.thinking .orbface{animation:facebob 1.1s ease-in-out infinite}
 .voiceorb.speaking .orbhalo{background:radial-gradient(circle at 50% 44%, color-mix(in srgb,var(--moment-blue,#3b6fe2) 34%, transparent) 0%, color-mix(in srgb,var(--moment-blue,#3b6fe2) 11%, transparent) 42%, transparent 62%); animation:halobreathe 1.9s ease-in-out infinite}
@@ -1027,15 +1027,25 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 /* voice-live corner "coach blob" — orb shrunk to the bottom-right over the full map */
 .voiceblob{position:absolute; right:18px; bottom:18px; z-index:var(--z-panel); display:flex; flex-direction:column; align-items:flex-end; gap:9px; pointer-events:none}
 .voiceblob>*{pointer-events:auto}
-.voiceblob .blobrow{display:flex; align-items:center; gap:13px; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:7px 9px 7px 18px; box-shadow:var(--shadow-float)}
+.voiceblob .blobrow{position:relative; display:flex; align-items:center; gap:14px; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:8px 8px 8px 22px; box-shadow:var(--shadow-float)}
 .voiceblob.live .blobrow{border-color:var(--ink)}
-.voiceblob .blobstatus{font-family:Fraunces,serif; font-size:15px; font-variation-settings:"opsz" 24; white-space:nowrap}
+.voiceblob .blobstatus{font-family:Fraunces,serif; font-size:15px; font-variation-settings:"opsz" 24; white-space:nowrap; color:var(--ink); border:none; background:transparent; padding:0; cursor:pointer; transition:color .15s ease}
+.voiceblob .blobstatus:hover{color:var(--red-pen)}
+/* LISTENING state — make it unmistakable that the Coach is hearing you */
+.voiceblob[data-phase="listening"] .blobrow{border-color:var(--red-pen); box-shadow:var(--shadow-float), 0 0 0 3px color-mix(in srgb,var(--red-pen) 15%, transparent)}
+.voiceblob[data-phase="listening"] .blobstatus{color:var(--red-pen)}
+.voiceblob[data-phase="thinking"] .blobstatus,.voiceblob[data-phase="speaking"] .blobstatus{color:var(--muted-strong)}
+.voiceblob .bloblisten{display:none; align-items:flex-end; gap:2.5px; height:15px; padding-left:2px}
+.voiceblob[data-phase="listening"] .bloblisten{display:inline-flex}
+.voiceblob .bloblisten i{width:3px; height:100%; border-radius:2px; background:var(--red-pen); transform-origin:bottom; animation:eqbar .85s ease-in-out infinite}
+.voiceblob .bloblisten i:nth-child(2){animation-delay:.12s}
+.voiceblob .bloblisten i:nth-child(3){animation-delay:.26s}
+.voiceblob .bloblisten i:nth-child(4){animation-delay:.4s}
+@keyframes eqbar{0%,100%{transform:scaleY(.32)} 50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){ .voiceblob .bloblisten i{animation:none; transform:scaleY(.65)} }
 .voiceblob .blobcap{width:330px; max-width:62vw; max-height:46vh; padding:12px 14px; align-items:stretch; background:var(--card); border:1.5px solid var(--line); border-radius:18px; box-shadow:var(--shadow-float)}
 .voiceblob .blobcap:empty{display:none}
-.voiceblob .blobmin{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; background:transparent; color:var(--muted); cursor:pointer; border-radius:50%; flex:none}
-.voiceblob .blobmin:hover{background:color-mix(in srgb,var(--ink) 8%,transparent); color:var(--ink)}
-.voiceblob .blobmin .glyph{width:15px; height:15px}
-.voiceblob.min .blobrow{padding:6px}   /* just the orb + the expand control */
+.voiceblob.min .blobrow{padding:0; border:none; background:transparent; box-shadow:none}   /* minimized = a single clean avatar orb (its own ring + shadow), tap to re-open */
 /* rebuild launcher: a clean labeled pill — one obvious action (open the Coach) */
 .voiceblob.min.rebuild .blobrow{padding:6px 6px 6px 17px; gap:11px}
 .voiceblob .bloblabel{border:none; background:transparent; cursor:pointer; font-family:Caveat,cursive; font-size:19px; font-weight:600; color:var(--ink); white-space:nowrap; padding:0}
@@ -1048,7 +1058,11 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobsend:hover{background:var(--red-pen)}
 .voiceorb.blobform{position:relative; inset:auto; width:64px; height:64px; flex:none}
 .voiceorb.blobform .orbface{width:54px; height:54px}
-.voiceorb.blobform .orbmic{width:24px; height:24px; bottom:0; right:0; box-shadow:var(--shadow-rest)}
+.voiceorb.blobform .orbmic{width:22px; height:22px; bottom:-1px; right:-1px; box-shadow:var(--shadow-rest); border:2px solid var(--card)}
+/* the "type instead" escape is a quiet secondary link, not a competing bordered chip */
+.voiceblob .blobtype{border:none; background:transparent; color:var(--muted-strong); font-size:12px; padding:4px 12px 0; gap:5px; opacity:.85; margin-right:4px}
+.voiceblob .blobtype:hover{color:var(--ink); background:transparent; opacity:1}
+.voiceblob .blobtype .glyph{width:13px; height:13px}
 .voiceorb.blobform .orbmic .glyph{width:12px; height:12px}
 .voiceorb.blobform .orbhalo{inset:-7px}
 .voiceorb.blobform .orbring{inset:6%}
@@ -2695,12 +2709,17 @@ function voiceCoachBlob(t, opts){
   const open=()=>{ ui.blobMin=false; render(); };
   const row=el('div',{class:'blobrow'});
   if(launch){ row.append(el('button',{class:'bloblabel', onclick:open}, 'Spar with the Coach')); }
-  else {
-    row.append(el('button',{class:'blobmin', title: min?'Show the conversation':'Minimize to the orb', 'aria-label': min?'Show the conversation':'Minimize the Coach', 'data-testid':'blob-min', onclick:()=>{ ui.blobMin=!min; render(); }, html: glyph(min?'i-chev':'i-down')}));
-    if(!min) row.append(el('div',{class:'voicestatus blobstatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to talk'));
+  else if(!min){
+    // a live equalizer that only shows while the Coach is listening — the clear "I'm hearing you" cue
+    const eq=el('span',{class:'bloblisten','aria-hidden':'true'}); for(let i=0;i<4;i++) eq.append(el('i'));
+    row.append(eq);
+    // the label IS the tap target (a big, obvious CTA next to the orb) — no stray icon on the left
+    row.append(el('button',{class:'voicestatus blobstatus', 'data-testid':'voice-status', 'aria-label':'Talk to the Coach — tap to talk or pause', onclick:()=>VC.toggle()}, LB[VC.phase]||'Tap to talk'));
   }
-  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label': launch?'Open the Coach to spar':'Talk to the Coach — tap to talk or pause', onclick:()=> launch ? open() : VC.toggle()});
-  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}), el('span',{class:'orbmic', html:glyph('g-mic')}));
+  // no mic badge: the "Tap to talk" label says the action, and the halo/ring turn red while listening
+  // (consistent with the big voiceStage orb). Minimized = a single clean avatar circle, tap to re-open.
+  const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label': (launch||min)?'Open the Coach':'Talk to the Coach — tap to talk or pause', onclick:()=> (launch||min) ? open() : VC.toggle()});
+  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}));
   row.append(orb);
   blob.append(row);
   if(!min && opts.rebuild){
@@ -2716,7 +2735,7 @@ function voiceCoachBlob(t, opts){
     blob.append(comp);
     blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'open-rail', title:'Open the full Coach chat', onclick:()=>{ ui.railOpen=true; render(); }, html: glyph('g-keys')+'Full chat'}));
   } else if(!min){
-    blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+    blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type instead'}));
   }
   return blob;
 }
@@ -3090,6 +3109,7 @@ const VC = {
   _render(){
     const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
+    document.querySelectorAll('[data-testid=voice-blob]').forEach(b=>{ b.dataset.phase=this.phase; });   // lets the pill show a clear listening/thinking/speaking state
     document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
     document.querySelectorAll('[data-testid=voice-caption]').forEach(cap=>this._paint(cap));
     const dk=document.querySelector('[data-testid=voice-dock]');   // keep the Stage-2 dock mic live too
