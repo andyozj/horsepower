@@ -49,6 +49,10 @@ function mockRealtime() {
     await A.fill('[data-testid=join-name]', 'Ann'); await A.fill('[data-testid=join-code]', code); await A.click('[data-testid=join-btn]');
     await A.waitForSelector('[data-testid=create-team-name]'); await A.fill('[data-testid=create-team-name]', 'AP'); await A.click('[data-testid=create-team-btn]');
     await A.waitForSelector('[data-testid=stable]');
+    // a 2nd team so the swap → Rebuild is allowed (needed to test the persona switch)
+    const Bo = await (await b.newContext()).newPage(); Bo.on('dialog', d => d.accept().catch(() => {}));
+    await Bo.goto(BASE); await Bo.fill('[data-testid=join-name]', 'Bo'); await Bo.fill('[data-testid=join-code]', code); await Bo.click('[data-testid=join-btn]');
+    await Bo.waitForSelector('[data-testid=create-team-name]'); await Bo.fill('[data-testid=create-team-name]', 'ETL'); await Bo.click('[data-testid=create-team-btn]'); await Bo.waitForSelector('[data-testid=stable]');
     await F.click('[data-testid=phase-surface]'); await wait(400);
     await A.waitForSelector('[data-testid=interview-hero]', { timeout: 8000 });
 
@@ -69,6 +73,20 @@ function mockRealtime() {
       try { const t = (typeof state !== 'undefined' && state.teams || []).find(x => x); return !!(t && (t.canvas.blocks || []).some(b => b.type === 'persona' && b.text === 'Voice Clerk')); } catch (e) { return false; }
     }).catch(() => false);
     ok('the Coach\'s update_map tool-call built the block on the live map', built);
+
+    // --- persona SWITCH: advancing to Rebuild must restart the live session with the REBUILD persona+tool ---
+    const surfInstr = (mock.state.lastSession && mock.state.lastSession.instructions) || '';
+    const surfTool = J((mock.state.lastSession && mock.state.lastSession.tools) || []);
+    ok('Surface session = interview persona (Newcomer-check) + intent/outcome tool', /newcomer check/i.test(surfInstr) && /"intent"/.test(surfTool) && !/"agent"/.test(surfTool), surfInstr.slice(0, 50));
+    const sessBefore = mock.state.sessions;
+    await F.click('[data-testid=phase-rebuild]');
+    await F.click('[data-testid=modal-confirm]', { timeout: 4000 }).catch(() => {});   // confirm the swap (styled modal, not a native dialog)
+    await A.waitForSelector('[data-testid=rebuild-canvas]', { timeout: 8000 }).catch(() => {});
+    await wait(2600);   // reveal + syncPhase restart (200ms) + session warm
+    const rebInstr = (mock.state.lastSession && mock.state.lastSession.instructions) || '';
+    const rebTool = J((mock.state.lastSession && mock.state.lastSession.tools) || []);
+    ok('phase change RESTARTED the voice session (new upstream opened)', mock.state.sessions > sessBefore, `${sessBefore}→${mock.state.sessions}`);
+    ok('Rebuild session = sparring persona + agent tool (intent/outcome locked out)', /retrofit|sparring/i.test(rebInstr) && /"agent"/.test(rebTool) && !/"intent"/.test(rebTool), rebInstr.slice(0, 50));
     await A.screenshot({ path: __dirname + '/qa-slicec-shots/converse.png' }).catch(() => {});
   } catch (e) { console.log('converse-ui threw:', e.message.slice(0, 300)); fail++; }
   finally { await b.close(); srv.kill('SIGKILL'); mock.wss.close(); try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
