@@ -1392,6 +1392,22 @@ let editingLock = false, pendingRender = false;
 // modals (lock-challenge — outside the render tree), and non-text controls (range sliders).
 document.addEventListener('focusin', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')) editingLock=true; });
 document.addEventListener('focusout', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')){ editingLock=false; if(pendingRender){ pendingRender=false; setTimeout(render,0); } } });
+// Hold SPACE = push-to-talk in the spoken Coach (release to send). Gated to the voice stage and disabled
+// while typing in a field, so it never hijacks a space you meant to type.
+let _spacePTT=false;
+function _voiceStageLive(){ return ui.voice && ui.voice.converse && ui.voiceMode!=='type' && !!document.querySelector('[data-testid=voice-orb]'); }
+function _isTextField(el){ return el && el.matches && el.matches('input, textarea, select, [contenteditable="true"]'); }
+document.addEventListener('keydown', e=>{
+  if(e.code!=='Space' || e.repeat || _spacePTT) return;
+  if(_isTextField(e.target) || !_voiceStageLive()) return;
+  e.preventDefault(); _spacePTT=true;
+  if(window.VC && !VC.recording) VC.toggle();        // start talking
+}, true);
+document.addEventListener('keyup', e=>{
+  if(e.code!=='Space' || !_spacePTT) return;
+  _spacePTT=false; e.preventDefault();
+  if(window.VC && VC.recording) VC.toggle();          // release → send
+}, true);
 
 function myTeam(){ return state && me.teamId ? state.teams.find(t=>t.id===me.teamId) : null; }
 
@@ -3147,8 +3163,7 @@ const VC = {
     }catch(e){}
   },
   _render(){
-    const ptt = ui.voiceTurn==='ptt';
-    const LB={ idle: ptt?'Tap to talk':'Tap to start talking', connecting:'Connecting…', listening: ptt?'Listening — tap when you’re done':'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
+    const LB={ idle:'Hold space or tap to talk', connecting:'Connecting…', listening:'Listening — release, or tap, to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
     document.querySelectorAll('[data-testid=voice-blob]').forEach(b=>{ b.dataset.phase=this.phase; });   // lets the pill show a clear listening/thinking/speaking state
     document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
@@ -3187,13 +3202,13 @@ function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
-  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Tap the orb to talk — tap again when you’re done, and I’ll reply.')));
+  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Hold the spacebar — or tap the orb — to talk. Release to send.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
   stage.append(el('div',{class:'orbwrap'}, orb));
   const wave=el('div',{class:'vwave','aria-hidden':'true'}); for(let i=0;i<9;i++) wave.append(el('span',{class:'bar', style:'animation-delay:'+(i*0.08).toFixed(2)+'s'}));
   stage.append(wave);   // a listening waveform under the orb — comes alive only while the Coach is hearing you
-  const LB={ idle:'Tap to start talking', connecting:'Connecting…', listening:'Listening — just talk', thinking:'Thinking…', speaking:'Coach is speaking…' };
+  const LB={ idle:'Hold space or tap to talk', connecting:'Connecting…', listening:'Listening — release, or tap, to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
   stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to start talking'));
   const cap=el('div',{class:'voicecaption', 'data-testid':'voice-caption'});
   const panel=el('div',{class:'vpanel glass'}, cap);   // a light glass transcription panel (not a chatbox)
