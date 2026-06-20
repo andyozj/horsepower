@@ -369,7 +369,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .bendhandle{position:absolute; width:11px; height:11px; background:var(--highlighter); border:1.5px solid var(--ink); border-radius:50%; z-index:6; cursor:move}
 .dimbadge{position:absolute; background:var(--ink); color:var(--card); font-size:12px; padding:2px 6px; border-radius:5px; z-index:7; font-variant-numeric:tabular-nums}
 .hintbar{position:absolute; top:8px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--card); font-size:13px; padding:5px 13px; border-radius:999px; z-index:var(--z-canvas-ui); pointer-events:none}
-.viewctl{position:absolute; bottom:12px; right:12px; display:flex; gap:5px; align-items:center; background:var(--card); border:1.4px solid var(--line); border-radius:12px; padding:4px 6px; z-index:var(--z-canvas-ui); box-shadow:var(--shadow-rest)}
+.viewctl{position:absolute; top:12px; bottom:auto; right:12px; display:flex; gap:5px; align-items:center; background:var(--card); border:1.4px solid var(--line); border-radius:12px; padding:4px 6px; z-index:var(--z-canvas-ui); box-shadow:var(--shadow-rest)}
 .viewctl.ingate{position:static; margin-left:auto; border:none; background:none; padding:0}
 .viewctl button{border:none; background:transparent; font-size:16px; width:28px; height:28px; border-radius:6px}
 .viewctl .zlbl{font-size:12px; color:var(--muted); min-width:38px; text-align:center; font-variant-numeric:tabular-nums}
@@ -1070,6 +1070,12 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .voiceblob .blobtype{border:none; background:transparent; color:var(--muted-strong); font-size:12px; padding:4px 12px 0; gap:5px; opacity:.85; margin-right:4px}
 .voiceblob .blobtype:hover{color:var(--ink); background:transparent; opacity:1}
 .voiceblob .blobtype .glyph{width:13px; height:13px}
+/* Talk | Type — two equal modes of the one Coach (segmented), not a big orb + tiny link */
+.voiceblob .modetoggle{display:inline-flex; pointer-events:auto; background:var(--card); border:1.5px solid var(--line); border-radius:999px; padding:3px; box-shadow:var(--shadow-rest); align-self:flex-end}
+.voiceblob .modetoggle .modeopt{display:inline-flex; align-items:center; gap:5px; border:none; background:transparent; color:var(--muted-strong); font-family:Fraunces,serif; font-size:13px; font-variation-settings:"opsz" 20; padding:5px 14px; border-radius:999px; cursor:pointer}
+.voiceblob .modetoggle .modeopt .glyph{width:14px; height:14px}
+.voiceblob .modetoggle .modeopt.active{background:var(--ink); color:var(--paper)}
+.voiceblob .modetoggle .modeopt:not(.active):hover{color:var(--ink)}
 .voiceorb.blobform .orbmic .glyph{width:12px; height:12px}
 .voiceorb.blobform .orbhalo{inset:-7px}
 .voiceorb.blobform .orbring{inset:6%}
@@ -1144,7 +1150,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
   .gatebar{position:fixed; left:0; right:0; bottom:62px; z-index:var(--z-panel); background:var(--card); border-top:1.5px dashed var(--line-soft); padding:6px 8px}
   .toolbar{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent); mask-image:linear-gradient(90deg,#000 88%,transparent)}
   .handle,.bendhandle{width:18px; height:18px}
-  .viewctl{bottom:186px}
+  .viewctl{top:auto; bottom:186px}
   .viewctl button{width:40px; height:40px; font-size:18px}
   /* A2c phone dock: collapsed = a fixed Coach pill above the lanes; open = a bottom sheet over them */
   .coachdock.phonepill{position:fixed; left:auto; right:12px; bottom:236px; z-index:34; background:none; border:none; flex-direction:row}
@@ -2688,6 +2694,7 @@ function makeCanvas(opts){
   mkViewCtl();
 
   draw();
+  root._tidy = tidy;   // exposed so a handoff can auto-arrange a freshly-dumped (colliding) map once
   root._view = ()=>({zoom:local.zoom, pan:{x:local.pan.x, y:local.pan.y}});
   root._fit = (cw,ch,maxScale=1)=>{
     // the fit box covers blocks AND teardown overlay cards (~214×96) — otherwise the
@@ -2792,7 +2799,11 @@ function voiceCoachBlob(t, opts){
     blob.append(comp);
     blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'open-rail', title:'Open the full Coach chat', onclick:()=>{ ui.railOpen=true; render(); }, html: glyph('g-keys')+'Full chat'}));
   } else if(!min){
-    blob.append(el('button',{class:'btn xs ghost blobtype', 'data-testid':'switch-type', title:'Type instead', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type instead'}));
+    // Talk and Type are two equal modes of the SAME Coach — a segmented toggle, not a big orb + tiny link.
+    const tog=el('div',{class:'modetoggle','data-testid':'mode-toggle'});
+    tog.append(el('button',{class:'modeopt active','aria-pressed':'true', title:'Talk to the Coach', onclick:()=>VC.toggle(), html: glyph('g-mic')+'Talk'}));
+    tog.append(el('button',{class:'modeopt','data-testid':'switch-type', title:'Type to the Coach', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+    blob.append(tog);
   }
   return blob;
 }
@@ -2820,17 +2831,24 @@ function viewSurface(){
   if(cv) cv._update({ canvas:t.canvas, gov:t.governance, onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } });
   else { cv = makeCanvas({ canvas:t.canvas, editable:true, mode:'surface', gov:t.governance, testid:'surface-canvas',
     onChange:(c)=>{ wsSend({type:'canvas:update', canvas:c}); } }); canvasCache[ckey]=cv; }
+  // Auto-tidy once when the interview hands off a freshly-built map that's still in a collision pile
+  // (the Coach now dumps many blocks in one turn). The layout is deterministic, so it's safe even if
+  // more than one member fires it; the per-team flag stops it re-running over a manual arrangement, and
+  // a late-joiner sees an already-tidy map (no overlap) so it never clobbers their layout.
+  if(handedOff && !skipped && !(me.ivTidied&&me.ivTidied[t.id]) && mapHasOverlap(t.canvas)){
+    me.ivTidied=me.ivTidied||{}; me.ivTidied[t.id]=true; saveMe();
+    setTimeout(()=>{ try{ cv._tidy && cv._tidy(); }catch(e){} }, 90);
+  }
   // A2c: the Coach's verify hand-off banner — only when it handed off (not on a plain "draw it myself")
   // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.
   if(!converse && handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));   // voice is live → no text verify banner
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
-  cv.append(orphanTray(t));
+  const _ot=orphanTray(t); if(_ot) cv.append(_ot);
   left.append(cv);
   const bar=gateBar(t);
-  // the zoom joins the gate strip (right-aligned) — one bottom band, not a floating
-  // control hovering 12px above it (desktop only; phones keep their fixed lanes)
-  if(!isPhone()){ const vc=cv.querySelector('.viewctl'); if(vc){ vc.classList.add('ingate'); bar.append(vc); } }
+  // zoom now lives top-right of the canvas (in the scene) — out of the way of the gate strip and the
+  // bottom Coach dock; it stays put under pan/zoom because it sits on the scene, not the world.
   left.append(bar);
   left.append(converse && !skipped ? voiceCoachBlob(t) : interviewDock(t));   // voice → corner blob; text → bottom dock
   work.append(left);
@@ -2839,6 +2857,9 @@ function viewSurface(){
 // A2c: client mirror of the server's interviewReady — the map is "captured" (verify-ready) once the
 // core ontology is present. Drives the Stage-1→2 hand-off as a backstop to the server `done` flag.
 function interviewReadyClient(canvas){ return ['trigger','persona','phase','intent','outcome'].every(ty=>(canvas.blocks||[]).some(b=>b.type===ty)); }
+// True if any two blocks sit on top of each other (the applyOps "dump pile" signature) — used to decide
+// whether a handed-off map needs an auto-tidy. A well-spread (manual or already-tidied) map returns false.
+function mapHasOverlap(canvas){ const b=(canvas.blocks||[]); for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){ if(Math.abs((b[i].x||0)-(b[j].x||0))<40 && Math.abs((b[i].y||0)-(b[j].y||0))<40) return true; } return false; }
 // A2c: the Coach's "I mapped it — verify & edit" hand-off banner (advisory).
 function verifyBanner(t){
   const n=el('div',{class:'verifybanner', 'data-testid':'verify-banner', html: coachAvatar(30)+'<span><b>The Coach mapped your workflow.</b> Give it a look — edit anything I got wrong, then you’re set.</span>'});
@@ -2907,6 +2928,12 @@ function goalNote(htmlTxt){
   return n;
 }
 function orphanTray(t){
+  // Don't render the panel at all when there's nothing in it — an empty "parking lot" just floated over
+  // the canvas blocking edits (user feedback). It returns the moment a note is parked or the Coach proposes.
+  const myProps = ui.pendingProposals && ui.pendingProposals.teamId===me.teamId;
+  const myClusters = ui.pendingClusters && ui.pendingClusters.teamId===me.teamId;
+  const hasContent = (t.canvas.orphans||[]).length || myProps || myClusters;
+  if(!isPhone() && !hasContent) return null;
   // phones: a collapsed pill that opens as a bottom sheet (screen space is precious)
   const tray = isPhone()
     ? keepOpen(el('details',{class:'orphantray traysheet'},
@@ -3244,7 +3271,7 @@ function converseTypePanel(t){
     el('button',{class:'btn primary', 'data-testid':'coach-send', onclick:fire},'Send'));
   card.append(comp);
   const foot=el('div',{class:'ivfoot'});
-  if(conv) foot.append(el('button',{class:'vbtn', 'data-testid':'switch-voice', title:'Switch to a spoken conversation', onclick:()=>{ ui.voiceMode='voice'; render(); }, html:glyph('g-mic')+'Conversation'}));
+  if(conv) foot.append(el('button',{class:'vbtn', 'data-testid':'switch-voice', title:'Switch to talking with the Coach', onclick:()=>{ ui.voiceMode='voice'; render(); }, html:glyph('g-mic')+'Talk'}));
   foot.append(ivSkipBtn(t));
   card.append(foot);
   panel.append(card);
