@@ -2143,14 +2143,18 @@ function coachVignette(i){
   return v;
 }
 function viewClosed(){
-  const wrap=el('div',{class:'center-wrap', style:'flex-direction:column; gap:18px'});
+  // top-align (not vertical-center): the closed stack (farewell + keepsake + recap + inputs) can exceed
+  // the viewport, and flex-centering clips the top card off the scrollable area. Start at the top instead.
+  const wrap=el('div',{class:'center-wrap', style:'flex-direction:column; gap:18px; justify-content:flex-start; padding-top:28px'});
   wrap.append(el('div',{class:'card', style:'text-align:center; max-width:420px'}, el('img',{src:'/img/farewell.png', alt:'', 'aria-hidden':'true', style:'width:180px;height:180px;object-fit:contain;display:block;margin:0 auto 6px', onerror:function(){this.remove();}}), el('h2',{},'Workshop closed'), el('p',{class:'meta', style:'margin-top:8px', html:'Thanks for riding. '+glyph('g-horse')})));
   // LEAD with the keepsake (the payoff), not the input cards — a member who already filled their
   // commitment/pulse used to land on collapsed empty space with the race card buried below the fold.
   const t=myTeam();
   if(me.role==='member' && t){
     const rebuilder=(state.teams||[]).find(x=>x.receivedFromTeamId===t.id);
-    const rc=raceCard(t, rebuilder); rc.style.animation='none';
+    // closed: show the keepsake immediately (no scroll-triggered flip here). animation:none alone left
+    // the card at its base opacity:0 → invisible; force opacity:1 so the keepsake actually shows.
+    const rc=raceCard(t, rebuilder); rc.style.animation='none'; rc.style.opacity='1';
     wrap.append(rc);
     const exp=el('div',{class:'row', style:'flex-wrap:wrap; justify-content:center'});
     exp.append(el('button',{class:'btn', 'data-testid':'save-recap', html: glyph('i-down')+' Save my recap', onclick:()=>saveRecap(t)}));
