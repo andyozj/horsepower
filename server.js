@@ -2089,7 +2089,10 @@ wss.on('connection', ws => {
         w.hold = false;                              // any phase change clears a pending "held" reveal beat
         // A2: seed the interview greeting once per team when Surface opens (server-owned → no per-client dup)
         if (w.state === 'surface') w.teams.forEach(tm => { tm.canvas.chat = tm.canvas.chat || []; if (!tm.canvas.chat.some(x => x.role === 'assistant')) tm.canvas.chat.push({ role: 'assistant', content: INTERVIEW_GREETING, ts: Date.now() }); });
-        loadTimer(w, PHASE_TIMER_MIN[w.state] || 0); // each phase resets + pre-loads its suggested length (not started)
+        loadTimer(w, PHASE_TIMER_MIN[w.state] || 0); // each phase resets + pre-loads its suggested length
+        // AUTO-START the countdown for timed phases (Surface/Rebuild/Share) — advancing IS the start, so the
+        // Farrier never forgets a separate Start press. Lobby/Closed (0 min) start nothing. Re-arms on re-entry.
+        if (w.timer.durationMs > 0) { w.timer.endsAt = Date.now() + w.timer.remainingMs; w.timer.running = true; w.timer.expired = false; }
         log('phase', { code: w.code, to: w.state });
         broadcast(w); break;
       }

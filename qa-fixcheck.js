@@ -148,8 +148,8 @@ const ok = (n, c, x) => { if (c) { pass++; console.log('  ✓', n); } else { fai
   ok('E2: no "1 people" anywhere on the race card', !/1 people/.test(rc));
 
   // M: phase-aware share stats on the console
-  const stats = await F.locator('.statrow').textContent().catch(() => '');
-  ok('M: share stats are phase-aware (pairs/reckonings, not "orphans blocking")', /pairs to present/.test(stats) && !/orphans blocking/.test(stats), stats.slice(0, 90));
+  const stats = await F.locator('.stage-sum').textContent().catch(() => '');
+  ok('M: share stats are phase-aware (pairs/reckonings, not parked/orphans)', /pairs/.test(stats) && /reckonings/.test(stats) && !/orphans|parked/.test(stats), stats.slice(0, 90));
 
   await b.close();
   console.log(`\nFIXCHECK ${fail ? '❌' : '✅'} — ${pass} passed, ${fail} failed`);

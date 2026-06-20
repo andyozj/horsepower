@@ -546,6 +546,45 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .needsyou-item:hover{background:rgba(255,255,255,.5)}
 .teamtable tr.needs td:first-child{box-shadow:inset 3px 0 0 var(--thin)}
 .teamtable tr.needs{background:color-mix(in srgb, var(--warn-wash) 55%, var(--card))}
+/* ===== Farrier console redesign (2026-06-20): left rail (control) + monitoring stage ===== */
+.console.cons2col{flex-direction:row; overflow:hidden}
+.farrier-rail{width:276px; flex:none; display:flex; flex-direction:column; gap:13px; padding:16px 14px; background:var(--card); border-right:1.5px solid var(--line-soft); overflow:auto}
+.farrier-stage{flex:1; min-width:0; overflow:auto; padding:18px; display:grid; gap:14px; align-content:start}
+.rail-zone{display:flex; flex-direction:column; gap:9px}
+.rail-zone + .rail-zone{padding-top:13px; border-top:1.5px dashed var(--line-soft)}
+.rail-zlabel{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted-strong)}
+.vstepper{display:flex; flex-direction:column; gap:2px}
+.vstep{display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:9px; font-size:14px; color:var(--muted-strong)}
+.vstep .vdot{width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; background:var(--paper)}
+.vstep .vmin{margin-left:auto; font-size:12px; color:var(--muted)}
+.vstep.done .vdot{background:var(--ok-wash); border-color:var(--ink); color:var(--ink)}
+.vstep.cur{background:var(--paper); color:var(--ink); font-weight:600}
+.vstep.cur .vdot{background:var(--gold); border-color:var(--ink); color:var(--ink)}
+.rail-cta{width:100%; justify-content:center; font-size:15px; padding:12px 18px}
+.rail-timer{display:flex; flex-direction:column; align-items:center; gap:7px; background:var(--paper); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); padding:12px 10px}
+.rail-timer .rt{width:100%}
+.rail-timer .rt-sum{list-style:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px}
+.rail-timer .rt-sum::-webkit-details-marker{display:none}
+.rail-timer .rt-time{font-family:Fraunces,serif; font-size:42px; line-height:1; font-variation-settings:"opsz" 48; font-variant-numeric:tabular-nums}
+.rail-timer .rt-time.low{color:var(--pain)}
+.rail-timer .rt-state{font-size:11px; color:var(--muted-strong); text-transform:uppercase; letter-spacing:.07em}
+.rail-timer .rt-hint{font-size:11px; color:var(--muted)}
+.rail-timer .rt-adjust{display:flex; gap:5px; flex-wrap:wrap; justify-content:center; margin-top:8px}
+.bigscreen-now{font-size:13px; color:var(--muted-strong)}
+.bigscreen-now b{color:var(--ink)}
+.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:7px; font-size:12px; color:var(--muted); padding-top:12px; border-top:1.5px dashed var(--line-soft)}
+.stage-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.stage-head h2{font-size:22px}
+.stage-sum{display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted-strong)}
+.stage-sum b{font-family:Fraunces,serif; font-size:17px; color:var(--ink); margin-right:3px; font-variation-settings:"opsz" 24}
+.stage-section{background:var(--card); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); overflow:hidden}
+.stage-section > summary{cursor:pointer; list-style:none; padding:10px 14px; font-weight:600; font-size:14px; display:flex; gap:8px; align-items:center}
+.stage-section > summary::-webkit-details-marker{display:none}
+.stage-section > summary .ss-chev{margin-left:auto; transition:transform var(--t-fast)}
+.stage-section[open] > summary{border-bottom:1px solid var(--line-soft)}
+.stage-section[open] > summary .ss-chev{transform:rotate(90deg)}
+.stage-section .ss-body{padding:12px 14px}
+@media (max-width:920px){ .console.cons2col{flex-direction:column} .farrier-rail{width:auto; border-right:none; border-bottom:1.5px solid var(--line-soft)} .rail-foot{flex-direction:row; flex-wrap:wrap; gap:12px} }
 .amend-compare{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:7px; max-width:560px}
 .amend-compare .ac-col{border-radius:10px; padding:7px 10px; font-size:13px}
 .amend-compare .ac-col.locked{border:1.5px dashed var(--lock); color:var(--lock); background:var(--wash-lock)}
@@ -1534,6 +1573,8 @@ setInterval(()=>{
     bt.textContent = timerExpired() ? 'TIME' : ((state&&state.timer&&state.timer.durationMs>0) ? fmtTimer() : '—:—');
   }
   if(timerActive()){ const txt=timerText(); const t=$('#timerlive'); if(t){ t.textContent=txt; t.classList.toggle('elapsed', timerExpired()); } if(bt && !bt.classList.contains('war')) bt.textContent= timerExpired()&&bt.classList.contains('throne') ? 'TIME' : txt; const pc=$('#polishclock'); if(pc) pc.textContent=txt+' on the room clock'; }
+  // Farrier rail clock — clean time only (state word is rendered beside it)
+  { const rt=$('#railtime'); if(rt){ rt.textContent = timerExpired()?'0:00':(timerActive()?fmtTimer():'—:—'); rt.classList.toggle('low', timerLow()); } }
   // gentle "final furlong" nudge for participants
   if(me.role==='member'){ if(timerLow()){ if(!furlongShown){ furlongShown=true; toast('Final furlong — start wrapping up.', true); } } else furlongShown=false; }
 },1000);
@@ -1622,7 +1663,7 @@ function topbar(){
   }
   if (state){
     bar.append(el('span',{class:'codechip', title:'workshop code'}, state.code));
-    if (me.role==='farrier' && me.hostKey) bar.append(el('span',{class:'meta'}, 'host'), el('span',{class:'codechip', style:'font-size:14px;border-color:var(--lock);color:var(--lock)'}, me.hostKey));
+    // Farrier: host code + room-view + end-workshop now live in the console's left rail (not this bar)
   }
   bar.append(el('div',{class:'spacer'}));
   if (state && timerStarted() && me.role!=='farrier') bar.append(el('span',{class:'timer'+(timerLow()?' low':'')+(timerExpired()?' elapsed':''), id:'timerlive'}, timerText()));
@@ -1631,10 +1672,8 @@ function topbar(){
   if (t && me.role==='member' && state && (state.state==='lobby'||state.state==='surface') && (state.teams||[]).length>1){
     bar.append(el('button',{class:'btn subtle sm', title:'wrong stable? move yourself', onclick:()=>switchStable(t)},'switch stable'));
   }
-  if (me.role==='farrier'){
-    bar.append(el('button',{class:'btn sm ghost', onclick:()=>{ui.roomView=!ui.roomView; render();}, 'data-testid':'toggle-room'}, ui.roomView?'← Console':'Open room view'));
-    if (state && state.state!=='closed') bar.append(el('button',{class:'btn sm ghost endws', 'data-testid':'end-workshop', title:'End the workshop for everyone', onclick:async()=>{ if(await confirmModal('Teams keep their export and take-home recap. This stops the live room for everyone (you can re-host later).', {title:'End the workshop?', confirmText:'End workshop', danger:true})) wsSend({type:'phase:set', phase:'closed'}); }}, 'End workshop'));
-  }
+  // Farrier room-view toggle + End workshop moved into the console rail (farrierRail). The slim top
+  // bar now carries only brand + workshop code, so the rail owns all control.
   return bar;
 }
 function switchStable(t){
@@ -4368,60 +4407,101 @@ async function stepBack(){
   if(!await confirmModal('Use only to fix a misclick — teams’ work is kept.', {title:'Step back to '+prev+'?', confirmText:'Step back'})) return;
   wsSend({type:'phase:set', phase:prev});
 }
-function runBar(){
+// the left rail — persistent control: run-of-show stepper · the one next-step CTA + auto-timer ·
+// the Big-screen (projector) zone · footer (host code / end / join line). Replaces the old top run bar.
+const PHASE_MIN_LABEL={ lobby:'', surface:'20m', rebuild:'30m', share:'10m', closed:'' };
+function farrierRail(){
   const cur=state.state;
-  const expired=timerExpired();
-  const steps=[['lobby','Lobby'],['surface','Surface'],['rebuild','Rebuild'],['share','Share']];
+  const rail=el('div',{class:'farrier-rail', role:'navigation', 'aria-label':'Run of show'});
+  // ── NAVIGATE: vertical run-of-show stepper
+  const steps=[['lobby','Lobby'],['surface','Surface'],['rebuild','Rebuild'],['share','Share'],['closed','Closed']];
   const curIdx=steps.findIndex(s=>s[0]===cur);
-  const bar=el('div',{class:'runbar'+(state.hold?' holding':'')});
-  const stepper=el('div',{class:'stepper', 'data-testid':'stepper'});
+  const nav=el('div',{class:'rail-zone'});
+  nav.append(el('div',{class:'rail-zlabel'},'Run of show'));
+  const step=el('div',{class:'vstepper', 'data-testid':'stepper'});
   steps.forEach(([ph,lbl],i)=>{
-    const status = cur==='closed' ? 'done' : (i<curIdx?'done':(i===curIdx?'cur':'todo'));
-    stepper.append(el('div',{class:'step '+status}, el('span',{class:'dot'}, status==='done'?'✓':String(i+1)), el('span',{class:'lbl'}, lbl)));
-    if(i<steps.length-1) stepper.append(el('div',{class:'steparrow'+(i<=curIdx-1||cur==='closed'?' done':'')}));
+    const status = i<curIdx?'done':(i===curIdx?'cur':'todo');
+    const row=el('div',{class:'vstep '+status});
+    row.append(el('span',{class:'vdot'}, status==='done'?'✓':String(i+1)), el('span',{}, lbl));
+    if(PHASE_MIN_LABEL[ph]) row.append(el('span',{class:'vmin'}, PHASE_MIN_LABEL[ph]));
+    step.append(row);
   });
-  bar.append(stepper);
-  // 3-zone bar: stepper | the CTA is the HERO, centered | join line + timer utility.
-  // No wrapping — the primary control never drops below the stepper.
-  const hero=el('div',{class:'runactions runhero'});
+  nav.append(step);
+  rail.append(nav);
+  // ── ACT: the one next-step CTA + hold + step-back, then the auto-starting timer
+  const act=el('div',{class:'rail-zone'});
   const cta=primaryCTA();
   if(cta){
-    const ctaBtn=el('button',{class:'btn primary runcta'+(cta.held?' held':'')+(expired&&!cta.disabled?' nudge':''), 'data-testid':'phase-'+cta.next, disabled: cta.disabled?'':null, title: cta.disabled?cta.reason:'', onclick:()=>doAdvance(cta)}, cta.html?null:cta.label);
+    const expired=timerExpired();
+    const ctaBtn=el('button',{class:'btn primary runcta rail-cta'+(cta.held?' held':'')+(expired&&!cta.disabled?' nudge':''), 'data-testid':'phase-'+cta.next, disabled: cta.disabled?'':null, title: cta.disabled?cta.reason:'', onclick:()=>doAdvance(cta)}, cta.html?null:cta.label);
     if(cta.html) ctaBtn.innerHTML=cta.html;
-    hero.append(ctaBtn);
-    if(cta.disabled && cta.reason) hero.append(el('span',{class:'ctareason'}, cta.reason));
-    else if(expired) hero.append(el('span',{class:'ctareason'}, 'time’s up — advance when ready, or load more time'));
-  } else {
-    hero.append(el('span',{class:'meta'}, 'workshop closed'));
-  }
-  // 2-step reveal control (Surface only): Hold the room ("pens down"), then the CTA becomes "Reveal the swap".
-  // If never pressed, the flow is identical to the one-step advance (backward compatible).
-  if(cur==='surface' && cta && !cta.disabled){
-    if(state.hold) hero.append(el('button',{class:'btn subtle sm', 'data-testid':'unhold', title:'let the room keep editing', html: glyph('i-play')+' resume editing', onclick:()=>wsSend({type:'farrier:hold',on:false})}));
-    else hero.append(el('button',{class:'btn ghost sm', 'data-testid':'hold-room', title:'Pens down — freeze the room, then reveal on your cue', html: glyph('i-pause')+' Hold the room', onclick:()=>wsSend({type:'farrier:hold',on:true})}));
-  }
-  if(curIdx>0 && cur!=='closed') hero.append(el('button',{class:'btn subtle sm', 'data-testid':'step-back', onclick:stepBack}, '↩ step back'));
-  bar.append(hero);
-  const util=el('div',{class:'runactions runutil'});
-  // the join line, always one glance away ("what's the link again?")
-  util.append(el('span',{class:'roomlink', title:'what participants type', onclick:()=>{ try{navigator.clipboard.writeText(JOIN_HOST+' · code '+state.code);}catch(e){} toast('Join line copied.'); }}, JOIN_HOST+' · '+state.code));
-  util.append(timerControls());
-  bar.append(util);
-  return bar;
+    act.append(ctaBtn);
+    if(cta.disabled && cta.reason) act.append(el('span',{class:'ctareason', style:'text-align:center'}, cta.reason));
+    else if(expired) act.append(el('span',{class:'ctareason', style:'text-align:center'}, 'time’s up — advance when ready'));
+    // 2-step reveal (Surface only) — Hold the room ("pens down"), then the CTA becomes "Reveal the swap"
+    if(cur==='surface' && !cta.disabled){
+      if(state.hold) act.append(el('button',{class:'btn subtle sm', style:'width:100%', 'data-testid':'unhold', title:'let the room keep editing', html: glyph('i-play')+' resume editing', onclick:()=>wsSend({type:'farrier:hold',on:false})}));
+      else act.append(el('button',{class:'btn ghost sm', style:'width:100%', 'data-testid':'hold-room', title:'Pens down — freeze the room, then reveal on your cue', html: glyph('i-pause')+' Hold the room', onclick:()=>wsSend({type:'farrier:hold',on:true})}));
+    }
+  } else act.append(el('span',{class:'meta', style:'text-align:center'}, 'workshop closed'));
+  if(curIdx>0 && cur!=='closed') act.append(el('button',{class:'btn subtle sm', style:'width:100%', 'data-testid':'step-back', onclick:stepBack}, '↩ step back'));
+  act.append(railTimer());
+  rail.append(act);
+  // ── BIG SCREEN (the projector / "second screen")
+  const big=el('div',{class:'rail-zone'});
+  big.append(el('div',{class:'rail-zlabel', html: glyph('g-flag')+' Big screen'}));
+  big.append(el('div',{class:'bigscreen-now', html:'On the wall: <b>'+esc(bigScreenNow())+'</b>'}));
+  big.append(el('button',{class:'btn sm primary', style:'width:100%', title:'opens the room view in a new window — drag it onto the projector', html: glyph('i-play')+' Open big screen ↗', onclick:openBigScreen}));
+  // Share: choose WHAT to project (folds the present-picker in here)
+  if(cur==='share') big.append(presentPicker());
+  big.append(el('button',{class:'btn sm ghost', style:'width:100%', 'data-testid':'toggle-room', title:'no second screen? flip THIS screen to the projector view', onclick:()=>{ui.roomView=!ui.roomView; render();}}, ui.roomView?'← Console':'Flip this screen instead'));
+  rail.append(big);
+  // ── FOOTER: host code · end workshop · join line
+  const foot=el('div',{class:'rail-foot'});
+  if(me.hostKey) foot.append(el('div',{}, 'co-host code ', el('b',{'data-testid':'host-code', style:'color:var(--lock); font-family:Fraunces,serif'}, me.hostKey)));
+  foot.append(el('span',{class:'roomlink', title:'what participants type', style:'cursor:pointer', onclick:()=>{ try{navigator.clipboard.writeText(JOIN_HOST+' · code '+state.code);}catch(e){} toast('Join line copied.'); }}, JOIN_HOST+' · '+state.code));
+  if(cur!=='closed') foot.append(el('button',{class:'btn sm ghost endws', style:'align-self:flex-start', 'data-testid':'end-workshop', title:'End the workshop for everyone', onclick:async()=>{ if(await confirmModal('Teams keep their export and take-home recap. This stops the live room for everyone (you can re-host later).', {title:'End the workshop?', confirmText:'End workshop', danger:true})) wsSend({type:'phase:set', phase:'closed'}); }}, 'End workshop'));
+  rail.append(foot);
+  return rail;
 }
-function timerControls(){
-  const t = state.timer || {};
-  const loadedMin = Math.round((t.durationMs||0)/60000);
-  const wrap=el('div',{class:'timerctl', 'data-testid':'timer'});
-  [6,10,20,30].forEach(m=> wrap.append(el('button',{class:'btn sm ghost timerpreset'+(loadedMin===m && !t.running ? ' loaded':''), 'data-testid':'timer-'+m, title:'load '+m+' min', onclick:()=>wsSend({type:'timer:set',minutes:m})}, m+'m')) );
-  const custom=el('input',{type:'number', min:'1', max:'180', placeholder:'custom', title:'custom minutes', 'aria-label':'custom minutes', 'data-testid':'timer-custom', style:'width:62px; padding:5px 6px; font-size:12px'});
+function bigScreenNow(){
+  const s=state.state;
+  if(s==='lobby') return 'Lobby code';
+  if(s==='surface'||s==='rebuild') return 'War-room (blurred maps)';
+  if(s==='share'){ if(state.presentingPairId){ const pt=state.teams.find(x=>x.id===state.presentingPairId); const po=pt&&state.teams.find(x=>x.id===pt.receivedFromTeamId); return (po?po.name:'?')+' → '+(pt?pt.name:'?')+' reveal'; } return 'Gallery (all pairs)'; }
+  if(s==='closed') return 'Closed';
+  return '—';
+}
+function openBigScreen(){
+  const w=window.open(location.pathname+'?screen=room', 'hp-bigscreen', 'width=1280,height=800');
+  if(!w){ toast('Allow pop-ups to open the big screen — or use “Flip this screen”.', true); return; }
+  toast('Big-screen window opened — drag it onto the projector.');
+}
+// the auto-starting timer for the rail: big countdown + state word, tap to reveal presets/custom/reset.
+function railTimer(){
+  const t=state.timer||{};
+  if(state.state==='lobby'||state.state==='closed') return el('span',{style:'display:none'});
+  const wrap=el('div',{class:'rail-timer'});
+  const det=el('details',{class:'rt'}); if(ui.timerAdjustOpen) det.setAttribute('open','');
+  det.addEventListener('toggle',()=>{ ui.timerAdjustOpen=det.open; });
+  const sum=el('summary',{class:'rt-sum', title:'tap to change the time'});
+  sum.append(el('div',{class:'rt-time'+(timerLow()?' low':''), id:'railtime'}, timerExpired()?'0:00':(timerActive()?fmtTimer():'—:—')));
+  const word = timerExpired()?'time’s up' : (t.running?'running' : (t.durationMs>0 && t.remainingMs<t.durationMs && t.remainingMs>0 ? 'paused' : (t.durationMs>0?'ready':'—')));
+  sum.append(el('div',{class:'rt-state'}, word));
+  sum.append(el('div',{class:'rt-hint'}, 'tap to adjust ▾'));
+  det.append(sum);
+  // keep class 'timerctl' so the editingLock matcher + qa-editguard registry (.timerctl input) still hold
+  const adj=el('div',{class:'rt-adjust timerctl', 'data-testid':'timer'});
+  const loadedMin=Math.round((t.durationMs||0)/60000);
+  [6,10,20,30].forEach(m=> adj.append(el('button',{class:'btn sm ghost timerpreset'+(loadedMin===m && !t.running ? ' loaded':''), 'data-testid':'timer-'+m, title:'set '+m+' min', onclick:()=>wsSend({type:'timer:set',minutes:m})}, m+'m')) );
+  const custom=el('input',{type:'number', min:'1', max:'180', placeholder:'min', title:'custom minutes', 'aria-label':'custom minutes', 'data-testid':'timer-custom', style:'width:54px; padding:4px 6px; font-size:12px'});
   custom.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=Number(custom.value); if(v>0){ wsSend({type:'timer:set',minutes:v}); custom.value=''; } } });
-  wrap.append(custom);
-  wrap.append(el('span',{class:'timer'+(timerLow()?' low':''), id:'timerlive', style:'min-width:64px; text-align:center'}, timerActive()?timerText():'—:—'));
-  if(t.durationMs>0 && !t.running && t.remainingMs===t.durationMs && state.state!=='lobby' && state.state!=='closed') wrap.append(el('span',{class:'ctareason'},'clock loaded — Start when ready'));
-  if(t.running){ wrap.append(el('button',{class:'btn sm', 'data-testid':'timer-pause', html: glyph('i-pause')+' Pause', onclick:()=>wsSend({type:'timer:pause'})})); }
-  else { wrap.append(el('button',{class:'btn sm primary', 'data-testid':'timer-start', disabled:(t.remainingMs>0?null:''), title:(t.remainingMs>0?'start the countdown':'load a duration first'), html: glyph('i-play')+' Start', onclick:()=>wsSend({type:'timer:start'})})); }
-  wrap.append(el('button',{class:'btn sm subtle', 'data-testid':'timer-reset', title:'reset to the loaded duration', 'aria-label':'Reset the timer', onclick:()=>wsSend({type:'timer:reset'})}, '↺'));
+  adj.append(custom);
+  adj.append(el('button',{class:'btn sm subtle', 'data-testid':'timer-reset', title:'reset to the loaded duration', 'aria-label':'Reset the timer', onclick:()=>wsSend({type:'timer:reset'})}, '↺'));
+  det.append(adj);
+  wrap.append(det);
+  if(t.running) wrap.append(el('button',{class:'btn sm', style:'width:100%', 'data-testid':'timer-pause', html: glyph('i-pause')+' Pause', onclick:()=>wsSend({type:'timer:pause'})}));
+  else wrap.append(el('button',{class:'btn sm primary', style:'width:100%', 'data-testid':'timer-start', disabled:(t.remainingMs>0?null:''), title:(t.remainingMs>0?'start the countdown':'load a duration first'), html: glyph('i-play')+' Start', onclick:()=>wsSend({type:'timer:start'})}));
   return wrap;
 }
 function consoleLobby(){
@@ -4431,10 +4511,10 @@ function consoleLobby(){
   const card=el('div',{class:'card anim-rise', style:'max-width:640px; margin:0 auto; text-align:center'});
   card.append(el('img',{src:'/img/farrier-setup.png', alt:'', 'aria-hidden':'true', style:'width:150px;height:150px;object-fit:contain;display:block;margin:0 auto 4px', onerror:function(){this.remove();}}));
   card.append(el('h2',{},'Set up your room'));
-  card.append(el('p',{class:'meta', style:'margin:6px 0 18px'},'Share the code below. Teams assemble, then hit Start Surface above.'));
+  card.append(el('p',{class:'meta', style:'margin:6px 0 18px'},'Share the code below. Teams assemble, then hit Start Surface in the rail on the left.'));
   card.append(el('div',{class:'meta'},'join code'));
   card.append(el('div',{class:'fraunces', style:'font-size:64px; letter-spacing:.14em; font-weight:600; line-height:1; font-variation-settings:"opsz" 96,"WONK" 1'}, state.code));
-  card.append(el('p',{class:'meta', style:'margin-top:10px'}, 'go to ', el('b',{}, JOIN_HOST), ' · or ', el('b',{}, 'Open room view'), ' (top-right) for the projector'));
+  card.append(el('p',{class:'meta', style:'margin-top:10px'}, 'go to ', el('b',{}, JOIN_HOST), ' · or ', el('b',{}, 'Open big screen'), ' (left rail) for the projector'));
   card.append(el('p',{class:'meta', style:'margin-top:4px'}, 'co-hosts join with host code ', el('b',{style:'color:var(--lock)'}, me.hostKey||'····')));
   const teams=state.teams||[];
   const tl=el('div',{class:'row', style:'flex-wrap:wrap; justify-content:center; gap:10px; margin-top:18px'});
@@ -4454,9 +4534,10 @@ const RUNSCRIPT={
 };
 function runScript(){
   const sc=RUNSCRIPT[state.state]; if(!sc) return el('span',{});
-  const card=el('details',{class:'runscript'}); if(ui.scriptOpen!==false) card.setAttribute('open','');
+  // collapsed by DEFAULT now (it was an always-on wall of text above every phase); opt-in via the disclosure
+  const card=el('details',{class:'runscript stage-section'}); if(ui.scriptOpen===true) card.setAttribute('open','');
   card.addEventListener('toggle',()=>{ ui.scriptOpen=card.open; });
-  card.append(el('summary',{}, el('span',{class:'eye'}, sc.eye), el('span',{class:'meta', style:'margin-left:auto'},'run-of-show cues')));
+  card.append(el('summary',{}, el('span',{class:'eye'}, sc.eye), el('span',{class:'meta', style:'margin-left:auto'},'run-of-show cues'), el('span',{class:'ss-chev', html:glyph('i-chev')})));
   const body=el('div',{class:'rs-body'});
   body.append(el('div',{class:'rs-row'}, el('b',{},'Say now'), el('span',{}, sc.say)));
   body.append(el('div',{class:'rs-row'}, el('b',{},'Watch for'), el('span',{}, sc.watch)));
@@ -4486,23 +4567,31 @@ function needsYou(teams){
   return items;
 }
 function viewConsole(){
-  const con=el('div',{class:'console'});
+  const con=el('div',{class:'console cons2col'});
+  con.append(farrierRail());
+  const stage=el('div',{class:'farrier-stage'});
   // R3: dry-run banner (Farrier-only; state.sandbox is server truth). Leak-safe copy.
   if(state && state.sandbox){
-    con.append(el('div',{class:'sandbox-banner', role:'note'},
+    stage.append(el('div',{class:'sandbox-banner', role:'note'},
       el('b',{html: glyph('i-play')+' Dry-run room'}),
-      el('span',{}, ' — nothing here is a live workshop; only you can see it. Step through with the run-bar button below. Use the first map as your worked example; don’t project the later phases to a room that will be participants.')));
+      el('span',{}, ' — nothing here is a live workshop; only you can see it. Step through with the rail buttons on the left. Use the first map as your worked example; don’t project the later phases to a room that will be participants.')));
   }
-  con.append(runBar());
-  con.append(runScript());
-  if(ui.drillTeamId){ con.append(drillDown()); return con; }
-  if(state.state==='lobby'){ con.append(consoleLobby()); return con; }
-  const dash=el('div',{class:'dash'});
+  if(ui.drillTeamId){ stage.append(drillDown()); con.append(stage); return con; }
+  if(state.state==='lobby'){ stage.append(consoleLobby()); con.append(stage); return con; }
   const teams=state.teams||[];
   const ready=teams.filter(t=>t.gateGreen).length;
   const capturing=teams.filter(t=>!t.gateGreen&&state.state==='surface').length;
   const orphans=teams.reduce((s,t)=>s+(t.governance?t.governance.orphans:0),0);
   const openReck=teams.reduce((n,t)=>n+((t.redesign&&t.redesign.assumptions)||[]).filter(a=>a.status==='open').length,0);
+  // stage header: phase + a COMPACT summary line (replaces the four oversized stat tiles)
+  const head=el('div',{class:'stage-head'});
+  head.append(el('h2',{}, ({surface:'Surface · mapping',rebuild:'Rebuild · the swap is live',share:'Share · reveal & present',closed:'Closed'})[state.state]||'Console'));
+  const sum=el('div',{class:'stage-sum'});
+  const chip=(n,l)=>sum.append(el('span',{}, el('b',{}, String(n)), l));
+  if(state.state==='share'||state.state==='closed'){ chip(teams.length,'teams'); chip(teams.filter(t=>t.receivedFromTeamId).length,'pairs'); chip(openReck,'reckonings open'); }
+  else { chip(teams.length,'teams'); chip(ready,'redesign-ready'); if(state.state==='surface') chip(capturing,'still capturing'); chip(orphans,'parked'); }
+  head.append(sum); stage.append(head);
+  // ⚠ Needs you — pinned at the top of the stage
   const needs=needsYou(teams);
   if(needs.length){
     const ny=el('div',{class:'needsyou'});
@@ -4510,22 +4599,10 @@ function viewConsole(){
     needs.forEach(it=> ny.append(el('div',{class:'needsyou-item', onclick:()=>{ui.drillTeamId=it.t.id;render();}},
       el('span',{class:'statustag '+(it.sev==='high'?'blocked':'building')}, it.sev),
       el('b',{}, esc(it.t.name)), ' — '+it.why, el('span',{class:'meta', style:'margin-left:auto'},'open ›'))));
-    dash.append(ny);
+    stage.append(ny);
   }
   const needsIds=new Set(needs.map(i=>i.t.id));
-  const statrow=el('div',{class:'statrow'});
-  if(state.state==='share'||state.state==='closed'){
-    const pairs=teams.filter(t=>t.receivedFromTeamId).length;
-    statrow.append(stat(teams.length,'teams','g-horse'), stat(pairs,'pairs to present','g-stamp'), stat(openReck,'reckonings open','g-bulb'), stat(teams.reduce((n,t)=>n+((t.redesign&&t.redesign.canvas.blocks)||[]).filter(b=>b.type==='agent').length,0),'agent blocks built','g-bolt'));
-  } else {
-    statrow.append(stat(teams.length,'teams','g-horse'), stat(ready,'redesign-ready','g-flag'), stat(capturing,'still capturing','g-trigger'), stat(orphans,'orphans blocking','g-pin'));
-  }
-  dash.append(statrow);
-  // R2.4: exit-pulse + commitment results board (Farrier-private; never projected — rule #2)
-  if(state.state==='share'||state.state==='closed') dash.append(pulseBoard());
-  // Slice C: the retrofit-detector board — live from rebuild onward (Farrier-private)
-  if(state.state==='rebuild'||state.state==='share'||state.state==='closed') dash.append(shapeBoard());
-
+  const dash=stage;   // the rest of the dashboard lives on the stage
   const table=el('table',{class:'teamtable'});
   table.append(el('tr',{}, el('th',{},'Team'), el('th',{},'Online'), el('th',{},'Progress'), el('th',{},'Flags'), el('th',{},'Status'), el('th',{},'Coach read')));
   teams.forEach(t=>{
@@ -4572,33 +4649,32 @@ function viewConsole(){
     dash.append(box);
   }
 
-  if(state.state==='share'){
-    const box=el('div',{class:'card'});
-    box.append(el('h3',{},'Pick who presents (Before/After on the room view)'));
-    ui.presented = ui.presented || {};
-    if(state.presentingPairId){
-      const pt=teams.find(x=>x.id===state.presentingPairId); const po=pt&&teams.find(x=>x.id===pt.receivedFromTeamId);
-      ui.presented[state.presentingPairId]=true;
-      const now=el('div',{class:'nowpresenting'});
-      now.append(el('div',{class:'np-line', html: glyph('g-flag')+'On the projector: <b>'+esc(po?po.name:'?')+' → '+esc(pt?pt.name:'?')+'</b>'}));
-      const ctl=el('div',{class:'row'});
-      ctl.append(el('button',{class:'btn sm subtle', onclick:()=>wsSend({type:'present:set',teamId:null})},'Clear projector'));
-      const order=teams.filter(x=>x.receivedFromTeamId);
-      const next=order.find(x=>!ui.presented[x.id]);
-      if(next) ctl.append(el('button',{class:'btn sm primary', onclick:()=>wsSend({type:'present:set',teamId:next.id})},'Next pair ›'));
-      now.append(ctl);
-      box.append(now);
-    }
-    const pr=el('div',{class:'row', style:'flex-wrap:wrap; margin-top:8px'});
-    // R10: drop the whole room to the gallery wall (present:set teamId:null — already server-supported).
-    pr.append(el('button',{class:'btn sm'+(!state.presentingPairId?' primary':''), 'data-testid':'present-gallery', title:'Show every pair on the wall at once — every team already has its own fate on their screen', html: glyph('g-flag')+' Gallery (show all)', onclick:()=>{wsSend({type:'present:set',teamId:null});}}));
-    teams.filter(t=>t.receivedFromTeamId).forEach(t=>{ const orig=teams.find(x=>x.id===t.receivedFromTeamId);
-      const done=ui.presented[t.id] && state.presentingPairId!==t.id;
-      pr.append(el('button',{class:'btn sm'+(state.presentingPairId===t.id?' primary':'')+(done?' wasshown':''), 'data-testid':'present-pick', onclick:()=>{wsSend({type:'present:set',teamId:t.id});}}, (done?'✓ ':'')+(orig?orig.name:'?')+' → '+t.name)); });
-    box.append(pr); dash.append(box);
-  }
-  con.append(dash);
+  // exit pulse + commitments, and the retrofit-detector board (Farrier-private; never projected — rule #2)
+  if(state.state==='share'||state.state==='closed') dash.append(pulseBoard());
+  if(state.state==='rebuild'||state.state==='share'||state.state==='closed') dash.append(shapeBoard());
+  // run-of-show cues — collapsed by default now, at the bottom (no longer an always-on wall of text)
+  dash.append(runScript());
+  con.append(stage);
   return con;
+}
+// the present-picker ("what to flash on the big screen") — lives in the rail's Big-screen zone at Share
+function presentPicker(){
+  const teams=state.teams||[];
+  ui.presented = ui.presented || {};
+  if(state.presentingPairId) ui.presented[state.presentingPairId]=true;
+  const box=el('div',{style:'display:flex; flex-direction:column; gap:5px; margin:2px 0'});
+  box.append(el('div',{class:'rail-zlabel'},'Show on the wall'));
+  box.append(el('button',{class:'btn sm'+(!state.presentingPairId?' primary':''), 'data-testid':'present-gallery', title:'every pair on the wall at once', html: glyph('g-flag')+' Gallery (all)', onclick:()=>wsSend({type:'present:set',teamId:null})}));
+  teams.filter(t=>t.receivedFromTeamId).forEach(t=>{ const orig=teams.find(x=>x.id===t.receivedFromTeamId);
+    const done=ui.presented[t.id] && state.presentingPairId!==t.id;
+    box.append(el('button',{class:'btn sm'+(state.presentingPairId===t.id?' primary':'')+(done?' wasshown':''), 'data-testid':'present-pick', style:'text-align:left', title:'flash this pair on the wall', onclick:()=>wsSend({type:'present:set',teamId:t.id})}, (done?'✓ ':'')+(orig?orig.name:'?')+' → '+t.name)); });
+  if(state.presentingPairId){ const order=teams.filter(x=>x.receivedFromTeamId); const next=order.find(x=>!ui.presented[x.id]);
+    const ctl=el('div',{class:'row', style:'margin-top:2px'});
+    if(next) ctl.append(el('button',{class:'btn sm subtle', onclick:()=>wsSend({type:'present:set',teamId:next.id})},'Next ›'));
+    ctl.append(el('button',{class:'btn sm subtle', onclick:()=>wsSend({type:'present:set',teamId:null})},'Clear'));
+    box.append(ctl);
+  }
+  return box;
 }
 function stat(n,l,g){ const s=el('div',{class:'stat', style:'--rot:'+seededRot('st'+l,0.7)+'deg'}); if(g) s.append(el('span',{class:'stat-g', html:glyph(g)})); s.append(el('div',{class:'n'}, String(n)), el('div',{class:'l'}, l)); return s; }
 function whisper(t){
@@ -4791,6 +4867,9 @@ function viewRoom(){
 //==================================================================
 // boot
 //==================================================================
+// projector window (the "second screen"): ?screen=room boots a Farrier straight into the room view.
+// It's a normal 2nd Farrier socket (multi-Farrier is supported) — the console window stays put.
+if (me.role==='farrier' && me.code && /[?&]screen=room\b/.test(location.search)) ui.roomView = true;
 if (me.code){ connect(); }
 render();
 
