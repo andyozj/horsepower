@@ -2412,6 +2412,34 @@ function makeCanvas(opts){
           si.addEventListener('keydown',e=>e.stopPropagation());
           insp.append(si);
         }
+        // redesign-critical capture: what FORCES this element (real rule vs habit) — the eliminate-vs-keep
+        // signal the rebuild pressure-tests. Segmented, toggles off on re-click. Constraint-bearing blocks only.
+        if(['persona','input','phase','moment','agent'].includes(sb.type)){
+          insp.append(el('label',{},'what forces it?'));
+          const fr=el('div',{class:'cap-seg', 'data-testid':'inspector-forces'});
+          [['law','a law / regulation'],['external-party','an outside party requires it'],['physics','physical reality'],['policy','our own policy (changeable)'],['habit','just how it’s done']].forEach(([fv,t])=>{
+            fr.append(el('button',{class:'capb'+(((sb.meta&&sb.meta.forces)===fv)?' on':''), title:t, onclick:e=>{e.stopPropagation(); sb.meta=sb.meta||{}; sb.meta.forces=(sb.meta.forces===fv?'':fv); commit(); draw();}}, fv));
+          });
+          insp.append(fr);
+        }
+        // redesign-critical capture: frequency + stakes on steps and the decision — what later decides
+        // automate-vs-keep-human. Same debounce+blur+stopPropagation idiom as WHY/system (editingLock holds).
+        if(['phase','moment','intent'].includes(sb.type)){
+          insp.append(el('label',{},'how often?'));
+          const fq=el('input',{class:'sysin freqin','data-testid':'inspector-freq', placeholder:'e.g. ~50/day · monthly · rare', maxlength:'60'});
+          fq.value=(sb.meta&&sb.meta.freq)||'';
+          const commitFq=()=>{ const v=fq.value.trim().slice(0,60); if(((sb.meta&&sb.meta.freq)||'')!==v){ sb.meta=sb.meta||{}; sb.meta.freq=v; commit(); } };
+          fq.addEventListener('blur',commitFq); let fqT; fq.addEventListener('input',()=>{ clearTimeout(fqT); fqT=setTimeout(commitFq,900); });
+          fq.addEventListener('keydown',e=>e.stopPropagation());
+          insp.append(fq);
+          insp.append(el('label',{},'what breaks if it’s wrong?'));
+          const stk=el('input',{class:'sysin stakesin','data-testid':'inspector-stakes', placeholder:'who gets the angry call?', maxlength:'200'});
+          stk.value=(sb.meta&&sb.meta.stakes)||'';
+          const commitStk=()=>{ const v=stk.value.trim().slice(0,200); if(((sb.meta&&sb.meta.stakes)||'')!==v){ sb.meta=sb.meta||{}; sb.meta.stakes=v; commit(); } };
+          stk.addEventListener('blur',commitStk); let stkT; stk.addEventListener('input',()=>{ clearTimeout(stkT); stkT=setTimeout(commitStk,900); });
+          stk.addEventListener('keydown',e=>e.stopPropagation());
+          insp.append(stk);
+        }
         // pain-point toggle (methodology rule #1: moments/steps "flaggable as pain points").
         // Was display-only — b.pain styled the node + fed the teardown's areas-of-concern, but the
         // participant UI had NO affordance to SET it (only the QA suites injected it). This is it.

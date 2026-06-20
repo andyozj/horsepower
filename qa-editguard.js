@@ -44,6 +44,8 @@ const REGISTRY = [
   { name: 'node label',        kind: 'protected', selector: '.node .label[contenteditable="true"]', match: { nodeLabel: true } },
   { name: 'inspector WHY',     kind: 'protected', selector: '.inspector textarea',  match: { testid: 'inspector-why' } },
   { name: 'inspector system',  kind: 'protected', selector: '.inspector .sysin',    match: { testid: 'inspector-system' } },
+  { name: 'inspector freq',    kind: 'protected', selector: '.inspector .sysin',    match: { testid: 'inspector-freq' } },
+  { name: 'inspector stakes',  kind: 'protected', selector: '.inspector .sysin',    match: { testid: 'inspector-stakes' } },
   { name: 'commit-input',      kind: 'protected', selector: '.commitcard textarea', match: { testid: 'commit-input' } },
   { name: 'pulse aha',         kind: 'protected', selector: '.pulsecard textarea',  match: { testid: 'pulse-aha' } },
   { name: 'pulse diff',        kind: 'protected', selector: '.pulsecard textarea',  match: { testid: 'pulse-diff' } },

@@ -243,6 +243,10 @@ function sanitizeMeta(m) {
   if (m.why != null)     out.why = str(m.why, CONFIG.MAX_WHY);
   if (m.capacity != null) out.capacity = str(m.capacity, 80);
   if (m.system != null)  out.system = str(m.system, 80);   // R4a: "which system/data this lives in"
+  // redesign-critical capture (research-grounded): the raw material the rebuild needs to actually redesign.
+  if (m.forces != null)  out.forces = str(m.forces, 24);   // what forces it: law|external-party|physics|policy|habit (real vs habit → eliminate-vs-keep)
+  if (m.freq != null)    out.freq = str(m.freq, 60);       // how often it runs/decides (volume → automate-vs-augment, triage)
+  if (m.stakes != null)  out.stakes = str(m.stakes, 200);  // what breaks / who catches it when wrong (failure path → autonomy gate)
   if (m.author && typeof m.author === 'object')
     out.author = { n: str(m.author.n, CONFIG.MAX_NAME), c: str(m.author.c, 16) };
   // NOTE: meta.lockField deliberately dropped — re-asserted server-side for true locks (redesign:update)
@@ -618,22 +622,37 @@ function buildTeardown(canvas) {
   const outcome = (blocksOfType(canvas, 'outcome')[0] || {}).text || '';
   const trigger = (blocksOfType(canvas, 'trigger')[0] || {}).text || '';
   const inputs = blocksOfType(canvas, 'input').map(i => i.text).filter(Boolean);
-  const pains = canvas.blocks.filter(b => b.pain).map(b => b.text).filter(Boolean);
+  const painBlocks = canvas.blocks.filter(b => b.pain && b.text);
 
-  // areas of concern: re-express pains as problems, never steps
-  const areasOfConcern = pains.map(p => ({
-    text: deStep(p),
-    why: 'a friction point flagged in the original — solve the problem, not the step'
+  // areas of concern: re-express pains as problems, never steps — now carrying the captured
+  // frequency + stakes (how often it hurts, what breaks when it's wrong) so the redesign can
+  // triage by impact and size the autonomy gate, not just see a bare friction label.
+  const areasOfConcern = painBlocks.map(b => ({
+    text: deStep(b.text),
+    why: 'a friction point flagged in the original — solve the problem, not the step',
+    freq: (b.meta && b.meta.freq) || null,
+    stakes: (b.meta && b.meta.stakes) || null
   }));
 
-  // candidate constraints: personas + their captured WHY/capacity
+  // candidate constraints: personas + their captured WHY/capacity + the captured forcing-nature
+  // (real rule vs habit) as raw material — the receiving team still routes it themselves (rule #5),
+  // but arrives knowing what the original claimed forces the role to exist.
   const candidateConstraints = personas.map(p => ({
     id: 'c-' + (p.id || newId(4)),
     text: p.text,
     capacity: (p.meta && p.meta.capacity) || 'unspecified',
     why: (p.meta && p.meta.why) || 'claimed in capture — pressure-test whether this is a real constraint or just HOW',
+    forces: (p.meta && p.meta.forces) || null,
     verdict: 'candidate'
   }));
+
+  // elimination candidates: steps/checks the original flagged as forced only by policy or habit
+  // (movable) — the prime "eliminate before automate" targets for the rebuild. Never step-leaked
+  // verbatim (de-stepped), problem-framed like the areas of concern.
+  const eliminationCandidates = canvas.blocks
+    .filter(b => (b.type === 'phase' || b.type === 'moment') && b.meta && /^(policy|habit)$/i.test(b.meta.forces || ''))
+    .map(b => ({ text: deStep(b.text), forces: b.meta.forces }))
+    .slice(0, 20);
 
   // people inventory: full roster — role + capacity + abstracted WHY, NEVER step-attached
   const people = personas.map(p => ({
@@ -652,9 +671,13 @@ function buildTeardown(canvas) {
     .filter((v, i, a) => a.findIndex(x => x.system.toLowerCase() === v.system.toLowerCase()) === i)  // dedupe
     .slice(0, 30);
 
+  const intentBlock = blocksOfType(canvas, 'intent')[0] || {};
   return {
     brief: {
-      need: { intent, trigger },
+      need: { intent, trigger,
+        // the decision's own cadence + stakes — drives automate-vs-keep-human on the core decision
+        decisionFreq: (intentBlock.meta && intentBlock.meta.freq) || null,
+        decisionStakes: (intentBlock.meta && intentBlock.meta.stakes) || null },
       want: { outcome, personas: personas.filter(p => /accountable|approve|served|decide/i.test((p.meta && p.meta.capacity) || '')).map(p => p.text) },
       inputs,
       // R4b: the "today costs X" anchor — evidence of the original's today, NEVER a target/ROI bar for the rebuild
@@ -663,6 +686,7 @@ function buildTeardown(canvas) {
     },
     areasOfConcern,
     candidateConstraints,
+    eliminationCandidates,
     people,
     systems,
     glossary: canvas.glossary || [],
@@ -738,7 +762,7 @@ function performSwap(w) {
       teardown: source.teardown,
       peopleLandings: (source.teardown.people || []).map(p => ({ personId: p.id, role: p.role, capacity: p.capacity, outcome: null, note: '', coachFlag: null, coachReq: null })),
       // Slice C: constraint-routing ledger — seeded from the candidate constraints, routed real/habit in Rebuild.
-      constraints: (source.teardown.candidateConstraints || []).map(c => ({ id: c.id, text: c.text, why: c.why || '', source: null, movable: null, status: 'open', coachFlag: null, ts: Date.now() })),
+      constraints: (source.teardown.candidateConstraints || []).map(c => ({ id: c.id, text: c.text, why: c.why || '', capturedForces: c.forces || null, source: null, movable: null, status: 'open', coachFlag: null, ts: Date.now() })),
       assumptions: [],     // {id, text, status:'open'|'confirmed'|'busted'}
       amendments: [],      // {field, from, to, ts}
       notes: ''
@@ -967,8 +991,8 @@ If they ask who you are, what this is, or what to do, answer in one short line (
 You are given the CURRENT MAP (block ids + labels). Return ONLY JSON, no prose:
 {"reply":"<your next single question or steer, <=2 sentences>","ops":[ <map edits> ],"done":false}
 Op types (key to existing ids; use a tmpId for a new block you connect in the same turn):
-  {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<the reason it exists, if they gave one>","capacity":"operates|accountable|served|informed (personas only)"}
-  {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true}
+  {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<the reason it exists, if they gave one>","capacity":"operates|accountable|served|informed (personas only)","forces":"law|external-party|physics|policy|habit (what forces this to exist, if clear)","freq":"<how often it runs/decides, if said>","stakes":"<what breaks / who catches it when wrong, for pain or decisions>"}
+  {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true,"forces?":"…","freq?":"…","stakes?":"…"}
   {"op":"connect","from":"<id|tmpId>","to":"<id|tmpId>"}
   {"op":"remove","id":"<existing id>"}
 EXTRACTION RULES — get these right, they are the whole point:
@@ -978,7 +1002,7 @@ EXTRACTION RULES — get these right, they are the whole point:
 3. INTENT vs OUTCOME are different blocks and must stay distinct. Intent = the DECISION the work drives ("decide pay, dispute, or hold") — never an artifact ("a report") and never a restatement of the outcome. Outcome = what is TRUE at the end ("invoice settled, clean audit trail"). If you have one but not the other, ask the question that gets the missing one.
 4. WHY: attach the reason to a block whenever they give one, even loosely ("because over £10k a slip is material"). Pursue the WHY behind load-bearing steps and roles.
 5. CONNECT the flow — don't leave blocks floating when you have the context to link them. Use connect ops to wire: the trigger → the first phase; each phase → the next in sequence; the persona who owns/does a phase → that phase; each input → the phase where it's used; and the final phase → the intent → the outcome. Only link what they actually implied; never invent a connection you're unsure of, but a block you clearly understand should not sit unconnected.
-6. CAPTURE FOR THE REDESIGN — this map will be torn down and rebuilt AI-native, so a thin map makes a real redesign impossible. While you interview, for the LOAD-BEARING elements (pain-flagged steps, the key decision points, the accountable role, any check/approval) capture into that block's "why": what FORCES it — a real rule (a law / a regulator / an external party / physics) versus just habit ("that's how it's done" = habit; say so). For a pain point or a decision, also fold into its why how OFTEN it happens and what BREAKS / who gets the angry call when it goes wrong (this is what later decides automate-vs-keep-human). Mark genuine friction with pain:true. Don't interrogate every block — hunt this only where it's load-bearing, and never let it hold up the hand-off.
+6. CAPTURE FOR THE REDESIGN — this map will be torn down and rebuilt AI-native, so a thin map makes a real redesign impossible. While you interview, for the LOAD-BEARING elements (pain-flagged steps, the key decision points, the accountable role, any check/approval) set the structured fields, not just prose: "forces" = what makes it exist — "law" / "external-party" / "physics" (real) vs "policy" / "habit" (movable); "that's how it's done" is habit. For a pain point or a decision, set "freq" (how often it happens) and "stakes" (what breaks / who gets the angry call when it's wrong) — that is exactly what later decides automate-vs-keep-human. Mark genuine friction with pain:true. Don't interrogate every block — hunt this only where it's load-bearing, and never let it hold up the hand-off.
 Set "done": true ONLY once the workflow is fully captured — a trigger, EVERY named person as a persona WITH a capacity (including the SERVED party — whoever the work is ultimately for), the inputs, the phases/moments, a real intent (a decision) AND a distinct outcome. When you set done:true, your reply is a short warm hand-off ("That’s your workflow mapped — take a look and fix anything I got wrong."). Until then, done:false and keep interviewing.
 Rules: never invent content they didn't say; one intent and one outcome at most; a correction ("X is actually Y") is an UPDATE to that block, never a new one.
 EMIT EVERYTHING THEY JUST SAID THIS TURN — do NOT cap yourself at a few ops. If they describe the whole workflow in one breath (a run-on answer), output ALL of it in this turn: every person as a persona, every input, every phase/moment, AND the intent and the outcome if they stated them. Capturing intent/outcome the moment they're said is mandatory — never let them slip because the turn was long. ${SECRECY}`;
@@ -1120,15 +1144,20 @@ function applyOps(canvas, ops) {
       if (op.tmpId != null) tmp[String(op.tmpId)] = id;
       const col = ['persona','trigger','input'].includes(op.type) ? 0 : (op.type === 'intent' || op.type === 'outcome') ? 2 : 1;
       canvas.blocks.push({ id, type: op.type, x: 80 + col * 280, y: 70 + (placed % 6) * 96, w: 180, h: 58,
-        text: str(op.text, CONFIG.MAX_TEXT), meta: sanitizeMeta({ why: op.why, capacity: op.capacity }) });
+        text: str(op.text, CONFIG.MAX_TEXT), pain: op.pain === true || undefined,
+        meta: sanitizeMeta({ why: op.why, capacity: op.capacity, forces: op.forces, freq: op.freq, stakes: op.stakes }) });
       placed++;
     } else if (op.op === 'update') {
       const b = canvas.blocks.find(x => x.id === str(op.id, 40));
       if (!b || b.locked) continue;
       if (op.text != null) b.text = str(op.text, CONFIG.MAX_TEXT);
       if (op.pain === true) b.pain = true;
-      if (op.why != null || op.capacity != null) b.meta = sanitizeMeta(Object.assign({}, b.meta,
-        { why: op.why != null ? op.why : (b.meta || {}).why, capacity: op.capacity != null ? op.capacity : (b.meta || {}).capacity }));
+      if (op.why != null || op.capacity != null || op.forces != null || op.freq != null || op.stakes != null) b.meta = sanitizeMeta(Object.assign({}, b.meta, {
+        why: op.why != null ? op.why : (b.meta || {}).why,
+        capacity: op.capacity != null ? op.capacity : (b.meta || {}).capacity,
+        forces: op.forces != null ? op.forces : (b.meta || {}).forces,
+        freq: op.freq != null ? op.freq : (b.meta || {}).freq,
+        stakes: op.stakes != null ? op.stakes : (b.meta || {}).stakes }));
     } else if (op.op === 'connect') {
       const from = tmp[String(op.from)] || str(op.from, 40), to = tmp[String(op.to)] || str(op.to, 40);
       const have = new Set(canvas.blocks.map(b => b.id));
@@ -1483,6 +1512,9 @@ const UPDATE_MAP_TOOL = {
     type: { type: 'string', enum: ['persona', 'trigger', 'input', 'phase', 'moment', 'intent', 'outcome'] },
     text: { type: 'string' }, why: { type: 'string' },
     capacity: { type: 'string', enum: ['operates', 'accountable', 'served', 'informed'] },
+    forces: { type: 'string', enum: ['law', 'external-party', 'physics', 'policy', 'habit'], description: 'what forces this to exist (real rule vs habit) — for load-bearing steps/checks/roles' },
+    freq: { type: 'string', description: 'how often it runs/decides — for pain points and decisions' },
+    stakes: { type: 'string', description: 'what breaks / who catches it when wrong — for pain points and decisions' },
     pain: { type: 'boolean' }, from: { type: 'string' }, to: { type: 'string' }
   }, required: ['op'] } } }, required: ['ops'] }
 };

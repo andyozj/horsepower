@@ -56,8 +56,8 @@ async function main() {
     ok('team seated in surface', !!room.canvas, room.teamId);
 
     nextReply = { reply: 'Who actually owns this?', ops: [
-      { op: 'add', tmpId: 't1', type: 'persona', text: 'Analyst' },
-      { op: 'add', tmpId: 't2', type: 'phase', text: 'Reconcile' },
+      { op: 'add', tmpId: 't1', type: 'persona', text: 'Analyst', forces: 'habit' },
+      { op: 'add', tmpId: 't2', type: 'phase', text: 'Reconcile', pain: true, freq: 'daily', stakes: 'late month-end close' },
       { op: 'connect', from: 't1', to: 't2' }
     ] };
     const r1 = await callInterview(room.code, room.teamId, 'finance reviews invoices monthly');
@@ -66,6 +66,12 @@ async function main() {
     const c1 = room.canvas();
     ok('add ops created 2 blocks server-side', (c1.blocks || []).length === 2, (c1.blocks || []).map(b => b.type));
     ok('connect op created an arrow (tmpIds resolved)', (c1.arrows || []).length === 1, c1.arrows);
+    // redesign-critical structured capture survives the op → sanitizeMeta path
+    const pBlk = (c1.blocks || []).find(b => b.type === 'persona');
+    const phBlk = (c1.blocks || []).find(b => b.type === 'phase');
+    ok('add op set meta.forces (real-vs-habit constraint signal)', pBlk && pBlk.meta && pBlk.meta.forces === 'habit', pBlk && pBlk.meta);
+    ok('add op set meta.freq + meta.stakes (automate-vs-augment signals)', phBlk && phBlk.meta && phBlk.meta.freq === 'daily' && /late month-end/.test(phBlk.meta.stakes || ''), phBlk && phBlk.meta);
+    ok('add op set pain:true via interview op', phBlk && phBlk.pain === true, phBlk && phBlk.pain);
 
     const pid = c1.blocks.find(b => b.type === 'persona').id;
     nextReply = { reply: 'noted', ops: [{ op: 'update', id: pid, text: 'Senior Analyst', why: 'pulls the numbers' }] };
