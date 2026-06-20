@@ -2218,17 +2218,19 @@ app.get('/api/diff/:code/:teamId', (req, res) => {
   res.json(buildDiff(original.canvas, rebuilder.redesign.canvas, rebuilder.redesign.locked));
 });
 
-// Boot: restore the durable store, THEN listen. A Postgres init failure is logged loudly and surfaced on
-// /api/health (db:'postgres-error') but never blocks startup — the room still runs in-memory (rule #8).
-bootStore()
-  .catch(e => log('boot_store_failed', { db: USE_PG, err: e.message }))
-  .finally(() => {
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
-      console.log(`Store: ${USE_PG ? (pgReady ? 'Postgres (durable)' : 'Postgres CONFIGURED BUT UNREACHABLE — running in-memory, NOT durable') : `local file (${DATA_FILE})`}`);
-      console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
-      if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
-    });
-  });
+// Boot: start LISTENING IMMEDIATELY so the health check passes even when Postgres is slow to connect.
+// Previously listen() was gated behind bootStore() (await pgInit + pgLoad) — a slow PG boot (Azure cold
+// start / network latency, up to the 10s connect timeout) delayed listen past Render's health-check
+// window, so the deploy reported "==> Timed Out" and rolled back. Now the durable store loads in the
+// BACKGROUND and MERGES into the in-memory Map (bootStore only set()s, never clears — a room created in
+// the brief load window survives). /api/health returns 200 regardless of DB state, so the probe passes.
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Horsepower 🐎 running on http://0.0.0.0:${PORT}`);
+  console.log(`AI Coach: ${AI_PROVIDER ? `LIVE (${AI_PROVIDER}: ${AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : ANTHROPIC_MODEL})` : 'OFFLINE — rule-based governance + question bank (the room still runs)'}`);
+  if (ALLOWED_ORIGINS.length) log('ws_origin_allowlist', { origins: ALLOWED_ORIGINS, note: 'browser connections restricted to these origins; non-browser clients (no Origin header) are still admitted' });
+  bootStore()
+    .then(() => console.log(`Store: ${USE_PG ? (pgReady ? 'Postgres (durable)' : 'Postgres CONFIGURED BUT UNREACHABLE — running in-memory, NOT durable') : `local file (${DATA_FILE})`}`))
+    .catch(e => log('boot_store_failed', { db: USE_PG, err: e.message }));
+});
 
 module.exports = { app, server, governance, buildTeardown, performSwap, buildDiff };
