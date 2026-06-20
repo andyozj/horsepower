@@ -52,7 +52,7 @@ async function drop(page, tool, text) {
     await F.click('[data-testid=host-btn]');
     await F.waitForSelector('.codechip', { timeout: 8000 });
     const code = (await F.textContent('.codechip')).trim();
-    const hostKey = (await F.locator('.codechip').nth(1).textContent()).trim();
+    const hostKey = (await F.locator('[data-testid=host-code]').textContent()).trim();
     console.log('  workshop', code);
 
     // ---- two members, two teams ----

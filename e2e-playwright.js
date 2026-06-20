@@ -61,8 +61,8 @@ async function emptySpot(page, sceneSel, fallback) {
     await F.waitForSelector('.codechip', { timeout: 8000 });
     const code = (await F.textContent('.codechip')).trim();
     ok('host mints a 6-letter workshop code', /^[A-Z0-9]{6}$/.test(code), code);
-    const hostKeyShown = await F.locator('.codechip').nth(1).textContent().catch(() => '');
-    ok('private host code shown on the console', !!hostKeyShown && hostKeyShown.trim().length === 8, hostKeyShown);
+    const hostKeyShown = await F.locator('[data-testid=host-code]').textContent().catch(() => '');
+    ok('private host code shown on the console (rail footer)', !!hostKeyShown && hostKeyShown.trim().length === 8, hostKeyShown);
     ok('console shows the honest phase sequence incl. Rebuild (Farrier-only)', /Rebuild/.test(await F.textContent('[data-testid=stepper]')));
     ok('lobby gives ONE clear next step (Start Surface CTA)', await F.locator('[data-testid=phase-surface].runcta').count() === 1);
     ok('no step-back in the lobby (nothing to go back to)', await F.locator('[data-testid=step-back]').count() === 0);
@@ -227,12 +227,15 @@ async function emptySpot(page, sceneSel, fallback) {
     await F.screenshot({ path: SHOTS + '/05-farrier-mirror.png' });
     await F.click('text=← all teams');
 
-    // timer — load → start → pause (per-phase, with an explicit Start)
-    ok('Surface pre-loads its default length (Start, not auto-run)', await F.locator('[data-testid=timer-start]').count() === 1);
-    await F.click('[data-testid=timer-10]'); await wait(200);   // load 10m
+    // timer — AUTO-STARTS on phase advance (console redesign 2026-06-20): running on entry, Pause shown.
+    ok('Surface auto-starts the timer on phase advance (running on entry)', await F.locator('[data-testid=timer-pause]').count() === 1);
+    ok('running timer broadcasts to the room', await Alex.locator('#timerlive').count() === 1);
+    // the presets live behind the rail's tap-to-adjust; open it, then exercise manual load → start → pause
+    await F.locator('.rail-timer summary').click(); await wait(150);
+    await F.click('[data-testid=timer-10]'); await wait(200);   // load 10m → stops the clock
+    ok('loading a duration stops the clock (Start shown)', await F.locator('[data-testid=timer-start]').count() === 1);
     await F.click('[data-testid=timer-start]'); await wait(400);
     ok('timer starts counting (Pause now shown)', await F.locator('[data-testid=timer-pause]').count() === 1);
-    ok('running timer broadcasts to the room', await Alex.locator('#timerlive').count() === 1);
     await F.click('[data-testid=timer-pause]'); await wait(200);
     ok('timer pauses (Start returns)', await F.locator('[data-testid=timer-start]').count() === 1);
 
