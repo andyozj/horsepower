@@ -371,6 +371,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .hintbar{position:absolute; top:8px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--card); font-size:13px; padding:5px 13px; border-radius:999px; z-index:var(--z-canvas-ui); pointer-events:none}
 .viewctl{position:absolute; top:12px; bottom:auto; right:12px; display:flex; gap:5px; align-items:center; background:var(--card); border:1.4px solid var(--line); border-radius:12px; padding:4px 6px; z-index:var(--z-canvas-ui); box-shadow:var(--shadow-rest)}
 .viewctl.ingate{position:static; margin-left:auto; border:none; background:none; padding:0}
+.scene:has(.emptyhint) .viewctl{display:none} /* nothing to zoom on an empty canvas — also clears the mobile empty-state text overlap */
 .viewctl button{border:none; background:transparent; font-size:16px; width:28px; height:28px; border-radius:6px}
 .viewctl .zlbl{font-size:12px; color:var(--muted); min-width:38px; text-align:center; font-variant-numeric:tabular-nums}
 .emptyhint{position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; color:var(--muted); text-align:center; padding:16px}
