@@ -23,6 +23,7 @@ const TEAMS = 6, PER = 5, BIG = 10;   // team 0 gets BIG members to exercise the
 function teamCanvas(pfx) {
   return { blocks: [
     { id: pfx + 'p1', type: 'persona', x: 60, y: 60, w: 170, h: 58, text: pfx + ' Owner', meta: { capacity: 'accountable', why: 'owns it end to end' } },
+    { id: pfx + 'p3', type: 'persona', x: 60, y: 360, w: 170, h: 58, text: pfx + ' Customer', meta: { capacity: 'served', why: 'the party it is all for' } },
     { id: pfx + 'tr', type: 'trigger', x: 60, y: 160, w: 180, h: 54, text: pfx + ' request', meta: {} },
     { id: pfx + 'in', type: 'input', x: 60, y: 240, w: 150, h: 46, text: pfx + ' data', meta: {} },
     { id: pfx + 'ph', type: 'phase', x: 300, y: 60, w: 240, h: 120, text: pfx + ' Process', meta: { why: 'value created here' } },
