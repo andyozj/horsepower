@@ -373,25 +373,30 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .viewctl.ingate{position:static; margin-left:auto; border:none; background:none; padding:0}
 .viewctl button{border:none; background:transparent; font-size:16px; width:28px; height:28px; border-radius:6px}
 .viewctl .zlbl{font-size:12px; color:var(--muted); min-width:38px; text-align:center; font-variant-numeric:tabular-nums}
-.emptyhint{position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; color:var(--muted); text-align:center}
+.emptyhint{position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; color:var(--muted); text-align:center; padding:16px}
+@media (max-width:760px){ .emptyhint{padding-bottom:120px} } /* clear the fixed bottom palette + collapsed Coach button on phones */
 .emptyhint .caveat{font-size:22px}
 
 /* the back of the card — WHY + capacity inspector on the selected block */
-.inspector{position:absolute; width:232px; max-height:min(74vh,560px); overflow:auto; background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-scrap); padding:9px 11px; z-index:8;
-  box-shadow:var(--shadow-float); font-size:12px}
+.inspector{position:absolute; width:244px; max-height:min(74vh,560px); overflow:auto; background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-scrap); padding:10px 12px; z-index:8;
+  box-shadow:var(--shadow-float); font-size:13px}
 .inspector .ihead{display:flex; align-items:center; gap:5px; font-family:Caveat,cursive; font-size:16px; color:var(--red-pen); margin-bottom:5px}
 .inspector .ihead .glyph{width:13px; height:13px; flex:none}
 .inspector label{font-size:13px; color:var(--muted-strong); margin:2px 0 3px}
 .inspector .coachflag{display:flex; gap:5px; align-items:flex-start; font-size:12px; color:var(--pain); background:var(--wash-pain); border-radius:8px; padding:5px 8px; margin-bottom:6px; line-height:1.4}
 .inspector .coachflag .glyph{width:13px; height:13px; flex:none; margin-top:1px}
 .inspector .cap-seg{display:flex; gap:3px; flex-wrap:wrap; margin-bottom:6px}
-.inspector .capb{border:1.2px solid var(--line); background:var(--paper); border-radius:999px; padding:3px 9px; font-size:12px; font-weight:500}
+.inspector .capb{border:1.2px solid var(--line); background:var(--paper); border-radius:999px; padding:5px 11px; font-size:13px; font-weight:500}
 .inspector .capb.on{border-color:var(--lock); background:var(--wash-lock); color:var(--lock); font-weight:600}
-.inspector textarea{font-size:12px; min-height:38px; padding:6px 8px}
-.inspector .sysin{font-size:12px; padding:6px 8px; width:100%}
+.inspector textarea{font-size:13px; min-height:40px; padding:7px 9px}
+.inspector .sysin{font-size:13px; padding:7px 9px; width:100%}
 .inspector .painchip{display:flex; align-items:center; gap:6px; width:100%; margin-top:8px; padding:5px 9px; font-size:12px; border-radius:8px; border:1.3px dashed var(--line); background:var(--card); color:var(--muted-strong); text-align:left; cursor:pointer}
 .inspector .painchip .glyph{width:13px; height:13px; flex:none}
 .inspector .painchip.on{border:1.3px solid var(--pain); background:var(--wash-pain); color:var(--pain); font-weight:600}
+/* phones: roomier inspector + bigger capacity/pain tap targets */
+@media (max-width:760px){ .inspector{width:min(290px,86vw); font-size:13px}
+  .inspector .capb{padding:7px 13px}
+  .inspector .painchip{padding:8px 11px} }
 
 /* orphan tray */
 .orphantray{position:absolute; left:12px; bottom:12px; width:200px; max-height:46%; overflow:auto; background:var(--card); border:1.4px dashed var(--line); border-radius:var(--r-paper); padding:10px; z-index:var(--z-panel); box-shadow:var(--shadow-float)}
@@ -1782,7 +1787,9 @@ function viewLanding(){
 
   // ---- right: the join card, a paper ticket taped to the poster ----
   const formside = el('div',{class:'landform'});
-  const card = el('div',{class:'card landcard anim-rise', style:'max-width:440px; width:100%; animation-delay:200ms'});
+  // the join card is the participant's ONE job — render it INSTANTLY (no fade-from-blank).
+  // the poster side keeps its gentle entrance; the actionable ticket must never be invisible on arrival.
+  const card = el('div',{class:'card landcard', style:'max-width:440px; width:100%'});
   card.append(el('h2',{style:'margin-bottom:2px', html:'<span class="hl">Saddle up</span>'}));
   card.append(el('p',{class:'meta', style:'margin:6px 0 16px'}, 'Join with the code on the wall — or host your own room.'));
   // your randomised steed for the day 🐎
@@ -1918,7 +1925,8 @@ function viewPicker(){
 
   // ---- right: the entry ticket ----
   const side = el('div',{class:'landform'});
-  const card = el('div',{class:'card landcard anim-rise', style:'max-width:440px; width:100%; animation-delay:160ms'});
+  // the team-pick / start-a-stable ticket is the participant's job here — render INSTANTLY (no fade-from-blank)
+  const card = el('div',{class:'card landcard', style:'max-width:440px; width:100%'});
   card.append(el('div',{class:'steedbox', style:'margin:0 0 16px'},
     el('span',{html:steedSvg(me.steed.color,44)}),
     el('div',{}, el('div',{class:'nm'}, me.steed.name), el('div',{class:'sub'}, 'you, riding in as '+esc(me.name)))));
@@ -2098,11 +2106,10 @@ function coachVignette(i){
 function viewClosed(){
   const wrap=el('div',{class:'center-wrap', style:'flex-direction:column; gap:18px'});
   wrap.append(el('div',{class:'card', style:'text-align:center; max-width:420px'}, el('img',{src:'/img/farewell.png', alt:'', 'aria-hidden':'true', style:'width:180px;height:180px;object-fit:contain;display:block;margin:0 auto 6px', onerror:function(){this.remove();}}), el('h2',{},'Workshop closed'), el('p',{class:'meta', style:'margin-top:8px', html:'Thanks for riding. '+glyph('g-horse')})));
-  // don't dead-end the keepsake — the race card is still saveable after close
+  // LEAD with the keepsake (the payoff), not the input cards — a member who already filled their
+  // commitment/pulse used to land on collapsed empty space with the race card buried below the fold.
   const t=myTeam();
   if(me.role==='member' && t){
-    // R1a/R2: still capturable after close — covers anyone the Farrier's clock ran over (rule #6)
-    if(myMember()){ wrap.append(commitmentCard()); wrap.append(pulseCard()); }
     const rebuilder=(state.teams||[]).find(x=>x.receivedFromTeamId===t.id);
     const rc=raceCard(t, rebuilder); rc.style.animation='none';
     wrap.append(rc);
@@ -2110,6 +2117,20 @@ function viewClosed(){
     exp.append(el('button',{class:'btn', 'data-testid':'save-recap', html: glyph('i-down')+' Save my recap', onclick:()=>saveRecap(t)}));
     exp.append(el('button',{class:'btn subtle', 'data-testid':'copy-recap', onclick:()=>copyRecapText(t)},'Copy summary'));
     wrap.append(exp);
+    // R1a/R2: still capturable after close (rule #6 — the clock ran over). Already-submitted →
+    // a one-line confirmation, not a re-prompt; only show the full card for what's still missing.
+    const mm=myMember();
+    if(mm){
+      const didCommit = !!(mm.commitment && mm.commitment.text);
+      const p=mm.pulse||{}; const didPulse = !!(p.aha || p.diff || p.confBefore!=null || p.confAfter!=null);
+      if(didCommit && didPulse){
+        wrap.append(el('p',{class:'meta', style:'text-align:center', html: glyph('g-check','glyph')+' Your commitment &amp; reflection are saved — they ride in your recap.'}));
+      } else {
+        if(didCommit||didPulse) wrap.append(el('p',{class:'meta', style:'text-align:center'},'The clock ran over — you can still add the rest below.'));
+        if(!didCommit) wrap.append(commitmentCard());
+        if(!didPulse) wrap.append(pulseCard());
+      }
+    }
   }
   return wrap;
 }
@@ -2488,7 +2509,7 @@ function makeCanvas(opts){
   }
   function drawEmptyHint(){
     let h = root.querySelector('.emptyhint'); if(h) h.remove();
-    if(!(c.blocks||[]).length){ scene.append(el('div',{class:'emptyhint', html:`<div><img src="/img/empty-canvas.png" alt="" aria-hidden="true" class="emptyart" style="width:148px;height:148px;object-fit:contain;display:block;margin:0 auto 10px;opacity:.92" onerror="this.remove()"><div style="font-family:Fraunces,serif; font-size:20px; font-variation-settings:'opsz' 36">Click a block, then click here to drop it.</div><div class="meta" style="margin-top:4px">A real diagramming tool — works with or without the Coach.</div></div>`})); }
+    if(!(c.blocks||[]).length){ scene.append(el('div',{class:'emptyhint', html:`<div style="max-width:300px; padding:0 18px; margin:0 auto"><img src="/img/empty-canvas.png" alt="" aria-hidden="true" class="emptyart" style="width:148px;height:148px;object-fit:contain;display:block;margin:0 auto 10px;opacity:.92" onerror="this.remove()"><div style="font-family:Fraunces,serif; font-size:20px; font-variation-settings:'opsz' 36">Pick a block, then drop it here.</div><div class="meta" style="margin-top:4px">A real diagramming tool — works with or without the Coach.</div></div>`})); }
   }
   function renderBlock(b, entranceIdx){
     const p = PALETTE[b.type] || {};
@@ -3773,8 +3794,10 @@ function viewShare(){
   }
   wrap.append(el('h2',{class:'sharehead'},'Share-out — the double reveal'));
   const rebuilder = state.teams.find(x=>x.receivedFromTeamId===t.id);
-  wrap.append(el('p',{class:'sharesub', style:'margin:4px 0 16px'}, 'See your original next to its rebuild. Then the reckoning: confirm or bust what the rebuilders assumed about your world.'));
-  let SEC=0; const sec=node=>{ if(!REDUCED){ node.classList.add('anim-rise'); node.style.animationDelay=(SEC*0.9)+'s'; } SEC++; return node; };
+  wrap.append(el('p',{class:'sharesub', style:'margin:4px 0 16px'}, el('span',{}, 'See your original next to its rebuild. Then '), el('b',{}, 'keep scrolling'), el('span',{}, ' for the reckoning, your one commitment, and your keepsake race card '), el('span',{html: glyph('i-down','glyph'), 'aria-hidden':'true'})));
+  // staged reveal: a gentle cascade, but CAPPED so the lower sections (reckoning, commitment,
+  // keepsake) aren't invisible for 5–6s — they were stranded behind an uncapped SEC*0.9s delay.
+  let SEC=0; const sec=node=>{ if(!REDUCED){ node.classList.add('anim-rise'); node.style.animationDelay=(Math.min(SEC,4)*0.35)+'s'; } SEC++; return node; };
 
   const ba=el('div',{class:'beforeafter'});
   const before=el('div',{class:'ba-card ghosted'});
@@ -3825,7 +3848,7 @@ function viewShare(){
           ar.append(row);
         });
         if(!ui.reckonToasted){ ui.reckonToasted=true;
-          setTimeout(()=>{ toast('Your moment — confirm or bust their guesses.'); ar.scrollIntoView({behavior: REDUCED?'auto':'smooth', block:'center'}); },(SEC*900)+400); }
+          setTimeout(()=>{ toast('Your moment — confirm or bust their guesses.'); ar.scrollIntoView({behavior: REDUCED?'auto':'smooth', block:'center'}); }, 1700); }
       } else {
         ar.append(el('p',{class:'meta'}, asms.filter(a=>a.status==='confirmed').length+' confirmed · '+asms.filter(a=>a.status==='busted').length+' busted — reckoning settled.'));
       }
@@ -3854,7 +3877,9 @@ function viewShare(){
   }
   // keepsake "race card" — enters last, after the ledger flips
   const rcEl=raceCard(t, rebuilder);
-  if(!REDUCED) rcEl.style.animationDelay=Math.min(SEC*0.9+0.3, 3)+'s'; SEC++;
+  // the IntersectionObserver (.dealt) already gates the flip on scroll-into-view — keep the delay
+  // tiny so the keepsake flips in AS you reach it, not 3s of blank gap later.
+  if(!REDUCED) rcEl.style.animationDelay='0.1s'; SEC++;
   wrap.append(rcEl);
   const exp=el('div',{class:'row', style:'margin-top:20px; flex-wrap:wrap'});
   exp.append(el('button',{class:'btn primary', 'data-testid':'export-workflow', html: glyph('i-down')+' Export the original', onclick:()=>exportPack(t, rebuilder, 'your workflow')}));
@@ -3909,7 +3934,12 @@ function raceCard(t, rebuilder){
   // deal the card only when it scrolls into view — the flip is the keepsake's one
   // cinematic beat and must be SEEN (reduced-motion / no-IO: present immediately)
   if(REDUCED || typeof IntersectionObserver==='undefined'){ card.classList.add('dealt'); }
-  else { const io=new IntersectionObserver((es)=>{ es.forEach(e=>{ if(e.intersectionRatio>=.4){ card.classList.add('dealt'); io.disconnect(); } }); },{threshold:[.4]}); requestAnimationFrame(()=>io.observe(card)); }
+  else { const deal=()=>card.classList.add('dealt');
+    // root MUST be the inner .share scroller — a viewport-rooted observer never fires for a card
+    // that scrolls inside .share, leaving the keepsake stranded at opacity:0. Plus a hard fallback.
+    requestAnimationFrame(()=>{ const root=card.closest('.share')||null;
+      const io=new IntersectionObserver((es)=>{ es.forEach(e=>{ if(e.intersectionRatio>=.4){ deal(); io.disconnect(); } }); },{root,threshold:[.4]}); io.observe(card); });
+    setTimeout(()=>{ if(!card.classList.contains('dealt')) deal(); }, 4000); }
   card.append(el('img',{class:'rc-crest', src:'/img/racecard-crest.png', alt:'', 'aria-hidden':'true', onerror:function(){this.remove();}}));
   card.append(el('div',{class:'rc-top'}, el('span',{html:steedSvg(s.color,52)}), el('div',{}, el('h3',{}, el('span',{class:'hl'}, t.name)), riders?el('div',{class:'rc-riders meta', style:'font-size:13px; margin-top:3px'}, 'ridden by '+riders):null)));
   card.append(el('div',{class:'rc-line', html: glyph('g-flag')+' What it was: <b>'+esc(intentTxt)+'</b>'}));

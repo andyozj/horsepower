@@ -765,9 +765,11 @@ function performSwap(w) {
       return { w, h: 34 + lines * 19 + 16 };                          // glyph row + LOCKED tag
     };
     const seedLock = (id, type, text, meta) => { const pos = scatter(); n++; const s = sized(text); seeded.blocks.push({ id, type, x: pos.x, y: pos.y, w: s.w, h: s.h, text, locked: true, meta }); };
+    // LOCK only what rule #4 says: intent, outcome, accountable/served personas. The TRIGGER is the
+    // #1 redesign lever (batch "month end" → event-driven is the whole point) — it's HOW, so it's
+    // stripped, NOT locked. Inputs (raw materials that still arrive) stay as fixed givens.
     if (L.intent) seedLock('lk-intent', 'intent', L.intent, { lockField: 'intent' });
     if (L.outcome) seedLock('lk-outcome', 'outcome', L.outcome, { lockField: 'outcome' });
-    if (L.trigger) seedLock('lk-trigger', 'trigger', L.trigger, { lockField: 'trigger' });
     (L.personas || []).forEach((p, k) => seedLock('lk-persona-' + k, 'persona', p.text, { lockField: 'persona', capacity: p.capacity }));
     (L.inputs || []).forEach((inp, k) => seedLock('lk-input-' + k, 'input', inp, { lockField: 'input' }));
     team.redesign = {
@@ -789,19 +791,29 @@ function performSwap(w) {
 }
 
 // ---------- Diff (rule-based) for the share-out double reveal ----------
+// a "handoff" = a work transition that touches a stage or a person — NOT every data-flow arrow
+// (counting raw arrows over-reported, e.g. "29 handoffs gone" on a 13-block map). Dedupe + no self-loops.
+function handoffCount(canvas) {
+  const byId = Object.fromEntries((canvas.blocks || []).map(b => [b.id, b]));
+  const seen = new Set();
+  return (canvas.arrows || []).filter(a => {
+    if (!a || a.from == null || a.to == null || a.from === a.to) return false;
+    const k = a.from + '>' + a.to; if (seen.has(k)) return false; seen.add(k);
+    const f = byId[a.from], t = byId[a.to];
+    return (f && (f.type === 'phase' || f.type === 'persona')) || (t && (t.type === 'phase' || t.type === 'persona'));
+  }).length;
+}
 function buildDiff(originalCanvas, redesignCanvas, locked) {
   const oPhases = blocksOfType(originalCanvas, 'phase').length;
   const oMoments = blocksOfType(originalCanvas, 'moment').length;
-  const oArrows = (originalCanvas.arrows || []).length;
   const agents = blocksOfType(redesignCanvas, 'agent').length;
-  const rArrows = (redesignCanvas.arrows || []).length;
   const lines = [];
   if (oPhases) lines.push(`${oPhases} phase${oPhases === 1 ? '' : 's'} of the old HOW — gone, rebuilt from the need`);
   if (oMoments) lines.push(`${oMoments} "moments that matter" no longer hand-operated`);
   if (agents) lines.push(`${agents} AI-native agent block${agents === 1 ? '' : 's'} now act${agents === 1 ? 's' : ''} where humans used to`);
   else lines.push('no AI agents in the new design yet — was that a choice?');
-  const handoffDelta = Math.max(0, oArrows - rArrows);
-  if (handoffDelta > 0) lines.push(`${handoffDelta} handoff${handoffDelta === 1 ? '' : 's'} gone`);
+  const handoffDelta = Math.max(0, handoffCount(originalCanvas) - handoffCount(redesignCanvas));
+  if (handoffDelta > 0) lines.push(`${handoffDelta} hand-off${handoffDelta === 1 ? '' : 's'} between people/stages gone`);
   return {
     died: lines,
     constraintLedger: [] // filled from redesign.teardown candidates vs kept 🔒 blocks at render time client-side
@@ -1155,6 +1167,14 @@ function applyOps(canvas, ops) {
   for (const op of ops.slice(0, 30)) {   // a full one-breath workflow dump can be 15-20 ops — don't clip it
     if (!op || typeof op !== 'object') continue;
     if (op.op === 'add' && BLOCK_TYPES.has(op.type) && canvas.blocks.length < CONFIG.MAX_BLOCKS) {
+      // dedupe personas by normalized name — the extractor sometimes emits the same person twice
+      // (e.g. "Supplier" AND "Supplier (sender)"). Keep the first; wire any tmpId to it.
+      if (op.type === 'persona') {
+        const norm = s => String(s || '').toLowerCase().replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+        const key = norm(op.text);
+        if (key) { const dup = canvas.blocks.find(b => b.type === 'persona' && norm(b.text) === key);
+          if (dup) { if (op.tmpId != null) tmp[String(op.tmpId)] = dup.id; continue; } }
+      }
       const id = 'b' + crypto.randomBytes(6).toString('hex');
       if (op.tmpId != null) tmp[String(op.tmpId)] = id;
       const col = ['persona','trigger','input'].includes(op.type) ? 0 : (op.type === 'intent' || op.type === 'outcome') ? 2 : 1;
