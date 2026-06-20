@@ -88,14 +88,31 @@ async function main() {
       c3.blocks.every(BLOCK_OK) && !c3.blocks.find(b => b.id === pid) && !!c3.blocks.find(b => b.type === 'phase' && b.text.length <= 400),
       c3.blocks.map(b => b.type + ':' + (b.text || '').length));
 
-    // A2c: the Coach hands off (done) when it says so OR the map is ontology-complete
-    nextReply = { reply: 'That’s your workflow mapped — take a look.', ops: [], done: true };
-    const rDone = await callInterview(room.code, room.teamId, 'and that’s the whole thing');
-    ok('A2c: interview returns done:true when the Coach hands off', rDone.done === true, rDone);
+    // A2c: mid-interview, the map (c3) has no trigger/intent/outcome → not ontology-complete → done:false.
     nextReply = { reply: 'keep going', ops: [], done: false };
     const rNot = await callInterview(room.code, room.teamId, 'one more thing');
-    // map isn't ontology-complete (no trigger/intent/outcome) → done stays false
-    ok('A2c: done:false mid-interview (not ontology-complete)', rNot.done === false, rNot);
+    ok('A2c: done:false when the Coach is still interviewing (incomplete map)', rNot.done === false, rNot);
+
+    // A2c BUG GUARD: the Coach claiming done:true must NOT close the interview while the map is still
+    // missing the core ontology. This is the exact failure the user hit live — "you're in good shape"
+    // while intent+outcome were absent. Map still incomplete here → premature done is REJECTED.
+    nextReply = { reply: 'That’s your workflow mapped — take a look.', ops: [], done: true };
+    const rPremature = await callInterview(room.code, room.teamId, 'and that’s the whole thing');
+    ok('A2c: premature done:true with an incomplete map is REJECTED (done:false)', rPremature.done === false, rPremature);
+
+    // A2c: once the ontology IS complete (trigger+persona+phase+intent+outcome + a served party), the
+    // Coach's hand-off closes it → done:true.
+    nextReply = { reply: 'mapping the rest', ops: [
+      { op: 'add', type: 'trigger', text: 'Invoice arrives' },
+      { op: 'add', type: 'persona', text: 'Approver', capacity: 'accountable' },
+      { op: 'add', type: 'persona', text: 'Supplier', capacity: 'served' },
+      { op: 'add', type: 'phase', text: 'Match & approve' },
+      { op: 'add', type: 'intent', text: 'Decide pay/dispute/hold' },
+      { op: 'add', type: 'outcome', text: 'Invoice settled, clean trail' }
+    ], done: true };
+    const rDone = await callInterview(room.code, room.teamId, 'and that’s the whole thing');
+    await wait(300);
+    ok('A2c: done:true once the map is ontology-complete and the Coach hands off', rDone.done === true, rDone);
 
     room.m.close(); room.fac.close();
   } finally { srv.kill('SIGKILL'); mock.close(); try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
