@@ -61,6 +61,7 @@ const mk = () => new Promise(res => { const w = new WebSocket(WSBASE); w.on('ope
   const apCanvas = {
     blocks: [
       { id: 'p1', type: 'persona', x: 60, y: 60, w: 170, h: 58, text: 'OpCo GM', meta: { capacity: 'accountable', why: 'signs off the plan' } },
+      { id: 'p2', type: 'persona', x: 60, y: 360, w: 170, h: 58, text: 'Supplier', meta: { capacity: 'served', why: 'paid on time so credit terms hold' } },
       { id: 'tr', type: 'trigger', x: 60, y: 160, w: 180, h: 54, text: 'invoice arrives', meta: {} },
       { id: 'in', type: 'input', x: 60, y: 240, w: 150, h: 46, text: 'supplier invoice', meta: {} },
       { id: 'ph1', type: 'phase', x: 300, y: 60, w: 240, h: 120, text: 'Reconcile', meta: { why: 'invoices must match POs before payment' } },
@@ -72,9 +73,9 @@ const mk = () => new Promise(res => { const w = new WebSocket(WSBASE); w.on('ope
   a1.send(JSON.stringify({ type: 'canvas:update', workshopCode: code, canvas: apCanvas }));
   await wait(200);
   let teamA = last.fac_state.teams.find(t => t.id === teamAId);
-  ok('canvas persists + governance computed', teamA.canvas.blocks.length === 7 && teamA.governance, teamA.governance && teamA.governance.gate);
+  ok('canvas persists + governance computed', teamA.canvas.blocks.length === 8 && teamA.governance, teamA.governance && teamA.governance.gate);
   ok('Newcomer-check gate goes GREEN on a solid canvas', teamA.governance.gate.ready, teamA.governance.gate.checks.filter(c => !c.ok).map(c => c.label));
-  ok('teardown pre-computed at gate-green', teamA.hasTeardown && teamA.teardown && teamA.teardown.people.length === 1, teamA.teardown && { people: teamA.teardown.people.length, candidates: teamA.teardown.candidateConstraints.length });
+  ok('teardown pre-computed at gate-green', teamA.hasTeardown && teamA.teardown && teamA.teardown.people.length === 2, teamA.teardown && { people: teamA.teardown.people.length, candidates: teamA.teardown.candidateConstraints.length });
 
   // thin intent detection on team B (artifact intent)
   const etlCanvas = {

@@ -21,6 +21,7 @@ function teamCanvas(pfx) {
     blocks: [
       { id: pfx + 'p1', type: 'persona', x: 60, y: 60, w: 170, h: 58, text: pfx + ' Owner', meta: { capacity: 'accountable', why: 'owns the outcome end to end' } },
       { id: pfx + 'p2', type: 'persona', x: 60, y: 130, w: 170, h: 58, text: pfx + ' Operator', meta: { capacity: 'operates', why: 'does the hands-on work' } },
+      { id: pfx + 'p3', type: 'persona', x: 60, y: 360, w: 170, h: 58, text: pfx + ' Customer', meta: { capacity: 'served', why: 'the party the whole workflow is for' } },
       { id: pfx + 'tr', type: 'trigger', x: 60, y: 210, w: 180, h: 54, text: pfx + ' request comes in', meta: {} },
       { id: pfx + 'in', type: 'input', x: 60, y: 290, w: 150, h: 46, text: pfx + ' source data', meta: {} },
       { id: pfx + 'ph', type: 'phase', x: 300, y: 60, w: 240, h: 120, text: pfx + ' Process it', meta: { why: 'this is where the value is created' } },

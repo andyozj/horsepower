@@ -377,7 +377,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .emptyhint .caveat{font-size:22px}
 
 /* the back of the card — WHY + capacity inspector on the selected block */
-.inspector{position:absolute; width:232px; background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-scrap); padding:9px 11px; z-index:8;
+.inspector{position:absolute; width:232px; max-height:min(74vh,560px); overflow:auto; background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-scrap); padding:9px 11px; z-index:8;
   box-shadow:var(--shadow-float); font-size:12px}
 .inspector .ihead{display:flex; align-items:center; gap:5px; font-family:Caveat,cursive; font-size:16px; color:var(--red-pen); margin-bottom:5px}
 .inspector .ihead .glyph{width:13px; height:13px; flex:none}
@@ -2439,6 +2439,34 @@ function makeCanvas(opts){
           stk.addEventListener('blur',commitStk); let stkT; stk.addEventListener('input',()=>{ clearTimeout(stkT); stkT=setTimeout(commitStk,900); });
           stk.addEventListener('keydown',e=>e.stopPropagation());
           insp.append(stk);
+        }
+        // decision rights: who actually makes the call (≠ accountable owner) — for decisions & steps.
+        if(['phase','moment','intent'].includes(sb.type)){
+          insp.append(el('label',{},'who makes the call?'));
+          const dc=el('input',{class:'sysin deciderin','data-testid':'inspector-decider', placeholder:'the role that actually decides', maxlength:'80'});
+          dc.value=(sb.meta&&sb.meta.decider)||'';
+          const commitDc=()=>{ const v=dc.value.trim().slice(0,80); if(((sb.meta&&sb.meta.decider)||'')!==v){ sb.meta=sb.meta||{}; sb.meta.decider=v; commit(); } };
+          dc.addEventListener('blur',commitDc); let dcT; dc.addEventListener('input',()=>{ clearTimeout(dcT); dcT=setTimeout(commitDc,900); });
+          dc.addEventListener('keydown',e=>e.stopPropagation());
+          insp.append(dc);
+        }
+        // approval chain: the sign-off sequence — how many gates the redesign must preserve or collapse.
+        if(['phase','moment'].includes(sb.type)){
+          insp.append(el('label',{},'sign-off chain?'));
+          const ap=el('input',{class:'sysin approvalsin','data-testid':'inspector-approvals', placeholder:'e.g. clerk → manager → controller', maxlength:'200'});
+          ap.value=(sb.meta&&sb.meta.approvals)||'';
+          const commitAp=()=>{ const v=ap.value.trim().slice(0,200); if(((sb.meta&&sb.meta.approvals)||'')!==v){ sb.meta=sb.meta||{}; sb.meta.approvals=v; commit(); } };
+          ap.addEventListener('blur',commitAp); let apT; ap.addEventListener('input',()=>{ clearTimeout(apT); apT=setTimeout(commitAp,900); });
+          ap.addEventListener('keydown',e=>e.stopPropagation());
+          insp.append(ap);
+        }
+        // intent: verified-as-a-real-decision (the rebuild LOCKS intent — flag that it survived the artifact test).
+        if(sb.type==='intent'){
+          const vb=el('button',{class:'painchip'+((sb.meta&&sb.meta.verified)?' on':''),'data-testid':'inspector-verified',
+            title:'mark the intent as a confirmed real decision (not an artifact) — the rebuild locks it',
+            onclick:e=>{ e.stopPropagation(); sb.meta=sb.meta||{}; if(sb.meta.verified){ delete sb.meta.verified; } else { sb.meta.verified=true; } commit(); draw(); }});
+          vb.append(el('span',{html:glyph('g-check')}), (sb.meta&&sb.meta.verified)?'verified as a real decision — click to unset':'verify this is a real decision');
+          insp.append(vb);
         }
         // pain-point toggle (methodology rule #1: moments/steps "flaggable as pain points").
         // Was display-only — b.pain styled the node + fed the teardown's areas-of-concern, but the

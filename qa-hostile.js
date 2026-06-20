@@ -56,6 +56,7 @@ const teamOf = (st, id) => st && st.teams.find(t => t.id === id);
 function fixtureCanvas(p, intentText) {
   return { blocks: [
     { id: p + 'p1', type: 'persona', x: 60, y: 60, w: 170, h: 58, text: p === 'a' ? 'OpCo GM' : 'Analyst', meta: { capacity: p === 'a' ? 'accountable' : 'contributes data they hold', why: 'pulls the numbers' } },
+    { id: p + 'p2', type: 'persona', x: 60, y: 320, w: 170, h: 58, text: 'Supplier', meta: { capacity: 'served', why: 'paid on time so credit terms hold' } },
     { id: p + 'tr', type: 'trigger', x: 60, y: 160, w: 180, h: 54, text: 'invoice arrives', meta: {} },
     { id: p + 'in', type: 'input', x: 60, y: 240, w: 150, h: 46, text: 'supplier invoice', meta: {} },
     { id: p + 'ph', type: 'phase', x: 300, y: 60, w: 240, h: 120, text: 'Reconcile', meta: { why: 'invoices must match POs' } },

@@ -147,6 +147,7 @@ async function emptySpot(page, sceneSel, fallback) {
     const S = '[data-testid=surface-canvas]';
     // author a transfer-grade map by hand (no Coach needed → degradation path)
     await dropBlock(Alex, S, 'persona', 120, 90, 'OpCo GM');
+    await dropBlock(Alex, S, 'persona', 540, 320, 'Supplier');   // the served party (new gate requirement) — clear mid-canvas spot
     await dropBlock(Alex, S, 'trigger', 120, 200, 'invoice arrives');
     await dropBlock(Alex, S, 'input', 120, 300, 'supplier invoice');
     await dropBlock(Alex, S, 'phase', 400, 120, 'Reconcile');
@@ -155,7 +156,7 @@ async function emptySpot(page, sceneSel, fallback) {
     await dropBlock(Alex, S, 'outcome', 720, 230, 'credit terms kept');
     await wait(400);
     const nodeCount = await Alex.locator('[data-testid=surface-canvas] .node').count();
-    ok('hand-authored typed blocks render + persist', nodeCount === 7, nodeCount);
+    ok('hand-authored typed blocks render + persist', nodeCount === 8, nodeCount);
     ok('craft pass: nodes carry hand-drawn rough strokes', await Alex.locator('[data-testid=surface-canvas] .node .roughbox').count() >= 6);
     // two-click arrow: Arrow tool → source block → target block
     await Alex.click('[data-testid=tool-arrow]');
@@ -165,11 +166,18 @@ async function emptySpot(page, sceneSel, fallback) {
     ok('two-click arrow connects blocks', await Alex.locator('[data-testid=surface-canvas] path.flow').count() === 1);
     ok('craft pass: arrows are hand-drawn (boil frames, no geometric marker)', await Alex.locator('[data-testid=surface-canvas] path.flow[data-d0]').count() >= 1);
     await Alex.click('[data-testid=tool-select]');
-    // the back of the card: capture WHY + capacity via the inspector (new gate requirement)
-    await Alex.locator(S + ' .node.persona').click();
+    // the back of the card: capture WHY + capacity via the inspector (gate requirement)
+    await Alex.locator(S + ' .node.persona').nth(0).click();
     await Alex.waitForSelector('[data-testid=inspector-why]', { timeout: 5000 });
     await Alex.fill('[data-testid=inspector-why]', 'signs off the spend');
     await Alex.locator('[data-testid=inspector-capacity] button:has-text("accountable")').click();
+    await wait(300);
+    await Alex.click('[data-testid=tool-select]'); await wait(250);   // close the first inspector so it can't overlap the next node
+    // the served party must be named + capacity-set (new gate requirement)
+    await Alex.locator(S + ' .node.persona').nth(1).click();
+    await Alex.waitForSelector('[data-testid=inspector-why]', { timeout: 5000 });
+    await Alex.fill('[data-testid=inspector-why]', 'paid on time so credit terms hold');
+    await Alex.locator('[data-testid=inspector-capacity] button:has-text("served")').click();
     await wait(350);
     ok('inspector writes capacity + WHY onto the block (meta round-trips)', true);
     await Alex.locator(S + ' .node.phase').first().click();

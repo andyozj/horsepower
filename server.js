@@ -247,6 +247,9 @@ function sanitizeMeta(m) {
   if (m.forces != null)  out.forces = str(m.forces, 24);   // what forces it: law|external-party|physics|policy|habit (real vs habit → eliminate-vs-keep)
   if (m.freq != null)    out.freq = str(m.freq, 60);       // how often it runs/decides (volume → automate-vs-augment, triage)
   if (m.stakes != null)  out.stakes = str(m.stakes, 200);  // what breaks / who catches it when wrong (failure path → autonomy gate)
+  if (m.verified === true) out.verified = true;            // intent: Coach confirmed it's a real decision, not an artifact/restatement
+  if (m.decider != null) out.decider = str(m.decider, 80); // who actually MAKES the call (≠ accountable owner) — decision-rights for automate-vs-augment
+  if (m.approvals != null) out.approvals = str(m.approvals, 200); // the sign-off chain in order — how many gates the redesign must preserve/collapse
   if (m.author && typeof m.author === 'object')
     out.author = { n: str(m.author.n, CONFIG.MAX_NAME), c: str(m.author.c, 16) };
   // NOTE: meta.lockField deliberately dropped — re-asserted server-side for true locks (redesign:update)
@@ -481,13 +484,15 @@ function fieldServiceCanvas() {
       { meta: { capacity: 'operates', why: 'the only person who can physically fix the unit on site' } }),
     seedBlock('fs-p3', 'persona', 'Regional service manager', 320, 220,
       { meta: { capacity: 'informed', why: 'escalation path when an SLA is about to breach' } }),
+    seedBlock('fs-p4', 'persona', 'Customer (site owner)', 320, 310,
+      { meta: { capacity: 'served', why: 'the whole workflow exists to get their equipment running again within the SLA', forces: 'external-party' } }),
     seedBlock('fs-ph1', 'phase', 'Triage the fault', 580, 40,
       { meta: { why: 'a wrong severity call sends the wrong skill set and burns the SLA' } }),
     seedBlock('fs-ph2', 'phase', 'Assign & route an engineer', 580, 130,
       { meta: { why: 'matching skill + parts + drive-time is what makes or breaks same-day fix' } }),
     seedBlock('fs-ph3', 'phase', 'On-site fix & sign-off', 580, 220,
       { meta: { why: 'the customer only counts it resolved when the unit runs and they sign' } }),
-    seedBlock('fs-m1', 'moment', 'Decide severity (P1 down vs P3 degraded)', 800, 40, { meta: { phaseId: 'fs-ph1' }, pain: true }),
+    seedBlock('fs-m1', 'moment', 'Decide severity (P1 down vs P3 degraded)', 800, 40, { meta: { phaseId: 'fs-ph1', forces: 'policy', freq: 'every inbound fault', stakes: 'wrong call sends the wrong skillset and burns the SLA', decider: 'Dispatch coordinator' }, pain: true }),
     seedBlock('fs-m2', 'moment', 'Find the nearest engineer who carries the right part', 800, 130, { meta: { phaseId: 'fs-ph2' }, pain: true }),
     seedBlock('fs-m3', 'moment', 'Capture the fix + customer signature', 800, 220, { meta: { phaseId: 'fs-ph3' } }),
     seedBlock('fs-it', 'intent', 'Decide who goes where next so the SLA is met at lowest cost', 580, 320),
@@ -597,6 +602,10 @@ function governance(canvas) {
     if (ARTIFACT_WORDS.test(t)) thin.push({ id: it.id, why: 'a report isn’t a reason — what decision does it drive?' });
     else if (!t || t.split(/\s+/).length < 3) thin.push({ id: it.id, why: 'why does this process exist? (a decision, not a restatement)' });
   });
+  // the SERVED party (who the workflow is FOR) is methodology-locked — the redesign must protect it,
+  // so it can't be left implicit. Rule-based (capacity check) → offline-safe, never AI-dependent.
+  if (personas.length && !personas.some(p => /served/i.test((p.meta && p.meta.capacity) || '')))
+    thin.push({ id: (personas[0] || {}).id, why: 'who is this workflow FOR? name the served party (a customer / downstream team) and set their capacity to "served"' });
   // conflicts on blocks
   canvas.blocks.forEach(b => { if (b.conflict) thin.push({ id: b.id, why: `two versions — ${b.conflict}` }); });
 
@@ -606,6 +615,7 @@ function governance(canvas) {
     { key: 'intent', label: 'Intent is a decision, not an artifact', ok: intents.length > 0 && !intents.some(it => ARTIFACT_WORDS.test(it.text || '') || (it.text || '').trim().split(/\s+/).length < 3) },
     { key: 'inputs', label: 'Inputs are listed', ok: inputs.length > 0 },
     { key: 'outcome', label: 'Outcome is captured', ok: outcomes.length > 0 },
+    { key: 'served', label: 'The served party is named (who it’s FOR)', ok: personas.some(p => /served/i.test((p.meta && p.meta.capacity) || '')) },
     { key: 'why', label: 'The WHY is captured behind key cards', ok: personas.length > 0 && personas.every(p => p.meta && p.meta.why && p.meta.capacity) && phases.every(p => p.meta && p.meta.why) },
     { key: 'orphans', label: 'Parking lot cleared (map it or let it go)', ok: (canvas.orphans || []).length === 0 },
     { key: 'conflicts', label: 'No unresolved conflicts', ok: !canvas.blocks.some(b => b.conflict) }
@@ -631,7 +641,9 @@ function buildTeardown(canvas) {
     text: deStep(b.text),
     why: 'a friction point flagged in the original — solve the problem, not the step',
     freq: (b.meta && b.meta.freq) || null,
-    stakes: (b.meta && b.meta.stakes) || null
+    stakes: (b.meta && b.meta.stakes) || null,
+    decider: (b.meta && b.meta.decider) || null,       // who makes the call here → automate-vs-augment
+    approvals: (b.meta && b.meta.approvals) || null     // the sign-off chain → gates to preserve/collapse
   }));
 
   // candidate constraints: personas + their captured WHY/capacity + the captured forcing-nature
@@ -677,7 +689,9 @@ function buildTeardown(canvas) {
       need: { intent, trigger,
         // the decision's own cadence + stakes — drives automate-vs-keep-human on the core decision
         decisionFreq: (intentBlock.meta && intentBlock.meta.freq) || null,
-        decisionStakes: (intentBlock.meta && intentBlock.meta.stakes) || null },
+        decisionStakes: (intentBlock.meta && intentBlock.meta.stakes) || null,
+        decisionMaker: (intentBlock.meta && intentBlock.meta.decider) || null,   // who actually makes the locked decision
+        intentVerified: !!(intentBlock.meta && intentBlock.meta.verified) },     // did the original confirm it's a real decision (not an artifact)?
       want: { outcome, personas: personas.filter(p => /accountable|approve|served|decide/i.test((p.meta && p.meta.capacity) || '')).map(p => p.text) },
       inputs,
       // R4b: the "today costs X" anchor — evidence of the original's today, NEVER a target/ROI bar for the rebuild
@@ -991,8 +1005,8 @@ If they ask who you are, what this is, or what to do, answer in one short line (
 You are given the CURRENT MAP (block ids + labels). Return ONLY JSON, no prose:
 {"reply":"<your next single question or steer, <=2 sentences>","ops":[ <map edits> ],"done":false}
 Op types (key to existing ids; use a tmpId for a new block you connect in the same turn):
-  {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<the reason it exists, if they gave one>","capacity":"operates|accountable|served|informed (personas only)","forces":"law|external-party|physics|policy|habit (what forces this to exist, if clear)","freq":"<how often it runs/decides, if said>","stakes":"<what breaks / who catches it when wrong, for pain or decisions>"}
-  {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true,"forces?":"…","freq?":"…","stakes?":"…"}
+  {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<the reason it exists, if they gave one>","capacity":"operates|accountable|served|informed (personas only)","forces":"law|external-party|physics|policy|habit (what forces this to exist, if clear)","freq":"<how often it runs/decides, if said>","stakes":"<what breaks / who catches it when wrong, for pain or decisions>","verified":true (intent ONLY — set once you've confirmed it's a real decision, not an artifact/restatement),"decider":"<who actually MAKES the call, on a decision/approval — may differ from the accountable owner>","approvals":"<the sign-off chain in order, on an approval step — e.g. 'clerk → cost-centre mgr → controller if >£10k'>"}
+  {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true,"forces?":"…","freq?":"…","stakes?":"…","verified?":true,"decider?":"…","approvals?":"…"}
   {"op":"connect","from":"<id|tmpId>","to":"<id|tmpId>"}
   {"op":"remove","id":"<existing id>"}
 EXTRACTION RULES — get these right, they are the whole point:
@@ -1003,6 +1017,7 @@ EXTRACTION RULES — get these right, they are the whole point:
 4. WHY: attach the reason to a block whenever they give one, even loosely ("because over £10k a slip is material"). Pursue the WHY behind load-bearing steps and roles.
 5. CONNECT the flow — don't leave blocks floating when you have the context to link them. Use connect ops to wire: the trigger → the first phase; each phase → the next in sequence; the persona who owns/does a phase → that phase; each input → the phase where it's used; and the final phase → the intent → the outcome. Only link what they actually implied; never invent a connection you're unsure of, but a block you clearly understand should not sit unconnected.
 6. CAPTURE FOR THE REDESIGN — this map will be torn down and rebuilt AI-native, so a thin map makes a real redesign impossible. While you interview, for the LOAD-BEARING elements (pain-flagged steps, the key decision points, the accountable role, any check/approval) set the structured fields, not just prose: "forces" = what makes it exist — "law" / "external-party" / "physics" (real) vs "policy" / "habit" (movable); "that's how it's done" is habit. For a pain point or a decision, set "freq" (how often it happens) and "stakes" (what breaks / who gets the angry call when it's wrong) — that is exactly what later decides automate-vs-keep-human. Mark genuine friction with pain:true. Don't interrogate every block — hunt this only where it's load-bearing, and never let it hold up the hand-off.
+7. DECISION RIGHTS & VERIFY THE INTENT — the rebuild locks the intent, so it must be a REAL decision. Once you've confirmed it drives a real choice (it survived "what would you do differently if it said something else?" and isn't an artifact), set verified:true on the intent block. On a decision or approval step, set "decider" = who actually makes the call (often NOT the accountable owner — the doer may decide while the owner signs off), and on an approval step set "approvals" = the sign-off chain in order. These decide what an AI agent could own versus what needs a human gate.
 Set "done": true ONLY once the workflow is fully captured — a trigger, EVERY named person as a persona WITH a capacity (including the SERVED party — whoever the work is ultimately for), the inputs, the phases/moments, a real intent (a decision) AND a distinct outcome. When you set done:true, your reply is a short warm hand-off ("That’s your workflow mapped — take a look and fix anything I got wrong."). Until then, done:false and keep interviewing.
 Rules: never invent content they didn't say; one intent and one outcome at most; a correction ("X is actually Y") is an UPDATE to that block, never a new one.
 EMIT EVERYTHING THEY JUST SAID THIS TURN — do NOT cap yourself at a few ops. If they describe the whole workflow in one breath (a run-on answer), output ALL of it in this turn: every person as a persona, every input, every phase/moment, AND the intent and the outcome if they stated them. Capturing intent/outcome the moment they're said is mandatory — never let them slip because the turn was long. ${SECRECY}`;
@@ -1145,19 +1160,22 @@ function applyOps(canvas, ops) {
       const col = ['persona','trigger','input'].includes(op.type) ? 0 : (op.type === 'intent' || op.type === 'outcome') ? 2 : 1;
       canvas.blocks.push({ id, type: op.type, x: 80 + col * 280, y: 70 + (placed % 6) * 96, w: 180, h: 58,
         text: str(op.text, CONFIG.MAX_TEXT), pain: op.pain === true || undefined,
-        meta: sanitizeMeta({ why: op.why, capacity: op.capacity, forces: op.forces, freq: op.freq, stakes: op.stakes }) });
+        meta: sanitizeMeta({ why: op.why, capacity: op.capacity, forces: op.forces, freq: op.freq, stakes: op.stakes, verified: op.verified, decider: op.decider, approvals: op.approvals }) });
       placed++;
     } else if (op.op === 'update') {
       const b = canvas.blocks.find(x => x.id === str(op.id, 40));
       if (!b || b.locked) continue;
       if (op.text != null) b.text = str(op.text, CONFIG.MAX_TEXT);
       if (op.pain === true) b.pain = true;
-      if (op.why != null || op.capacity != null || op.forces != null || op.freq != null || op.stakes != null) b.meta = sanitizeMeta(Object.assign({}, b.meta, {
+      if (op.why != null || op.capacity != null || op.forces != null || op.freq != null || op.stakes != null || op.verified != null || op.decider != null || op.approvals != null) b.meta = sanitizeMeta(Object.assign({}, b.meta, {
         why: op.why != null ? op.why : (b.meta || {}).why,
         capacity: op.capacity != null ? op.capacity : (b.meta || {}).capacity,
         forces: op.forces != null ? op.forces : (b.meta || {}).forces,
         freq: op.freq != null ? op.freq : (b.meta || {}).freq,
-        stakes: op.stakes != null ? op.stakes : (b.meta || {}).stakes }));
+        stakes: op.stakes != null ? op.stakes : (b.meta || {}).stakes,
+        verified: op.verified === true ? true : (b.meta || {}).verified,
+        decider: op.decider != null ? op.decider : (b.meta || {}).decider,
+        approvals: op.approvals != null ? op.approvals : (b.meta || {}).approvals }));
     } else if (op.op === 'connect') {
       const from = tmp[String(op.from)] || str(op.from, 40), to = tmp[String(op.to)] || str(op.to, 40);
       const have = new Set(canvas.blocks.map(b => b.id));
@@ -1515,6 +1533,9 @@ const UPDATE_MAP_TOOL = {
     forces: { type: 'string', enum: ['law', 'external-party', 'physics', 'policy', 'habit'], description: 'what forces this to exist (real rule vs habit) — for load-bearing steps/checks/roles' },
     freq: { type: 'string', description: 'how often it runs/decides — for pain points and decisions' },
     stakes: { type: 'string', description: 'what breaks / who catches it when wrong — for pain points and decisions' },
+    verified: { type: 'boolean', description: 'intent ONLY — set true once confirmed it is a real decision, not an artifact' },
+    decider: { type: 'string', description: 'who actually makes the call on a decision/approval (may differ from the accountable owner)' },
+    approvals: { type: 'string', description: 'the sign-off chain in order, on an approval step' },
     pain: { type: 'boolean' }, from: { type: 'string' }, to: { type: 'string' }
   }, required: ['op'] } } }, required: ['ops'] }
 };
@@ -1546,7 +1567,7 @@ Call update_map as the picture emerges:
 
 # Push on the WHY (this is the point)
 "That's just how it's done" is too thin — chase why each step and role exists. Break the two intent traps: the artifact ("we make a report" — a report isn't a reason) and the restatement ("why monthly reporting? to report monthly"). Push with "what happens because of this?" then "what would you do differently if it said something else?" — no answer means it isn't a real decision, so flag that moment as a pain point. Hunt the failure paths too: "what happens when it goes wrong — who gets the angry call?"
-For a load-bearing step or check, get what FORCES it — a real rule (a law, a regulator, an external party, physics) versus just habit — and capture that in its why. For the painful or risky ones, also get roughly how often it happens. This map is about to be rebuilt from scratch, so this real-vs-habit and how-often raw material is exactly what makes a real redesign possible (and what later decides what can be automated versus must stay human).
+For a load-bearing step or check, get what FORCES it — a real rule (a law, a regulator, an external party, physics) versus just habit — and capture that in its why. For the painful or risky ones, also get roughly how often it happens. This map is about to be rebuilt from scratch, so this real-vs-habit and how-often raw material is exactly what makes a real redesign possible (and what later decides what can be automated versus must stay human). On the core decision, once you're sure it's a real choice (not an artifact), mark it verified; on a decision or approval step, capture who actually makes the call (it's often not the person who signs off) and any sign-off chain.
 
 # Unclear Audio
 Respond only to clear speech meant for you. If it's silence, garble, background noise, or the team talking among themselves (not a question to you), stay quiet and keep listening — never invent words or content. If you missed something that matters, ask them to say it again.
