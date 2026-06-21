@@ -1349,6 +1349,14 @@ function extractBalancedJson(s) {
   }
   return null;   // unbalanced → truncated mid-object; let the caller fall back
 }
+// Parse a coach reply's JSON, or throw a clear error if no balanced object exists. (Guards the
+// null-deref: JSON.parse(null) returns null — not a throw — so `.reply` on it would blow up with a
+// confusing "Cannot read properties of null" instead of degrading cleanly. Seen live 2026-06-21.)
+function parseCoachJson(raw) {
+  const s = extractBalancedJson(raw);
+  if (!s) throw new Error('no balanced JSON object in coach reply (truncated/empty)');
+  return JSON.parse(s);
+}
 async function callAzure(system, chat, maxTokens) {
   const url = `${AZURE_ENDPOINT}/openai/deployments/${encodeURIComponent(AZURE_DEPLOYMENT)}/chat/completions?api-version=${encodeURIComponent(AZURE_API_VERSION)}`;
   const r = await fetch(url, {
@@ -1492,7 +1500,7 @@ app.post('/api/coach', async (req, res) => {
             if (end > emitted) { res.write(text.slice(emitted, end)); emitted = end; }
           });
           if (tripped) { log('vocab_trip', { kind: 'interview-stream' }); return fallback(); }
-          const j = JSON.parse(extractBalancedJson(raw));
+          const j = parseCoachJson(raw);
           const reply = String(j.reply || '').slice(0, lim);
           if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview-stream' }); return fallback(); }
           if (emitted < reply.length) res.write(reply.slice(emitted));   // flush the held trailing word
@@ -1513,7 +1521,7 @@ app.post('/api/coach', async (req, res) => {
         // old 400-token cap the JSON truncated mid-array → JSON.parse threw → the whole turn silently
         // degraded and everything said in it (intent/outcome/people) was lost. 3000 fits a full dump + reply.
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.interview, ic, 3000) : await callAnthropic(SYSTEMS.interview, ic, 3000);
-        const j = JSON.parse(extractBalancedJson(raw));
+        const j = parseCoachJson(raw);
         const reply = String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX);
         if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) }); }
         applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
@@ -1543,7 +1551,7 @@ app.post('/api/coach', async (req, res) => {
       try {
         const ctx = `PERSON: ${role} (capacity: ${capacity || 'unspecified'})\nOUTCOME: ${outcome || '(not chosen)'}\nNOTE: ${note || '(blank)'}\nLOCKED intent: ${((team && team.redesign && team.redesign.locked) || {}).intent || ''}\nLOCKED outcome: ${((team && team.redesign && team.redesign.locked) || {}).outcome || ''}`;
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.persona, [{ role: 'user', content: ctx }]) : await callAnthropic(SYSTEMS.persona, [{ role: 'user', content: ctx }]);
-        const j = JSON.parse(extractBalancedJson(raw));
+        const j = parseCoachJson(raw);
         const result = { reply: String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX), flag: j.flag || null, require: j.require || null, settled: !!j.settled };
         persistPersonaFlag(room, team, req.body.personId, result);
         return res.json(Object.assign({ challenge: 'persona' }, result));
@@ -1562,7 +1570,7 @@ app.post('/api/coach', async (req, res) => {
       const source = (c && c.source) || req.body.source || '';
       try {
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.route, [{ role: 'user', content: `CONSTRAINT: ${text}\nROUTED AS: ${source || '(unrouted)'}` }]) : await callAnthropic(SYSTEMS.route, [{ role: 'user', content: `CONSTRAINT: ${text}\nROUTED AS: ${source || '(unrouted)'}` }]);
-        const j = JSON.parse(extractBalancedJson(raw));
+        const j = parseCoachJson(raw);
         const result = { reply: String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX), flag: j.flag || null, settled: !!j.settled };
         persistRouteFlag(room, team, req.body.constraintId, result);
         return res.json(Object.assign({ challenge: 'route' }, result));
@@ -1587,7 +1595,7 @@ app.post('/api/coach', async (req, res) => {
     if (req.body.cluster && m === 'surface') {
       const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.cluster, chat) : await callAnthropic(SYSTEMS.cluster, chat);
       try {
-        const j = JSON.parse(extractBalancedJson(raw));
+        const j = parseCoachJson(raw);
         const clusters = clampClusters(j.proposal);
         const reply = String(j.reply || 'Here’s how those parked notes group up.').slice(0, 300);
         // Adjudication #1: vocab-lint the AI reply before broadcast → on trip, honest absence (no clusters).
@@ -1622,7 +1630,7 @@ app.post('/api/coach', async (req, res) => {
       // same truncation class as the interview: a long brain-dump → many proposed blocks → needs headroom.
       const raw = AI_PROVIDER === 'azure' ? await callAzure(sys, chat, 1800) : await callAnthropic(sys, chat, 1800);
       try {
-        const j = JSON.parse(extractBalancedJson(raw));
+        const j = parseCoachJson(raw);
         const proposal = clampProposal(j.proposal);
         if (proposal) return res.json({ reply: String(j.reply || 'I heard a map in that — accept what’s right.').slice(0, 300), proposal });
       } catch (pe) { /* fall through to plain reply */ }
