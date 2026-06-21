@@ -2953,8 +2953,14 @@ function viewSurface(){
   // bottom-right corner blob (still live). TEXT: chat-hero until the Coach hands off.
   const mapReady = (t.canvas.blocks || []).length >= 5;
   if(converse && !skipped){ if(!mapReady) return interviewHero(t); }   // big talking stage while the map is sparse
-  else if(!handedOff && !skipped) return interviewHero(t);             // text chat hero / type panel
+  // TEXT now graduates the SAME way voice does: full-screen chat (focus on telling your process) until the
+  // map starts to form (≥5 blocks), then the map jumps to the HERO and the chat drops to the bottom dock —
+  // you keep typing there. Before, text stayed full-screen until the Coach fully handed off.
+  else if(!handedOff && !mapReady && !skipped) return interviewHero(t);
   // ---- Stage 2: the map is the HERO; voice → corner blob, text → bottom dock ----
+  // on the FIRST graduation (map formed, Coach not yet done) open the dock once so the chat is visibly at
+  // the bottom — "the chat moved down", not "the chat vanished". After that, respect the user's collapse.
+  if(!converse && !skipped && !handedOff){ ui.gradOpened=ui.gradOpened||{}; if(!ui.gradOpened[t.id]){ ui.gradOpened[t.id]=true; ui.dockOpen=true; } }
   const work = el('div',{class:'work stage2'});
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
