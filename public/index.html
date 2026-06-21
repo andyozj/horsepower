@@ -306,6 +306,11 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .bubble.thinking{align-self:flex-start; display:inline-flex; align-items:center; gap:8px}
 .bubble.thinking{flex-wrap:wrap}
 .bubble.thinking .tslow{flex-basis:100%; font-size:12px; color:var(--muted-strong); margin-top:4px; max-width:34ch; line-height:1.35}
+/* streaming reply bubble — prose appears token-by-token with a live cursor */
+.bubble.streaming .stxt{white-space:pre-wrap}
+.bubble.streaming .scursor{display:inline-block; width:6px; height:1.02em; margin-left:1px; background:var(--red-pen); vertical-align:text-bottom; border-radius:1px; animation:scursor 1s steps(1) infinite}
+@keyframes scursor{0%,50%{opacity:1}51%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){ .bubble.streaming .scursor{animation:none} }
 .bubble.thinking .tdots{display:inline-flex; gap:3px}
 .bubble.thinking .tdots i{width:6px; height:6px; border-radius:50%; background:var(--red-pen); display:inline-block; animation:tdot 1s ease-in-out infinite}
 .bubble.thinking .tdots i:nth-child(2){animation-delay:.15s}
@@ -1527,6 +1532,9 @@ function sendJoin(){
 let railPhase = null;
 let whisperSeenTs = -1;   // R7: highest Farrier-whisper ts already surfaced to this member (-1 = uninitialized)
 function afterState(){
+  // streaming reconcile: once the canonical assistant reply lands via broadcast, drop the local streamed
+  // bubble so the streamed prose seamlessly becomes the real chat message (no dup, no flicker-out).
+  if(ui.coachStream!=null){ const last=(chatNow('surface')||[]).slice(-1)[0]; if(last && last.role==='assistant') ui.coachStream=null; }
   // A11: stash the ids as RECEIVED from the server, before any local mutation.
   // DELETE-RESURRECTION FIX: only refresh known ids when NOT mid-edit. Under editingLock render() is
   // deferred, so our in-memory canvas still holds a block a teammate may have just deleted; refreshing
@@ -3080,7 +3088,7 @@ function interviewDock(t){
   if(open){
     const msgs=el('div',{class:'dockmsgs', id:'coach-msgs', 'aria-live':'polite'});
     (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
-  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
+  if(showCoachBubble()) msgs.append(thinkingBubble());   // thinking dots or streamed prose; auto-dedups vs the broadcast reply
     dock.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   }
   const bar=el('div',{class:'dockbar'});
@@ -3451,7 +3459,7 @@ function converseTypePanel(t){
   card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">'+(canDict?'Type or dictate':'Type')+' — I’ll reply in text and build your map'+(conv?'. Or switch to a spoken conversation.':'.')+'</div></div>'}));
   const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
   (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
-  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
+  if(showCoachBubble()) msgs.append(thinkingBubble());   // thinking dots or streamed prose; auto-dedups vs the broadcast reply
   card.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
@@ -3478,7 +3486,19 @@ function dockMicButton(){
 }
 // a visible "Coach is thinking…" bubble — shown in the interview thread while a reply is pending so a
 // slow live-AI turn (cold-start / concurrent load) reads as "working", not "frozen".
+// show the live thinking/streaming bubble UNLESS the canonical assistant reply is already in the surface
+// thread (the broadcast landed) — that dedups the streamed prose against the real chat message no matter
+// which of {stream-complete, broadcast} wins the race.
+function showCoachBubble(){
+  if(ui.coachStream!=null){ const last=(chatNow('surface')||[]).slice(-1)[0]; if(last && last.role==='assistant') return false; }
+  return coachBusy || ui.coachStream!=null;
+}
 function thinkingBubble(){
+  // streaming: once prose is arriving, show it live (with a cursor) instead of the dots
+  if(ui.coachStream){
+    return el('div',{class:'bubble coach streaming', role:'status'},
+      el('span',{class:'stxt'}, ui.coachStream), el('span',{class:'scursor','aria-hidden':'true'}));
+  }
   const b=el('div',{class:'bubble coach thinking', role:'status'},
     el('span',{class:'tdots','aria-hidden':'true'}, el('i'), el('i'), el('i')),
     el('span',{class:'tlabel'}, 'Coach is thinking…'));
@@ -3492,22 +3512,40 @@ async function sendInterviewTurn(text){
   wsSend({type:'chat:post', role:'user', name:me.name, content:text});
   coachBusyOn(); coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
   const hist=(chatNow('surface')||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
-  const ac=new AbortController(); const to=setTimeout(()=>ac.abort(), 25000);   // never spin "thinking…" forever
+  // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
+  // post it, or each member's client duplicates it in the shared thread.
+  const setDone=(done)=>{ if(done && me.teamId){ me.ivDone=me.ivDone||{}; me.ivDone[me.teamId]=true; saveMe(); render(); } };
+  const noteDeg=(deg)=>{ if(deg && !ui.degradedNoticed){ ui.degradedNoticed=true; wsSend({type:'chat:post', role:'system', content:'(The Coach is running offline — rule-based prompts. Your map and the Newcomer check still work.)'}); } };
+  const ac=new AbortController(); let idle=setTimeout(()=>ac.abort(), 45000);              // abort only if NOTHING arrives for 45s
+  const bump=()=>{ clearTimeout(idle); idle=setTimeout(()=>ac.abort(), 45000); };
   try{
     const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'}, signal:ac.signal,
-      body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
-    clearTimeout(to);
-    const d=await r.json();
-    coachBusyOff(); coachStatus=d.degraded?'offline':'idle';
-    if(d.degraded && !ui.degradedNoticed){ ui.degradedNoticed=true; wsSend({type:'chat:post', role:'system', content:'(The Coach is running offline — rule-based prompts. Your map and the Newcomer check still work.)'}); }
-    // Mode 1 is STT-only by design: the transcript came in by voice, the Coach replies in TEXT (typed
-    // into the thread). No TTS — Converse (Mode 2) is the spoken back-and-forth.
-    // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
-    // post it, or each member's client duplicates it in the shared thread.
-    // A2c: when the Coach hands off (done), persist it per-team + render so Surface flips to the verify stage.
-    if(d.done && me.teamId){ me.ivDone=me.ivDone||{}; me.ivDone[me.teamId]=true; saveMe(); render(); }
+      body:JSON.stringify({mode:'surface', interview:true, stream:true, code:me.code, teamId:me.teamId, messages:hist})});
+    const ct=r.headers.get('content-type')||'';
+    if(ct.indexOf('application/json')>=0 || !r.body){                                      // degraded / no-AI / azure → non-streaming JSON
+      clearTimeout(idle); const d=await r.json(); coachBusyOff(); coachStatus=d.degraded?'offline':'idle'; noteDeg(d.degraded);
+      const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); setDone(d.done); return;
+    }
+    // STREAM: render the prose live; a trailing null-delimited CTRL frame carries {done,degraded,replace}
+    const CTRL='\u0000\u0000CTRL\u0000\u0000';
+    const reader=r.body.getReader(), dec=new TextDecoder(); let acc='';
+    ui.coachStream=''; render();                                                           // '' is falsy → dots until the first prose
+    for(;;){ const {done,value}=await reader.read(); if(done) break; bump();
+      acc+=dec.decode(value,{stream:true});
+      const ci=acc.indexOf(CTRL), prose=(ci>=0?acc.slice(0,ci):acc);
+      if(prose && prose!==ui.coachStream){ ui.coachStream=prose;
+        const node=document.querySelector('.bubble.streaming .stxt');
+        if(node){ node.textContent=prose; let sc=node.parentElement; while(sc && sc.scrollHeight<=sc.clientHeight) sc=sc.parentElement; if(sc) sc.scrollTop=sc.scrollHeight; }
+        else render();
+      }
+    }
+    clearTimeout(idle); coachBusyOff();
+    let d={}; const ci=acc.indexOf(CTRL); if(ci>=0){ try{ d=JSON.parse(acc.slice(ci+CTRL.length)); }catch(_){ } }
+    coachStatus=d.degraded?'offline':'idle'; noteDeg(d.degraded);
+    if(d.replace) ui.coachStream=null;                                                     // vocab-trip/parse-fail → drop streamed prose; broadcast shows the fallback
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
-  }catch(e){ clearTimeout(to); coachBusyOff(); coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:(e&&e.name==='AbortError')?'The Coach took too long — it’s offline for now. Keep going; your map and the checks work without it.':'Coach is offline — keep going, the map and checks all work without it.'}); render(); }
+    setDone(d.done); render();                                                             // afterState drops coachStream once the broadcast reply is present
+  }catch(e){ clearTimeout(idle); ui.coachStream=null; coachBusyOff(); coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:(e&&e.name==='AbortError')?'The Coach took too long — it’s offline for now. Keep going; your map and the checks work without it.':'Coach is offline — keep going, the map and checks all work without it.'}); render(); }
 }
 // TEXT turn for Rebuild (and any non-surface chat): replies in the text thread, NEVER spoken. Used by the
 // rail composer AND the rebuild "type your move" — so typing always stays text (only dictation/STT adds audio-IN).
@@ -3543,7 +3581,7 @@ function interviewHero(t){
   hero.append(el('div',{class:'ivhead', html: coachAvatar(44)+'<div><b>Talk me through your workflow</b><div class="meta">I’ll ask, you answer — and I’ll build the map as we go.</div></div>'}));
   const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
   (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
-  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
+  if(showCoachBubble()) msgs.append(thinkingBubble());   // thinking dots or streamed prose; auto-dedups vs the broadcast reply
   hero.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works… (or just answer the Coach)', 'data-testid':'coach-input', rows:'2'});
