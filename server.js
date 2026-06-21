@@ -1789,6 +1789,18 @@ function startRealtime(ws, w, team) {
   ws.rt = rt;
   rt.on('error', e => { log('rt_error', { err: String(e && e.message || e).slice(0, 200) }); try { send(ws, { type: 'voice:event', event: 'error' }); } catch {} });
   rt.on('close', (code, reason) => { log('rt_close', { code, reason: String(reason || '').slice(0, 200) }); if (ws.rt === rt) ws.rt = null; try { send(ws, { type: 'voice:event', event: 'closed' }); } catch {} });
+  // A failed WS UPGRADE emits this with the raw HTTP response — the ONLY place the real reason behind a
+  // frameless 1006 shows up: 401/403 = auth (api-key/header), 404 = wrong URL/model, 400 = bad api-version,
+  // etc. Without this we only see the opaque 1006. Logs status + a body snippet (Azure's error JSON).
+  rt.on('unexpected-response', (req, res) => {
+    let body = '';
+    res.on('data', c => { if (body.length < 2000) body += c.toString(); });
+    res.on('end', () => {
+      log('rt_unexpected_response', { status: res.statusCode, statusText: String(res.statusMessage || ''), body: body.slice(0, 600) });
+      try { send(ws, { type: 'voice:event', event: 'error', detail: 'realtime upstream ' + res.statusCode + ' ' + (res.statusMessage || '') }); } catch {}
+    });
+    res.on('error', () => {});
+  });
   rt.on('open', () => {
     try {
       // Hands-free conversation: server VAD auto-detects when the user stops talking and replies
