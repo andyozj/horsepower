@@ -304,6 +304,8 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .coachdock .dockbar{display:flex; gap:8px; align-items:flex-end; padding:8px 12px}
 /* "Coach is thinking…" pending-reply indicator */
 .bubble.thinking{align-self:flex-start; display:inline-flex; align-items:center; gap:8px}
+.bubble.thinking{flex-wrap:wrap}
+.bubble.thinking .tslow{flex-basis:100%; font-size:12px; color:var(--muted-strong); margin-top:4px; max-width:34ch; line-height:1.35}
 .bubble.thinking .tdots{display:inline-flex; gap:3px}
 .bubble.thinking .tdots i{width:6px; height:6px; border-radius:50%; background:var(--red-pen); display:inline-block; animation:tdot 1s ease-in-out infinite}
 .bubble.thinking .tdots i:nth-child(2){animation-delay:.15s}
@@ -1460,6 +1462,10 @@ let view = 'landing';
 let revealShown = false;
 let coachStatus = 'idle';
 let coachBusy = false;
+let coachSlowTimer = null;
+// mark the Coach busy + arm a 9s "still working" reassurance (slow first replies on a cold instance read as broken)
+function coachBusyOn(){ coachBusy=true; ui.coachSlow=false; clearTimeout(coachSlowTimer); coachSlowTimer=setTimeout(()=>{ if(coachBusy){ ui.coachSlow=true; if(typeof render==='function') render(); } }, 9000); }
+function coachBusyOff(){ coachBusy=false; ui.coachSlow=false; clearTimeout(coachSlowTimer); }
 let ui = { drillTeamId:null, roomView:false, railWidth: 340, railOpen:null, seenChatLen:0, zoom:1, pan:{x:0,y:0}, challengeLock:null, voiceTurn:'ptt' };   // voiceTurn: 'ptt' (tap-to-send, good for rooms) | 'hands' (VAD auto-reply)
 // Defer full re-renders while a canvas label is being edited, so a state broadcast
 // (incl. the echo of our own edit) never clobbers the node the user is typing into.
@@ -3308,7 +3314,9 @@ const VC = {
   _finishYou(text){ let e=this._live('you'); if(!e){ e={role:'you', text:'', done:false}; this.transcript.push(e); } e.text=(text||e.text||''); e.done=true; this.youText=e.text; },
   _seal(){ this.transcript.forEach(e=>{ e.done=true; }); },
   setPhase(p){ this.phase=p; this._render(); },
-  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; this.phaseFor=(typeof state!=='undefined'&&state)?state.state:null; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting'); },
+  ensureSession(){ if(this.active) return; if(!(ui.voice&&ui.voice.converse)) return; this.phaseFor=(typeof state!=='undefined'&&state)?state.state:null; wsSend({type:'voice:start', turn: ui.voiceTurn}); this.active=true; this.ready=false; this.setPhase('connecting');
+    // never sit on "Connecting…" forever — if the realtime relay hasn't warmed in 12s, fall back to typing
+    clearTimeout(this._connT); this._connT=setTimeout(()=>{ if(this.active && !this.ready){ this.active=false; this.setPhase('idle'); toast('Couldn’t reach the voice Coach — switching you to typing.', true); ui.voiceMode='type'; if(typeof render==='function') render(); } }, 12000); },
   // the Coach has a DIFFERENT persona+tool per phase (Surface interview vs Rebuild sparring), chosen by the
   // server at session-open. If the phase changes under a live session, restart it so the right persona loads.
   syncPhase(p){ if(!this.active || this.phaseFor===p) return; if((p==='surface'||p==='rebuild') && ui.voice && ui.voice.converse) this.restart(p); else this.hangup(); },
@@ -3347,12 +3355,12 @@ const VC = {
   },
   _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
   sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this._seal(); this._finishYou(text); this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); this._render(); return true; },
-  hangup(){ if(this.recording) this._stopCapture(); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
+  hangup(){ if(this.recording) this._stopCapture(); clearTimeout(this._connT); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
   onEvent(m){
     if(m.type==='voice:event'){
-      if(m.event==='unavailable'){ this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
-      else if(m.event==='ready'){ this.ready=true; this.active=true; this.restarting=false; clearTimeout(this._restartT); if(!this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed (incl. after a phase restart) → "Tap to talk"; don't claim we're listening before the mic is on
-      else if(m.event==='error'){ this.active=false; this.restarting=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true, 14000); console.warn('[voice] error', m.detail||''); }   // linger so a config/schema rejection is readable
+      if(m.event==='unavailable'){ clearTimeout(this._connT); this.active=false; this.setPhase('idle'); toast('Live voice unavailable — switching you to typing.'); ui.voiceMode='type'; render(); }
+      else if(m.event==='ready'){ clearTimeout(this._connT); this.ready=true; this.active=true; this.restarting=false; clearTimeout(this._restartT); if(!this.recording && this.phase==='connecting') this.setPhase('idle'); }   // warmed (incl. after a phase restart) → "Tap to talk"; don't claim we're listening before the mic is on
+      else if(m.event==='error'){ clearTimeout(this._connT); this.active=false; this.restarting=false; this.setPhase('idle'); if(m.detail) toast('Voice error: '+m.detail, true, 14000); console.warn('[voice] error', m.detail||''); }   // linger so a config/schema rejection is readable
       else if(m.event==='closed'){ if(this.restarting) return; this.active=false; this.setPhase('idle'); }   // ignore the OLD upstream's teardown during a phase restart
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
@@ -3471,15 +3479,18 @@ function dockMicButton(){
 // a visible "Coach is thinking…" bubble — shown in the interview thread while a reply is pending so a
 // slow live-AI turn (cold-start / concurrent load) reads as "working", not "frozen".
 function thinkingBubble(){
-  return el('div',{class:'bubble coach thinking', role:'status'},
+  const b=el('div',{class:'bubble coach thinking', role:'status'},
     el('span',{class:'tdots','aria-hidden':'true'}, el('i'), el('i'), el('i')),
     el('span',{class:'tlabel'}, 'Coach is thinking…'));
+  // after ~9s the wait reads as "broken" — reassure that a slow first reply is expected, not dead
+  if(ui.coachSlow) b.append(el('div',{class:'tslow'}, 'The first reply can take a moment on a fresh connection — still working, nothing’s lost.'));
+  return b;
 }
 async function sendInterviewTurn(text){
   text=(text||'').trim(); if(!text||coachBusy) return;
   ui.coachDraft='';
   wsSend({type:'chat:post', role:'user', name:me.name, content:text});
-  coachBusy=true; coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+  coachBusyOn(); coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
   const hist=(chatNow('surface')||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
   const ac=new AbortController(); const to=setTimeout(()=>ac.abort(), 25000);   // never spin "thinking…" forever
   try{
@@ -3487,7 +3498,7 @@ async function sendInterviewTurn(text){
       body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
     clearTimeout(to);
     const d=await r.json();
-    coachBusy=false; coachStatus=d.degraded?'offline':'idle';
+    coachBusyOff(); coachStatus=d.degraded?'offline':'idle';
     if(d.degraded && !ui.degradedNoticed){ ui.degradedNoticed=true; wsSend({type:'chat:post', role:'system', content:'(The Coach is running offline — rule-based prompts. Your map and the Newcomer check still work.)'}); }
     // Mode 1 is STT-only by design: the transcript came in by voice, the Coach replies in TEXT (typed
     // into the thread). No TTS — Converse (Mode 2) is the spoken back-and-forth.
@@ -3496,7 +3507,7 @@ async function sendInterviewTurn(text){
     // A2c: when the Coach hands off (done), persist it per-team + render so Surface flips to the verify stage.
     if(d.done && me.teamId){ me.ivDone=me.ivDone||{}; me.ivDone[me.teamId]=true; saveMe(); render(); }
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
-  }catch(e){ clearTimeout(to); coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:(e&&e.name==='AbortError')?'The Coach took too long — it’s offline for now. Keep going; your map and the checks work without it.':'Coach is offline — keep going, the map and checks all work without it.'}); render(); }
+  }catch(e){ clearTimeout(to); coachBusyOff(); coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:(e&&e.name==='AbortError')?'The Coach took too long — it’s offline for now. Keep going; your map and the checks work without it.':'Coach is offline — keep going, the map and checks all work without it.'}); render(); }
 }
 // TEXT turn for Rebuild (and any non-surface chat): replies in the text thread, NEVER spoken. Used by the
 // rail composer AND the rebuild "type your move" — so typing always stays text (only dictation/STT adds audio-IN).
@@ -3505,16 +3516,16 @@ async function sendCoachTurn(text, mode){
   if(mode==='surface') return sendInterviewTurn(text);
   ui.coachDraft='';
   wsSend({type:'chat:post', role:'user', name:me.name, content:text});
-  coachBusy=true; coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+  coachBusyOn(); coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
   const ctx=buildCoachContext(mode);
   const hist=(chatNow(mode)||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
   try{
     const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode, context:ctx, messages:hist, code:me.code})});
     const d=await r.json();
-    coachBusy=false; coachStatus=d.degraded?'offline':'idle'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
+    coachBusyOff(); coachStatus=d.degraded?'offline':'idle'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
     wsSend({type:'chat:post', role:'assistant', content:d.reply});
     if(d.degraded) toast('Coach is offline — running on the built-in question bank. The map & checks still work.',true);
-  }catch(e){ coachBusy=false; coachStatus='offline'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); } wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
+  }catch(e){ coachBusyOff(); coachStatus='offline'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); } wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
 }
 // A2: Surface Stage 1 — the chat-hero "talk me through it" screen. Graduates to the normal map+rail
 // (Stage 2) once the map has >=3 blocks. "Draw it myself" is the agency / degradation escape.
