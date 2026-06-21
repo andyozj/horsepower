@@ -130,6 +130,8 @@ input:disabled,textarea:disabled,select:disabled{opacity:.5; cursor:not-allowed;
 .node:focus-visible{outline:2px solid var(--ink); outline-offset:3px}
 label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin:0 0 5px}
 .field{margin-bottom:14px}
+.charcount{font-size:12px; color:var(--muted-strong); font-variant-numeric:tabular-nums}
+.charcount.full{color:#a51f12; font-weight:600}
 .err{color:#a51f12; font-size:13px; font-weight:600; margin-top:6px} /* darker red — clears 4.5:1 on cream (the light red-pen was ~3.7:1) */
 .field input.errfield, input.errfield{border-color:#a51f12; box-shadow:0 0 0 2px rgba(165,31,18,.14)}
 .row{display:flex; gap:10px; align-items:center}
@@ -773,7 +775,9 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .pulseslider{display:flex; align-items:center; gap:12px; margin-top:14px}
 .pulseslider .pslabel{flex:1; font-size:14px; color:var(--muted-strong, var(--ink))}
 .pulseslider input[type=range]{flex:none; width:160px}
+.pulseslider.unset input[type=range]{opacity:.45} /* untouched → clearly not yet answered */
 .pulseslider .sliderval{flex:none; width:1.6em; text-align:center; font-weight:700; color:var(--ink)}
+.pulseslider.unset .sliderval{width:auto; font-weight:500; font-size:12px; color:var(--muted-strong); white-space:nowrap}
 .pulsequote{margin:7px 0; padding:5px 13px; border-left:3px solid var(--gold, #c9a227); font-style:italic; color:var(--muted-strong, var(--ink))}
 /* ---------- collapsible Coach rail (right, both phases) ---------- */
 .work{position:relative}
@@ -2023,7 +2027,9 @@ function viewPicker(){
   card.append(list);
   card.append(el('div',{style:'height:1px; background:var(--line-soft); margin:18px 0'}));
   const nm = el('input',{placeholder:'New stable name, e.g. AP Squad', maxlength:'40', 'data-testid':'create-team-name'});
-  card.append(el('div',{class:'field'}, el('label',{},'Start a stable (a new team)'), nm));
+  const nmCount = el('span',{class:'charcount'}, '0/40');   // so the 40-char cap isn't a silent surprise
+  nm.addEventListener('input',()=>{ nmCount.textContent = nm.value.length+'/40'; nmCount.classList.toggle('full', nm.value.length>=40); });
+  card.append(el('div',{class:'field'}, el('div',{class:'spread', style:'align-items:baseline'}, el('label',{},'Start a stable (a new team)'), nmCount), nm));
   card.append(el('button',{class:'btn primary', style:'width:100%', 'data-testid':'create-team-btn', onclick:()=>{
     if(!nm.value.trim()) return; wsSend({type:'team:create', name:nm.value.trim(), memberName:me.name, steed:me.steed});
   }}, '+ Start a stable'));
@@ -3235,7 +3241,7 @@ function gateBar(t){
   if(fails.length){
     box.append(el('div',{style:'font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--thin); margin-bottom:5px'}, 'Still to fix ('+fails.length+')'));
     fails.forEach(c=> box.append(el('div',{style:'padding:3px 0'},
-      el('div',{style:'font-size:13px; color:var(--thin)'}, '✕ '+c.label),
+      el('div',{style:'font-size:13px; font-weight:600; color:var(--thin)'}, '✕ '+c.label),
       GATE_HINTS[c.key]?el('div',{class:'meta', style:'margin:1px 0 0 13px; font-size:12px'}, GATE_HINTS[c.key]):null)) );
   } else box.append(el('div',{style:'font-size:13px; color:var(--ok); font-weight:600'}, '✓ All checks pass — a newcomer could run with this.'));
   if(passes.length) box.append(el('div',{style:'font-size:12px; color:var(--muted); margin-top:'+(fails.length?'8px':'6px')+'; border-top:1px solid var(--line-soft); padding-top:6px'}, 'Done: '+passes.map(c=>c.label).join(' · ')));
@@ -4211,14 +4217,16 @@ function pulseCard(){
   box.append(el('p',{class:'meta'},'No scores, no comparisons — just your read on the day.'));
   const aha=el('textarea',{'data-testid':'pulse-aha', 'aria-label':'One aha you had today', maxlength:'400', placeholder:'One aha you had…'}); aha.value=p.aha||'';
   const diff=el('textarea',{'data-testid':'pulse-diff', 'aria-label':'One thing you’ll do differently', maxlength:'400', placeholder:'One thing you’ll do differently…'}); diff.value=p.didDiff||'';
-  const mkSlider=(lbl,val,tid)=>{ const w=el('label',{class:'pulseslider'}); w.append(el('span',{class:'pslabel'},lbl));
-    const r=el('input',{type:'range', min:'0', max:'10', step:'1', value:(typeof val==='number'?val:5), 'data-testid':tid, 'aria-label':lbl}); const out=el('span',{class:'sliderval', 'aria-hidden':'true'}, String(typeof val==='number'?val:5));
-    r.addEventListener('input',()=>{ out.textContent=r.value; r.setAttribute('aria-valuetext', r.value+' out of 10'); commit(); }); w.append(r,out); w._input=r; return w; };
+  // an UNTOUCHED slider must not look like a deliberate answer — show "– drag" + a faded thumb until set,
+  // and send null (not a defaulted 5) so the Farrier board can tell "not answered" from a real 0–10.
+  const mkSlider=(lbl,val,tid)=>{ const set=typeof val==='number'; const w=el('label',{class:'pulseslider'+(set?'':' unset')}); w.append(el('span',{class:'pslabel'},lbl));
+    const r=el('input',{type:'range', min:'0', max:'10', step:'1', value:(set?val:5), 'data-testid':tid, 'aria-label':lbl}); const out=el('span',{class:'sliderval', 'aria-hidden':'true'}, set?String(val):'– drag');
+    r.addEventListener('input',()=>{ w.classList.remove('unset'); out.textContent=r.value; r.setAttribute('aria-valuetext', r.value+' out of 10'); commit(); }); w.append(r,out); w._input=r; w._set=()=>!w.classList.contains('unset'); return w; };
   const before=mkSlider('Before today, I could redesign a workflow AI-native', p.confBefore, 'pulse-before');
   const after =mkSlider('After today, I could redesign a workflow AI-native',  p.confAfter,  'pulse-after');
   let pt; function commit(){ clearTimeout(pt); pt=setTimeout(()=>{
     wsSend({type:'pulse:submit', aha:aha.value.trim(), didDiff:diff.value.trim(),
-            confBefore:Number(before._input.value), confAfter:Number(after._input.value)});
+            confBefore:before._set()?Number(before._input.value):null, confAfter:after._set()?Number(after._input.value):null});
     if(!ui.pulseToasted){ ui.pulseToasted=true; toast('Pulse logged — thank you.'); }
   },700); }
   [aha,diff].forEach(t=>{ t.addEventListener('blur',()=>{clearTimeout(pt); commit();}); t.addEventListener('input',commit); t.addEventListener('keydown',e=>e.stopPropagation()); });
@@ -4378,11 +4386,14 @@ function pulseBoard(){
 }
 // Slice C: the retrofit-detector board — per-team shape verdict + open Coach flags. Farrier-only (never projected).
 function shapeBoard(){
+  // read-only debrief fuel → collapsible so the action-required items (Needs you, amendments) dominate
   const teams=(state.teams||[]).filter(t=>t.redesign && t.personaDelta && t.personaDelta.total);
-  const box=el('div',{class:'card', 'data-testid':'shape-board'});
-  box.append(el('h3',{html: glyph('g-stamp')+' Shape verdict · retrofit detector'}));
+  const sec=el('details',{class:'stage-section', 'data-testid':'shape-board'}); if(ui.shapeBoardOpen) sec.setAttribute('open','');
+  sec.addEventListener('toggle',()=>{ ui.shapeBoardOpen=sec.open; });
+  sec.append(el('summary',{}, el('span',{html: glyph('g-stamp')+' Shape verdict · retrofit detector'}), el('span',{class:'ss-chev', html:glyph('i-chev')})));
+  const box=el('div',{class:'ss-body'});
   box.append(el('div',{class:'meta', style:'margin-bottom:6px'},'Did each team REDESIGN the work, or retrofit AI onto the old shape? Debrief fuel — never projected.'));
-  if(!teams.length){ box.append(el('div',{class:'meta'},'No rebuilds landed yet.')); return box; }
+  if(!teams.length){ box.append(el('div',{class:'meta'},'No rebuilds landed yet.')); sec.append(box); return sec; }
   teams.forEach(t=>{ const d=t.personaDelta; const cls=d.band==='RETROFIT-SHAPED'?'retrofit':d.band;
     const row=el('div',{style:'display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap'});
     row.append(el('b',{}, esc(t.name)),
@@ -4392,7 +4403,7 @@ function shapeBoard(){
     if(flags.length) row.append(el('span',{class:'meta', style:'color:var(--pop,#e23b3b)'}, flags.length+' open Coach flag'+(flags.length===1?'':'s')+': '+flags.join(', ')));
     box.append(row);
   });
-  return box;
+  sec.append(box); return sec;
 }
 
 //==================================================================
