@@ -1226,6 +1226,9 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .ccdots button{width:9px; height:9px; padding:0; border-radius:50%; border:1.5px solid var(--line); background:transparent; cursor:pointer; transition:background var(--t-fast),transform var(--t-fast),border-color var(--t-fast)}
 .ccdots button:hover{border-color:var(--red-pen)}
 .ccdots button.on{background:var(--red-pen); border-color:var(--red-pen); transform:scale(1.25)}
+/* the Coach orb + a hand-written cue, for the interview-start (slide 1) and beside-the-map (slide 4) scenes */
+.vstage .ccorb{position:absolute; animation:riseSettle var(--t-enter) var(--ease-settle) both}
+.vstage .taptotalk{position:absolute; font-family:Caveat,cursive; font-size:16px; color:var(--muted-strong); white-space:nowrap; background:var(--card); border:1.3px solid var(--line); border-radius:999px; padding:2px 11px; box-shadow:var(--shadow-rest); opacity:0; animation:fadeSoft .6s ease forwards}
 .breathe{animation:breathe 3.4s ease-in-out 6} /* finite (6×, ~20s) — perpetual breathing on the collapsed Coach button jittered click-stability (the iter1/iter2 lesson); re-applied on each render while unread */
 @media (prefers-reduced-motion: reduce){
   .anim-rise,.av.canter,.canter,.vignette,.vblock,.frag,.breathe,.led,.phasein,.toast,.authordot,.ccslide{animation:none !important}
@@ -2201,9 +2204,19 @@ function coachCarousel(){
 // one teaching slide. 0 intro · 1 surface (animated brain-dump→map) · 2 redesign · 3 talk-or-type
 function coachSlide(i){
   if(i===0){
-    return el('div',{class:'ccslide ccintro'},
-      el('div',{class:'who', html: coachAvatar(60)+'<span>Meet your Coach</span>'}),
-      el('div',{class:'coachsay'}, 'When we start, I’ll interview you — just talk, like you’re explaining it to a new colleague. I build the map and keep you honest.'));
+    // the START: the speech interview — you talk, the Coach listens and the map begins
+    const v=el('div',{class:'ccslide vignette'});
+    v.append(el('div',{class:'vh', html: glyph('g-mic')+'<span>Meet your Coach — just start talking</span>'}));
+    v.append(slideStage((stage,ink,node)=>{
+      stage.append(el('div',{class:'frag', style:'left:16px; top:28px; --fx:-30px; --fy:6px'},'“so, an invoice comes in…”'));
+      stage.append(el('div',{class:'frag', style:'left:24px; top:92px; --fx:-30px; --fy:14px; animation-delay:.2s'},'“…and the GM signs it off”'));
+      stage.append(el('div',{class:'ccorb', style:'left:402px; top:8px', html: coachAvatar(96,'listen')}));
+      stage.append(el('div',{class:'taptotalk', style:'left:380px; top:122px; animation-delay:1100ms'},'tap to talk · or type'));
+      inkArrow(ink,250,74,394,74,'vg-s0',800);
+      stage.append(el('div',{class:'hann', style:'left:118px; top:140px; --rot:-2deg; animation-delay:1300ms'},'I’m listening — the map starts here'));
+    }));
+    v.append(el('div',{class:'vcap'}, 'You talk, I listen — and the map starts drawing itself. (Or type, if you’d rather.)'));
+    return v;
   }
   if(i===1){
     const v=el('div',{class:'ccslide vignette'});
@@ -2216,7 +2229,7 @@ function coachSlide(i){
       inkArrow(ink,212,100,364,104,'vg-a1',900);
       stage.append(el('div',{class:'hann', style:'left:240px; top:132px; --rot:-2deg; animation-delay:1300ms'},'structured, while you talk'));
     }));
-    v.append(el('div',{class:'vcap'}, 'Walk me through it honestly — how it really runs today. Who does what, who decides, what kicks it off, the steps (flag the painful bits), and the why behind each.'));
+    v.append(el('div',{class:'vcap'}, 'Tell it like a story — who, what, and the why. I draw the map as you talk.'));
     return v;
   }
   if(i===2){
@@ -2228,12 +2241,22 @@ function coachSlide(i){
       inkArrow(ink,250,56,344,56,'vg-a4',900);
       stage.append(el('div',{class:'hann', style:'left:150px; top:116px; --rot:-2deg; animation-delay:1200ms'},'let AI do the heavy lifting'));
     }));
-    v.append(el('div',{class:'vcap'}, 'Next we rebuild it AI-native — Agent blocks doing the real work, every person re-landed. One twist on the day, though — we’re keeping that under wraps.'));
+    v.append(el('div',{class:'vcap'}, 'Then we rebuild it AI-native — agents do the heavy lifting. (One twist on the day, kept under wraps.)'));
     return v;
   }
-  return el('div',{class:'ccslide ccintro'},
-    el('div',{class:'who small', html: coachAvatar(54)+'<span>Talk to me — or type</span>'}),
-    el('div',{class:'coachsay'}, 'Say it out loud or type it, whichever suits you. I live beside every map — look for my red face, tap it if I’m tucked away.'));
+  // the last slide: where to find me — the Coach lives right beside the map you'll build
+  const v=el('div',{class:'ccslide vignette'});
+  v.append(el('div',{class:'vh', html: glyph('g-persona')+'<span>I’m right beside your map</span>'}));
+  v.append(slideStage((stage,ink,node)=>{
+    node('s4-t','trigger','g-trigger','invoice arrives',30,26,200);
+    node('s4-ph','phase',null,'Approval',40,98,400);
+    node('s4-o','outcome','g-check','paid on time',252,100,700);
+    inkArrow(ink,150,118,246,118,'vg-s4',900);
+    stage.append(el('div',{class:'ccorb', style:'left:452px; top:16px', html: coachAvatar(86)}));
+    stage.append(el('div',{class:'taptotalk', style:'left:430px; top:128px; animation-delay:1100ms'},'tap me if I’m tucked away'));
+  }));
+  v.append(el('div',{class:'vcap'}, 'Talk or type, anytime — I live right beside every map.'));
+  return v;
 }
 // shared fixed-coordinate sketch stage (scales to the card via sketchFit) for the animated slides.
 // build(stage, ink, node) draws into the 594×170 stage using the REAL map language (washes + rough-lite).
