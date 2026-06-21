@@ -270,13 +270,16 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .composer{padding:10px 12px; border-top:1.5px dashed var(--line-soft); display:flex; gap:8px; align-items:flex-end}
 .composer textarea{resize:none; min-height:42px; max-height:120px}
 /* A2 Surface Stage-1 interview hero */
-.work.interviewing{justify-content:center; align-items:flex-start; padding:24px; overflow:auto}
+.work.interviewing{justify-content:center; align-items:center; padding:24px; overflow:auto}
 /* the graduation: interview → workspace. Plays ONCE when the map first forms (voice OR text, identical),
    so the swap reads as "the conversation becomes your map", not a hard cut. */
 @keyframes graduateIn{0%{opacity:0; transform:translateY(16px) scale(.992)}100%{opacity:1; transform:translateY(0) scale(1)}}
 .work.stage2.graduate-in{animation:graduateIn .45s var(--ease-settle) both}
 @media (prefers-reduced-motion:reduce){ .work.stage2.graduate-in{animation:none} }
-.interviewhero{width:min(760px,94%); margin:0 auto; background:var(--card); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-float); max-height:calc(100vh - 150px)}
+.interviewhero{width:min(760px,94%); margin:0 auto; background:var(--card); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-float);
+  /* a substantial, vertically-centred panel — not a tiny card with the composer floating mid-screen and a
+     void below. messages fill the middle (scroll), the composer stays anchored at the bottom of the panel. */
+  height:min(560px, calc(100vh - 160px))}
 .interviewhero .ivhead{display:flex; gap:12px; align-items:center}
 .interviewhero .ivhead .meta{font-size:13px; color:var(--muted-strong)}
 .interviewhero .ivmsgs{flex:1; overflow:auto; min-height:220px; display:flex; flex-direction:column; gap:8px; padding:4px 2px}
