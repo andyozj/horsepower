@@ -188,14 +188,25 @@ const mk = () => new Promise(res => { const w = new WebSocket(WSBASE); w.on('ope
   const cj = await c.json();
   ok('Coach degrades gracefully with NO key (200 + question bank, never blocks)', c.status === 200 && cj.degraded === true && typeof cj.reply === 'string', cj);
 
-  // swap guard <2 teams
+  // rebuild guard: 0 teams blocked; 1 team = SOLO self-rebuild (no swap)
   const r2 = await fetch(BASE + '/api/workshop', { method: 'POST' }); const w2 = await r2.json();
-  const f2 = await mk(); let f2msg; f2.on('message', d => { const m = JSON.parse(d); if (m.type === 'error') f2msg = m; });
+  const f2 = await mk(); let f2msg, f2state; f2.on('message', d => { const m = JSON.parse(d); if (m.type === 'error') f2msg = m; if (m.type === 'state') f2state = m.state; });
   f2.send(JSON.stringify({ type: 'join', role: 'farrier', workshopCode: w2.code, hostKey: w2.hostKey }));
   await wait(100);
   f2.send(JSON.stringify({ type: 'phase:set', workshopCode: w2.code, phase: 'rebuild' }));
   await wait(150);
-  ok('swap blocked with <2 teams', f2msg && /2 teams/.test(f2msg.error));
+  ok('rebuild blocked with 0 teams', f2msg && /at least one team/i.test(f2msg.error || ''), f2msg && f2msg.error);
+  // add ONE team → solo
+  const m2 = await mk(); m2.send(JSON.stringify({ type: 'join', role: 'member', workshopCode: w2.code })); await wait(80);
+  m2.send(JSON.stringify({ type: 'team:create', workshopCode: w2.code, name: 'Solo Squad', memberName: 'Sol' })); await wait(140);
+  f2.send(JSON.stringify({ type: 'phase:set', workshopCode: w2.code, phase: 'surface' })); await wait(120);
+  f2msg = null;
+  f2.send(JSON.stringify({ type: 'phase:set', workshopCode: w2.code, phase: 'rebuild' })); await wait(220);
+  ok('SOLO: 1 team advances to rebuild (no swap block)', f2state && f2state.state === 'rebuild', f2msg ? f2msg.error : (f2state && f2state.state));
+  const soloTeam = f2state && (f2state.teams || [])[0];
+  ok('SOLO: team rebuilds its OWN workflow (selfRebuild, receivedFromTeamId===own id)',
+    soloTeam && soloTeam.selfRebuild === true && soloTeam.receivedFromTeamId === soloTeam.id && !!soloTeam.redesign,
+    soloTeam && { selfRebuild: soloTeam.selfRebuild, rf: soloTeam.receivedFromTeamId, id: soloTeam.id, hasRedesign: !!soloTeam.redesign });
 
   // close
   fac.send(JSON.stringify({ type: 'phase:set', workshopCode: code, phase: 'closed' }));

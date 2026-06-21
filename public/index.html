@@ -1600,10 +1600,11 @@ function afterState(){
     const t = myTeam();
     if (t && t.receivedFromTeamName && me.revealSeenFor!==state.code){
       revealShown=true;
-      if (ui.wasHeld){                         // held flow: bridge "pens down" through the projected rotation, then stamp
+      const solo = !!t.selfRebuild;            // SOLO: rebuilding their OWN workflow — no swap surprise, solo copy
+      if (ui.wasHeld && !solo){                 // held flow: bridge "pens down" through the projected rotation, then stamp
         if (hs) hs.classList.add('on');
-        setTimeout(()=>{ if(hs) hs.classList.remove('on'); if(state && state.state==='rebuild') showReveal(t.receivedFromTeamName); }, 2800);
-      } else { showReveal(t.receivedFromTeamName); }
+        setTimeout(()=>{ if(hs) hs.classList.remove('on'); if(state && state.state==='rebuild') showReveal(t.receivedFromTeamName, false); }, 2800);
+      } else { showReveal(t.receivedFromTeamName, solo); }
     }
     else { const rv=document.getElementById('reveal'); if(rv) rv.classList.remove('on'); }   // already seen → never strand the scrim over the rebuild canvas
   }
@@ -4586,8 +4587,10 @@ function playSwapRotation(){
   document.body.append(ov);
   setTimeout(()=>{ try{ov.remove();}catch(e){} }, 4200);
 }
-function showReveal(fromName){
-  $('#reveal-twist').innerHTML = `Plot twist — you’re <b>not</b> redesigning yours. You now hold <b>${esc(fromName)}</b>’s workflow, and yours is in another team’s hands. The old steps are gone — <b>nothing to retrofit.</b><br><span class="twist-sub">You get their brief: the need, the worries, their people. The HOW is stripped — build it AI-native.</span>`;
+function showReveal(fromName, solo){
+  $('#reveal-twist').innerHTML = solo
+    ? `Time to <b>redesign your own</b> workflow — AI-native. The old steps are stripped away, and your <b>intent, outcome &amp; key people are locked</b>. Don’t relabel it — <b>rebuild the HOW.</b><br><span class="twist-sub">Drop Agent blocks where AI should act, re-land every person, log your guesses.</span>`
+    : `Plot twist — you’re <b>not</b> redesigning yours. You now hold <b>${esc(fromName)}</b>’s workflow, and yours is in another team’s hands. The old steps are gone — <b>nothing to retrofit.</b><br><span class="twist-sub">You get their brief: the need, the worries, their people. The HOW is stripped — build it AI-native.</span>`;
   $('#reveal').classList.add('on');
   // B6b: SR user lands on the role=alertdialog reveal (focus the overlay, then the CTA when it's staged)
   $('#reveal').setAttribute('tabindex','-1'); $('#reveal').focus();
@@ -4617,7 +4620,10 @@ function primaryCTA(){
   const teams=state.teams||[];
   switch(state.state){
     case 'lobby':   return { label:'Start Surface', next:'surface', disabled: teams.length<1, reason:'waiting for a team to join' };
-    case 'surface': return { label: state.hold?'Reveal the swap':'Swap → Rebuild', html: state.hold? glyph('g-stamp','ctaglyph')+'<span>Reveal the swap</span>' : null, held: !!state.hold, next:'rebuild', disabled: teams.length<2, reason:'need 2+ teams to swap' };
+    case 'surface': { const solo = teams.length===1;   // 1 team → rebuild their OWN workflow (no swap); 2+ → the rotation swap
+      return solo
+        ? { label:'Rebuild it (your own)', next:'rebuild', disabled:false }
+        : { label: state.hold?'Reveal the swap':'Swap → Rebuild', html: state.hold? glyph('g-stamp','ctaglyph')+'<span>Reveal the swap</span>' : null, held: !!state.hold, next:'rebuild', disabled: teams.length<2, reason:'need 2+ teams to swap' }; }
     case 'rebuild': return { label:'Move to Share',    next:'share',   disabled:false };
     case 'share':   return { label:'Finish & close',   next:'closed',  disabled:false };
     default: return null;
@@ -4625,8 +4631,8 @@ function primaryCTA(){
 }
 async function doAdvance(cta){
   if(cta.disabled) return;
-  if(cta.next==='rebuild'){ const notReady=(state.teams||[]).filter(t=>!t.gateGreen);
-    if(notReady.length && !await confirmModal(notReady.map(t=>t.name).join(', ')+' not redesign-ready — their receiving team inherits a thin brief.', {title:'Swap now?', confirmText:'Swap now'})) return; }
+  if(cta.next==='rebuild'){ const notReady=(state.teams||[]).filter(t=>!t.gateGreen); const solo=(state.teams||[]).length===1;
+    if(notReady.length && !await confirmModal(solo ? 'Your map isn’t redesign-ready — your rebuild inherits a thin brief.' : notReady.map(t=>t.name).join(', ')+' not redesign-ready — their receiving team inherits a thin brief.', {title: solo?'Rebuild now?':'Swap now?', confirmText: solo?'Rebuild now':'Swap now'})) return; }
   if(cta.next==='closed' && !await confirmModal('Teams keep their export packs; the room closes for everyone.', {title:'Finish & close the workshop?', confirmText:'Finish & close'})) return;
   wsSend({type:'phase:set', phase:cta.next});
 }

@@ -740,9 +740,11 @@ function maybePrecomputeTeardown(team) {
 
 // ---------- The swap ----------
 function performSwap(w) {
-  if (w.teams.length < 2) return { error: 'Need at least 2 teams to swap.' };
-  // idempotent: if the swap already happened (e.g. Farrier stepped back then forward),
-  // just re-enter Rebuild — never re-rotate/re-seed and clobber the teams' in-progress work.
+  if (w.teams.length < 1) return { error: 'Need at least one team to rebuild.' };
+  // SOLO (1 team): the ring rotation below self-assigns — (0+1) % 1 = 0 — so the team is handed its
+  // OWN torn-down workflow and rebuilds that (no stranger to swap with). With 2+ teams, no team gets
+  // its own. The team-facing copy keys off `selfRebuild` (receivedFromTeamId === own id) to drop the
+  // swap-surprise framing for the solo case.
   if (w.teams.every(t => t.redesign)) { w.state = 'rebuild'; scheduleSave(); return {}; }
   // ensure every team has a teardown (rule-assembled fallback if gate not green)
   w.teams.forEach(t => { if (!t.teardown) t.teardown = buildTeardown(t.canvas); });
@@ -834,6 +836,7 @@ function teamPublic(w, t) {
     teardown: t.teardown || null,        // farrier brief-preview reads this; team only sees its received one
     receivedFromTeamId: t.receivedFromTeamId || null,
     receivedFromTeamName: t.receivedFromTeamId ? (findTeam(w, t.receivedFromTeamId) || {}).name : null,
+    selfRebuild: !!(t.receivedFromTeamId && t.receivedFromTeamId === t.id),   // SOLO: rebuilding their OWN torn-down workflow → client drops the swap-surprise framing
     redesign: t.redesign || null,
     personaDelta: t.redesign ? personaDelta(t) : null,   // Slice C: live retrofit-detector verdict (rebuilder's own design — no leak)
     amendmentRequests: t.amendmentRequests || []
