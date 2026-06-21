@@ -103,6 +103,13 @@ async function axeSerious(page) {
   ok('4d: Surface sr-only h1 reads "Surface — map your workflow"',
     /Surface — map your workflow/.test(await A.locator('h1.sr-only').first().textContent().catch(() => '')));
 
+  // ---- per-phase "?" help: keyboard-operable + Esc-dismissible ----
+  await A.click('[data-testid=phase-help]'); await wait(150);
+  const helpOpen = (await A.locator('.phasehelp.open').count()) === 1;
+  await A.keyboard.press('Escape'); await wait(150);
+  const helpClosed = (await A.locator('.phasehelp.open').count()) === 0;
+  ok('16d: Surface "?" help opens on activation and Esc dismisses it', helpOpen && helpClosed, `open=${helpOpen} closed=${helpClosed}`);
+
   // ---- B9 keyboard place ----
   await A.click('[data-testid=tool-trigger]');
   await A.locator('.scene[data-testid=surface-canvas]').focus();
@@ -231,6 +238,25 @@ async function axeSerious(page) {
   await A.goto('about:blank');
   const W = await (await ctx()).newPage(); await W.goto(BASE); await wait(800);
   await W.locator('.brand, .wordmark, h1').first().screenshot({ path: 'uat-shots/a11y-wonk-wordmark.png' }).catch(() => {});
+
+  // ---- lobby teaching carousel under prefers-reduced-motion (must NOT auto-advance — the click-stability lesson) ----
+  const RF = await (await ctx()).newPage(); await RF.goto(BASE);   // host in its own context (separate localStorage)
+  await RF.click('[data-testid=host-btn]'); await RF.waitForSelector('.codechip');
+  const rmCode = (await RF.textContent('.codechip')).trim();
+  const rmCtx = await b.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });   // the member: reduced motion
+  const RM = await rmCtx.newPage(); RM.on('dialog', d => d.accept().catch(() => {})); await RM.goto(BASE);
+  await RM.fill('[data-testid=join-name]', 'RM'); await RM.fill('[data-testid=join-code]', rmCode); await RM.click('[data-testid=join-btn]');
+  await RM.waitForSelector('[data-testid=create-team-name]');
+  await RM.fill('[data-testid=create-team-name]', 'RM Crew'); await RM.click('[data-testid=create-team-btn]');
+  await RM.waitForSelector('[data-testid=coach-carousel]'); await wait(250);
+  ok('16e: carousel dots carry aria-labels (4)', (await RM.locator('[data-testid=coach-carousel] .ccdots button[aria-label]').count()) === 4);
+  const cc0 = await RM.textContent('[data-testid=coach-carousel] .ccslide');
+  await wait(6800);   // > the 6.2s auto-advance interval — under reduced motion NO interval is set, so the slide must be unchanged
+  const cc1 = await RM.textContent('[data-testid=coach-carousel] .ccslide');
+  ok('16f: reduced-motion does NOT auto-advance the carousel', cc0 === cc1, `"${(cc0||'').slice(0,20)}" → "${(cc1||'').slice(0,20)}"`);
+  await RM.click('[data-testid=cc-dot-2]'); await wait(200);
+  ok('16g: dots still navigate manually under reduced motion', (await RM.textContent('[data-testid=coach-carousel] .ccslide')) !== cc1);
+  await rmCtx.close();
 
   await b.close();
   console.log(`\nA11Y ${fail === 0 ? '✅' : '❌'} — ${pass} passed, ${fail} failed`);

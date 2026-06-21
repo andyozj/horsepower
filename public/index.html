@@ -373,6 +373,8 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .node.intent,.hnode.intent{background:var(--wash-intent); border-left:3px solid var(--gold)}
 .node.outcome,.hnode.outcome{background:var(--wash-outcome); font-weight:600; border-left:3px solid var(--highlighter)}
 .node.agent{background:var(--wash-agent); border-width:2px; border-left:3px solid var(--agent)}
+.hnode.agent{background:var(--wash-agent); border-left:3px solid var(--agent)}
+.hnode.faded{opacity:.5}
 .node.text{background:transparent; border:none; box-shadow:none; padding:2px}
 .node.pain{background:var(--wash-pain); color:var(--pain)}
 .node.locked{border-style:dashed; border-color:var(--lock); color:var(--lock); overflow:visible} /* locked stays crisp — it arrives "official" (low sloppiness = information) */
@@ -456,7 +458,15 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 /* gate / governance bar */
 /* pointer-events:none so an undismissed banner never eats clicks on the baseline strip / canvas
    beneath it (live dry-run finding); only the × dismiss button stays interactive. */
-.goalnote{position:absolute; top:10px; left:12px; z-index:var(--z-canvas-ui); display:flex; align-items:center; gap:7px; background:var(--card); border:1.4px solid var(--line); border-radius:999px; padding:7px 15px; font-size:13px; font-weight:500; max-width:72%; box-shadow:var(--shadow-rest); pointer-events:none}
+.goalnote{position:absolute; top:10px; left:50px; z-index:var(--z-canvas-ui); display:flex; align-items:center; gap:7px; background:var(--card); border:1.4px solid var(--line); border-radius:999px; padding:7px 15px; font-size:13px; font-weight:500; max-width:calc(72% - 40px); box-shadow:var(--shadow-rest); pointer-events:none}
+/* persistent per-phase "?" help — anchors top-left; the dismissible goalnote sits to its right */
+.phasehelp{position:absolute; top:9px; left:12px; z-index:var(--z-canvas-ui)}
+.phasehelp .helpq{width:28px; height:28px; border-radius:50%; border:1.5px solid var(--line); background:var(--card); color:var(--muted-strong); font-family:Fraunces,serif; font-weight:600; font-size:15px; cursor:pointer; box-shadow:var(--shadow-rest); line-height:1; display:flex; align-items:center; justify-content:center}
+.phasehelp .helpq:hover,.phasehelp.open .helpq{border-color:var(--red-pen); color:var(--red-pen)}
+.phasehelp .helppop{position:absolute; top:36px; left:0; width:min(264px,80vw); background:var(--card); border:1.5px solid var(--ink); border-radius:var(--r-scrap); padding:11px 13px; box-shadow:var(--shadow-float); opacity:0; transform:translateY(-5px); pointer-events:none; transition:opacity var(--t-fast),transform var(--t-fast); text-align:left}
+.phasehelp.open .helppop{opacity:1; transform:none; pointer-events:auto}
+.phasehelp .hhd{display:flex; align-items:center; gap:7px; font-family:Fraunces,serif; font-weight:600; font-size:14px; color:var(--ink); margin-bottom:5px}
+.phasehelp .helppop p{font-size:13px; color:var(--muted-strong); line-height:1.45; margin:0}
 .goalnote .glyph{color:var(--gold-deep,#c9881f)}
 .goalnote .glyph{width:14px; height:14px; flex:none; color:var(--thin)}
 .goalnote button{border:none; background:none; padding:0 0 0 5px; color:var(--muted); font-size:15px; cursor:pointer; line-height:1; pointer-events:auto}
@@ -1205,9 +1215,20 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .vdots{display:inline-flex; gap:3px}
 .vdots i{width:6px; height:6px; border-radius:50%; background:var(--muted); animation:breathe 1.2s ease-in-out infinite}
 .vdots i:nth-child(2){animation-delay:.2s}.vdots i:nth-child(3){animation-delay:.4s}
+/* lobby teaching carousel: rotating "what to say" slides + clickable dots (pauses on hover/focus) */
+.coachcarousel{width:100%; max-width:660px; display:flex; flex-direction:column; align-items:center; gap:15px}
+.ccstage{width:100%; min-height:236px; display:flex; align-items:center; justify-content:center}
+.ccslide{width:100%; animation:vignetteIn .45s ease both}
+.ccslide.ccintro{text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; padding:14px 4px}
+.ccslide.ccintro .who.small{font-size:clamp(26px,2.6vw,34px)}
+.ccslide .coachsay{max-width:520px}
+.ccdots{display:flex; gap:10px}
+.ccdots button{width:9px; height:9px; padding:0; border-radius:50%; border:1.5px solid var(--line); background:transparent; cursor:pointer; transition:background var(--t-fast),transform var(--t-fast),border-color var(--t-fast)}
+.ccdots button:hover{border-color:var(--red-pen)}
+.ccdots button.on{background:var(--red-pen); border-color:var(--red-pen); transform:scale(1.25)}
 .breathe{animation:breathe 3.4s ease-in-out 6} /* finite (6×, ~20s) — perpetual breathing on the collapsed Coach button jittered click-stability (the iter1/iter2 lesson); re-applied on each render while unread */
 @media (prefers-reduced-motion: reduce){
-  .anim-rise,.av.canter,.canter,.vignette,.vblock,.frag,.breathe,.led,.phasein,.toast,.authordot{animation:none !important}
+  .anim-rise,.av.canter,.canter,.vignette,.vblock,.frag,.breathe,.led,.phasein,.toast,.authordot,.ccslide{animation:none !important}
   .brandmark-draw path,.brandmark-draw circle{stroke-dashoffset:0 !important; animation:none !important}
 }
 
@@ -2085,22 +2106,13 @@ function viewLobby(){
   // jarring page refresh).
   function fillCoach(){
    cp.innerHTML='';
-   // A2b: no "Let's ride" commitment — you MEET the Coach by talking to it in the interview; the Farrier
-   // starting Surface is the de-facto "off". The lobby just introduces the Coach + parks early thoughts.
-   cp.append(el('div',{class:'who anim-rise', html: coachAvatar(54)+'<span>Meet your Coach</span>'}));
-   cp.append(el('div',{class:'coachsay anim-rise', style:'animation-delay:100ms'}, 'When we start, I’ll interview you — you talk, I build the map and keep you honest.'));
-   const prom = el('div',{class:'vignette promises anim-rise', style:'animation-delay:200ms'});
-   [['g-pin','I’ll capture everything','your brain-dump becomes a living map — nothing gets lost'],
-    ['g-bulb','I’ll push on the WHY','“a report isn’t a reason” — I keep asking until it’s a decision'],
-    ['g-persona','I’ll keep it newcomer-proof','could someone new pick this up and run with it?']
-   ].forEach(([g,b,s])=> prom.append(el('div',{class:'prow'}, el('span',{class:'pico', html:glyph(g)}), el('div',{}, el('b',{},b), el('div',{class:'meta'},s)))));
-   prom.append(el('div',{class:'prow'}, el('span',{class:'pico findme-av', html:coachAvatar(34)}),
-     el('div',{}, el('b',{},'Where to find me'), el('div',{class:'meta'},'I live beside every map — look for my face, tap it if I’m tucked away.'))));
-   cp.append(prom);
+   // A2b: you MEET the Coach by talking to it in the interview; the Farrier starting Surface is the
+   // de-facto "off". The lobby teaches WHAT TO SAY (auto-rotating carousel) + parks early thoughts.
+   cp.append(coachCarousel());
    const offline=(t&&t.members||[]).filter(m=>!m.online).length;
-   cp.append(el('p',{class:'meta anim-rise', style:'max-width:460px; animation-delay:300ms'},
+   cp.append(el('p',{class:'meta anim-rise', style:'max-width:460px; margin-top:2px'},
      offline ? ('Waiting on '+offline+' more to arrive — then the Farrier starts the ride.') : 'Your stable’s all here — the Farrier starts the ride for the room.'));
-   cp.append(scratchPad(360));
+   cp.append(scratchPad(120));
   }
   fillCoach();
   wrap.append(cp);
@@ -2155,15 +2167,77 @@ function paddockFence(members){
   wrap.append(fi);
   return wrap;
 }
-function coachVignette(i){
-  const data=[
-    {h:'I turn your brain-dump into a map', cap:'type how it really works — I’ll propose the blocks, you place them'},
-    {h:'I flag what’s too thin for a newcomer', cap:'“a report isn’t a reason” — could someone new run with this?'},
-    {h:'I push on the WHY', cap:'why does this step exist? that’s where the gold is'}
-  ][i];
-  const v=el('div',{class:'vignette'});
-  v.append(el('div',{class:'vh', html: glyph('g-bulb')+'<span>'+data.h+'</span>'}));
-  // fixed-coordinate stage that scales to the card (sketchFit) — never clips
+// ── Lobby teaching carousel ─────────────────────────────────────────────────
+// Auto-rotating "what to say" slides: intro → surface(animated) → redesign → talk-or-type.
+// The workshop arc is now revealed (rule #2 relaxed); only the SWAP stays secret, so the redesign
+// slide stays impersonal ("these get redesigned", never "your workflow") + carries a no-spoiler teaser.
+// Reuses the render-scope `lobbyTimer` global (cleared at the top of every render() → no leak).
+function coachCarousel(){
+  const SLIDES=4;
+  if(ui.lobbySlide==null) ui.lobbySlide=0;
+  let idx=ui.lobbySlide % SLIDES;
+  const wrap=el('div',{class:'coachcarousel', 'data-testid':'coach-carousel'});
+  const stageWrap=el('div',{class:'ccstage'});
+  const dots=el('div',{class:'ccdots'});
+  for(let k=0;k<SLIDES;k++) dots.append(el('button',{'data-testid':'cc-dot-'+k, 'aria-label':'Show slide '+(k+1)+' of '+SLIDES, onclick:()=>{ idx=k; paint(); restart(); }}));
+  function paint(){
+    // NB: the view tree is built detached then attached, so paint() must NOT gate on isConnected
+    // (the initial paint runs while detached). The self-clean lives in advance() + render()'s top.
+    ui.lobbySlide=idx; stageWrap.innerHTML=''; stageWrap.append(coachSlide(idx));
+    dots.querySelectorAll('button').forEach((b,k)=>{ const on=k===idx; b.classList.toggle('on',on); on?b.setAttribute('aria-current','true'):b.removeAttribute('aria-current'); });
+  }
+  function advance(){ if(!stageWrap.isConnected){ stop(); return; } idx=(idx+1)%SLIDES; paint(); }   // detached (phase changed) → self-clean
+  function stop(){ if(lobbyTimer){ clearInterval(lobbyTimer); lobbyTimer=null; } }
+  function restart(){ stop(); if(!REDUCED) lobbyTimer=setInterval(advance,6200); }   // finite per tick; reduced-motion = no auto-advance
+  // pause while a curious user hovers/reads (and on keyboard focus); resume on leave
+  wrap.addEventListener('mouseenter',stop);
+  wrap.addEventListener('mouseleave',restart);
+  wrap.addEventListener('focusin',stop);
+  wrap.addEventListener('focusout',restart);
+  wrap.append(stageWrap,dots);
+  paint(); restart();
+  return wrap;
+}
+// one teaching slide. 0 intro · 1 surface (animated brain-dump→map) · 2 redesign · 3 talk-or-type
+function coachSlide(i){
+  if(i===0){
+    return el('div',{class:'ccslide ccintro'},
+      el('div',{class:'who', html: coachAvatar(60)+'<span>Meet your Coach</span>'}),
+      el('div',{class:'coachsay'}, 'When we start, I’ll interview you — just talk, like you’re explaining it to a new colleague. I build the map and keep you honest.'));
+  }
+  if(i===1){
+    const v=el('div',{class:'ccslide vignette'});
+    v.append(el('div',{class:'vh', html: glyph('g-flag')+'<span>First — surface how it works today</span>'}));
+    v.append(slideStage((stage,ink,node)=>{
+      stage.append(el('div',{class:'frag', style:'left:18px; top:24px; --fx:-30px; --fy:6px'},'“GM signs off on it…”'));
+      stage.append(el('div',{class:'frag', style:'left:14px; top:82px; --fx:-30px; --fy:14px; animation-delay:.18s'},'“an invoice comes in”'));
+      node('vg-p','persona','g-persona','GM',402,16,500);
+      node('vg-t','trigger','g-trigger','invoice arrives',376,88,700);
+      inkArrow(ink,212,100,364,104,'vg-a1',900);
+      stage.append(el('div',{class:'hann', style:'left:240px; top:132px; --rot:-2deg; animation-delay:1300ms'},'structured, while you talk'));
+    }));
+    v.append(el('div',{class:'vcap'}, 'Walk me through it honestly — how it really runs today. Who does what, who decides, what kicks it off, the steps (flag the painful bits), and the why behind each.'));
+    return v;
+  }
+  if(i===2){
+    const v=el('div',{class:'ccslide vignette'});
+    v.append(el('div',{class:'vh', html: glyph('g-bolt')+'<span>Then — redesign it, AI-native</span>'}));
+    v.append(slideStage((stage,ink,node)=>{
+      const oldn=node('vg-old','phase',null,'manual chase-up',40,30,200); oldn.classList.add('faded');
+      node('vg-ag','agent','g-bolt','AI Agent',356,32,700);
+      inkArrow(ink,250,56,344,56,'vg-a4',900);
+      stage.append(el('div',{class:'hann', style:'left:150px; top:116px; --rot:-2deg; animation-delay:1200ms'},'let AI do the heavy lifting'));
+    }));
+    v.append(el('div',{class:'vcap'}, 'Next we rebuild it AI-native — Agent blocks doing the real work, every person re-landed. One twist on the day, though — we’re keeping that under wraps.'));
+    return v;
+  }
+  return el('div',{class:'ccslide ccintro'},
+    el('div',{class:'who small', html: coachAvatar(54)+'<span>Talk to me — or type</span>'}),
+    el('div',{class:'coachsay'}, 'Say it out loud or type it, whichever suits you. I live beside every map — look for my red face, tap it if I’m tucked away.'));
+}
+// shared fixed-coordinate sketch stage (scales to the card via sketchFit) for the animated slides.
+// build(stage, ink, node) draws into the 594×170 stage using the REAL map language (washes + rough-lite).
+function slideStage(build){
   const vs=el('div',{class:'vstage'});
   const stage=el('div',{class:'herobox', style:'width:594px; height:170px'});
   vs.append(stage);
@@ -2171,36 +2245,12 @@ function coachVignette(i){
   const ink=document.createElementNS(ns,'svg');
   ink.setAttribute('class','posterink'); ink.setAttribute('viewBox','0 0 594 170'); ink.setAttribute('preserveAspectRatio','none'); ink.setAttribute('aria-hidden','true');
   stage.append(ink);
-  // mini sketch nodes — the REAL map language (washes + rough-lite + boil), not flat pills
   const node=(id,cls,g,t,x,y,d)=>{ const n=el('div',{class:'hnode '+cls, style:`left:${x}px; top:${y}px; --rot:${seededRot(id,2)}deg; animation-delay:${d}ms`});
     if(g) n.append(el('span',{html:glyph(g)})); n.append(t); stage.append(n);
     requestAnimationFrame(()=>{ const w=n.offsetWidth,h=n.offsetHeight; if(w&&h) n.prepend(roughBoxSvg(w,h,id)); }); return n; };
-  if(i===0){
-    stage.append(el('div',{class:'frag', style:'left:18px; top:24px; --fx:-30px; --fy:6px'},'“GM signs off on it…”'));
-    stage.append(el('div',{class:'frag', style:'left:14px; top:82px; --fx:-30px; --fy:14px; animation-delay:.18s'},'“an invoice comes in”'));
-    node('vg-p','persona','g-persona','GM',402,16,500);
-    node('vg-t','trigger','g-trigger','invoice arrives',376,88,700);
-    inkArrow(ink,212,100,364,104,'vg-a1',900);
-    stage.append(el('div',{class:'hann', style:'left:240px; top:132px; --rot:-2deg; animation-delay:1300ms'},'structured, while you talk'));
-  } else if(i===1){
-    const ph=node('vg-f','phase',null,'“Processing”',230,38,200);
-    requestAnimationFrame(()=>{ const wv=Math.max(20,ph.offsetWidth-20);
-      const sq=document.createElementNS(ns,'svg'); sq.setAttribute('class','squiggle'); sq.setAttribute('viewBox',`0 0 ${wv} 8`); sq.setAttribute('preserveAspectRatio','none');
-      const dd=squigglePath(wv,'vg-sq'); const b=document.createElementNS(ns,'path'); b.setAttribute('class','bleed'); b.setAttribute('d',dd);
-      const k=document.createElementNS(ns,'path'); k.setAttribute('d',dd); const L=wv*1.3; k.style.strokeDasharray=L; k.style.strokeDashoffset=REDUCED?0:L; k.style.animationDelay='.8s';
-      sq.append(b,k); ph.append(sq); });
-    stage.append(el('div',{class:'hann', style:'left:128px; top:120px; --rot:-2.5deg; animation-delay:1100ms; font-size:20px'},'what actually happens here?'));
-    inkArrow(ink,268,118,278,90,'vg-a2',900);
-  } else {
-    stage.append(el('div',{class:'vblock coachchip', style:'left:52px; top:32px; animation-delay:.1s'},'why monthly?'));
-    stage.append(el('div',{class:'vdots', style:'position:absolute; left:66px; top:86px'}, el('i'),el('i'),el('i')));
-    node('vg-i','intent','g-bulb','the decision it drives',330,74,600);
-    inkArrow(ink,200,54,320,88,'vg-a3',400);
-  }
+  build(stage, ink, node);
   sketchFit(vs, stage, 594, 170);
-  v.append(vs);
-  v.append(el('div',{class:'vcap'}, data.cap));
-  return v;
+  return vs;
 }
 function viewClosed(){
   // top-align (not vertical-center): the closed stack (farewell + keepsake + recap + inputs) can exceed
@@ -3030,6 +3080,7 @@ function viewSurface(){
   // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.
   if(!converse && handedOff && !skipped && !(me.ivVerified && me.ivVerified[t.id])) cv.querySelector('.scene').append(verifyBanner(t));   // voice is live → no text verify banner
   cv.querySelector('.scene').append(goalNote('Goal: map it so a newcomer could run it — clear the <b>Newcomer check</b> below.'));
+  cv.querySelector('.scene').append(phaseHelp('The Coach wants: who’s involved & who decides, what kicks it off, the steps (flag the painful ones), and the why behind each.'));
   const cu=catchUpCard('surface'); if(cu) cv.append(cu);
   const _ot=orphanTray(t); if(_ot) cv.append(_ot);
   left.append(cv);
@@ -3114,6 +3165,23 @@ function goalNote(htmlTxt){
   const n=el('div',{class:'goalnote', html: glyph('g-flag')+'<span>'+htmlTxt+'</span>'});
   n.append(el('button',{title:'dismiss', onclick:()=>{ ui[key]=true; n.remove(); }},'×'));
   return n;
+}
+// persistent "?" — the always-there "what am I doing here?" companion to the dismissible goalNote.
+// One short, phase-aware "what the Coach wants" line. Opens on hover AND tap (tap = phones); a tap
+// pins it open (click-outside / Esc closes). Pre-reveal safe: the Surface line names no swap vocab.
+function phaseHelp(line){
+  const wrap=el('div',{class:'phasehelp'});
+  const btn=el('button',{class:'helpq', 'data-testid':'phase-help', 'aria-label':'What the Coach is looking for here', 'aria-expanded':'false'},'?');
+  const pop=el('div',{class:'helppop', role:'tooltip'}, el('div',{class:'hhd', html: coachAvatar(24)+'<span>What the Coach wants</span>'}), el('p',{}, line));
+  let pinned=false;
+  const set=on=>{ wrap.classList.toggle('open',on); btn.setAttribute('aria-expanded', on?'true':'false'); };
+  function onDoc(e){ if(!wrap.contains(e.target)){ pinned=false; set(false); document.removeEventListener('click',onDoc); } }
+  btn.addEventListener('click',e=>{ e.stopPropagation(); pinned=!pinned; set(pinned); document.removeEventListener('click',onDoc); if(pinned) setTimeout(()=>document.addEventListener('click',onDoc),0); });
+  btn.addEventListener('keydown',e=>{ if(e.key==='Escape'){ pinned=false; set(false); document.removeEventListener('click',onDoc); btn.blur(); } });
+  wrap.addEventListener('mouseenter',()=>set(true));
+  wrap.addEventListener('mouseleave',()=>{ if(!pinned) set(false); });
+  wrap.append(btn,pop);
+  return wrap;
 }
 function orphanTray(t){
   // Don't render the panel at all when there's nothing in it — an empty "parking lot" just floated over
@@ -3757,6 +3825,7 @@ function viewRebuild(){
     onChange:(c)=>{ wsSend({type:'redesign:update', redesign:{canvas:c}}); },
     onChallengeLock:(b)=>openChallenge(b) }); canvasCache[ckey]=cv; }
   cv.querySelector('.scene').append(goalNote('Goal: rebuild it <b>AI-native</b> — drop <b>Agent</b> blocks where AI should act, land every person, log your guesses.'));
+  cv.querySelector('.scene').append(phaseHelp('The Coach wants: AI agents doing the real work, every person landed, and your guesses logged.'));
   const cu=catchUpCard('rebuild'); if(cu) cv.append(cu);
   cv.append(landTray(t));            // people 'to land' — mirror of the orphan tray
   cv.append(landPill(r));            // 'People: N/M landed'
@@ -4823,7 +4892,7 @@ function whisperBox(t){
   box.append(el('h3',{html: glyph('g-flag')+' Whisper to '+esc(t.name)}));
   const inp=el('input',{placeholder:'one line to their Coach rail — e.g. “your trigger is still empty, 5 min left”', maxlength:'240','data-testid':'whisper-input'});
   const warn=el('div',{class:'meta', style:'color:var(--pain); min-height:16px'});
-  const BANNED=/\b(swap(s|ping|ped)?|re[\s-]?design(s|ing|ed)?|re[\s-]?build(s|ing)?|rebuilt|hand[\s-]?s?[\s-]?over(s|ing)?|hand[\s-]?off(s)?|receiving[\s-]?team|stranger(s)?|transfer(s|ring|red)?)\b/i;
+  const BANNED=/\b(swap(s|ping|ped)?|hand[\s-]?s?[\s-]?over(s|ing)?|hand[\s-]?off(s)?|receiving[\s-]?team|another[\s-]?team|someone[\s-]?else|rotat(e|es|ing|ed|ion)|stranger(s)?|transfer(s|ring|red)?)\b/i;
   const send=()=>{ const v=inp.value.trim(); if(!v) return;
     if(BANNED.test(v)){ warn.textContent='That names the surprise — rephrase before it reaches the team.'; return; }
     wsSend({type:'farrier:whisper', teamId:t.id, text:v}); inp.value=''; warn.textContent=''; toast('Whisper sent to '+t.name); };

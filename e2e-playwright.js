@@ -99,11 +99,23 @@ async function emptySpot(page, sceneSel, fallback) {
     await Alex.click('[data-testid=create-team-btn]');
     await Alex.waitForSelector('[data-testid=stable]', { timeout: 8000 });
     ok('member lands in the lobby — their stable shows the team', /AP Squad/.test(await Alex.textContent('[data-testid=stable]')));
-    ok('lobby is the big "meet the Coach" slide', await Alex.locator('[data-testid=coach-vignette] .vignette').count() >= 1);
+    // lobby "Meet your Coach" is now an auto-rotating teaching carousel (intro → surface → redesign → talk/type)
+    ok('lobby shows the teaching carousel', await Alex.locator('[data-testid=coach-carousel]').count() === 1 && await Alex.locator('[data-testid=coach-carousel] .ccslide').count() >= 1);
+    ok('carousel has 4 navigation dots', await Alex.locator('[data-testid=coach-carousel] .ccdots button').count() === 4);
+    // clicking a dot jumps to that slide (manual control over the auto-advance)
+    const slide0 = await Alex.textContent('[data-testid=coach-carousel] .ccslide');
+    await Alex.click('[data-testid=cc-dot-2]');
+    await Alex.waitForTimeout(200);
+    ok('clicking a dot advances the carousel', (await Alex.textContent('[data-testid=coach-carousel] .ccslide')) !== slide0);
+    // collect every slide's copy (one slide is in the DOM at a time) for the vocabulary checks
+    let carouselText = '';
+    for (let k = 0; k < 4; k++) { await Alex.click('[data-testid=cc-dot-' + k + ']'); await Alex.waitForTimeout(120); carouselText += ' ' + (await Alex.textContent('[data-testid=coach-carousel]')); }
+    carouselText = carouselText.toLowerCase();
+    // the arc is now REVEALED (rule #2 relaxed) — redesign is expected; the SWAP must still be hidden
+    ok('lobby reveals the redesign arc (rule #2 relaxed)', /redesign/.test(carouselText));
+    const lobbyText = (await Alex.textContent('#app')).toLowerCase() + carouselText;
+    ok('lobby never leaks the SWAP (who you redesign — vocabulary rule)', !/\bswap|rotat|another team|someone else|hand[\s-]?over|handoff|receiving team|stranger|transfer/.test(lobbyText), lobbyText.match(/swap|rotat|another team|someone else|handover|receiving team|stranger|transfer/));
     ok('stable shows no member-count fraction', !/\d+\s*\/\s*\d+/.test(await Alex.textContent('[data-testid=stable]')));
-    // lobby must NOT foreshadow the swap (vocabulary rule)
-    const lobbyText = (await Alex.textContent('#app')).toLowerCase();
-    ok('lobby copy never foreshadows the swap (vocabulary rule)', !/swap|redesign|rebuild|hand over|receiving team|stranger|transfer/.test(lobbyText), lobbyText.match(/swap|redesign|rebuild/));
     await Alex.screenshot({ path: SHOTS + '/03-lobby.png' });
 
     const Sam = await newActor(browser);
@@ -144,6 +156,11 @@ async function emptySpot(page, sceneSel, fallback) {
     await Alex.waitForSelector('[data-testid=surface-canvas]', { timeout: 8000 });
     ok('member enters Surface with the diagramming canvas', true);
     ok('Surface: Coach docked at the bottom (A2c — map is the hero)', await Alex.locator('[data-testid=coach-dock]').count() === 1);
+    // the persistent "?" help — companion to the dismissible goalNote (opens a "what the Coach wants" line)
+    ok('Surface shows the persistent "?" help', await Alex.locator('[data-testid=phase-help]').count() === 1);
+    await Alex.click('[data-testid=phase-help]'); await Alex.waitForTimeout(150);
+    ok('Surface "?" opens a "what the Coach wants" popover', /what the coach wants/i.test(await Alex.textContent('.phasehelp.open .helppop')) && /painful/i.test(await Alex.textContent('.phasehelp.open')));
+    await Alex.click('[data-testid=phase-help]'); await Alex.waitForTimeout(100);   // close it again so it can't overlap the canvas work
     const S = '[data-testid=surface-canvas]';
     // author a transfer-grade map by hand (no Coach needed → degradation path)
     await dropBlock(Alex, S, 'persona', 120, 90, 'OpCo GM');
@@ -258,6 +275,11 @@ async function emptySpot(page, sceneSel, fallback) {
     await Alex.waitForSelector('[data-testid=rebuild-canvas]', { timeout: 8000 });
     ok('member enters Rebuild', true);
     ok('Rebuild: Coach rail COLLAPSED by default (map is the hero)', await Alex.locator('[data-testid=coach-rail].collapsed').count() === 1);
+    // the "?" help is phase-aware — Rebuild line names the rebuild goals (post-reveal, so safe)
+    ok('Rebuild shows the persistent "?" help', await Alex.locator('[data-testid=phase-help]').count() === 1);
+    await Alex.click('[data-testid=phase-help]'); await Alex.waitForTimeout(150);
+    ok('Rebuild "?" names the rebuild goals (AI agents / land people / log guesses)', /agent/i.test(await Alex.textContent('.phasehelp.open')) && /landed/i.test(await Alex.textContent('.phasehelp.open')));
+    await Alex.click('[data-testid=phase-help]'); await Alex.waitForTimeout(100);
     const lockedCount = await Alex.locator('[data-testid=rebuild-canvas] .node.locked').count();
     ok('locked blocks delivered on the rebuild canvas (scrambled)', lockedCount >= 1, lockedCount);
     // regression: locked text must be fully readable (no clipping — boxes sized to their text)

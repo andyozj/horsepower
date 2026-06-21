@@ -970,7 +970,7 @@ const SECRECY = `HARD SECRECY RULE: never use the words swap, redesign, rebuild,
 // M-1 fix: match common inflections too — base-form-only let `swapping`/`redesigns`/`re-design`/
 // `rebuilding`/`transferring`/`handsover` name the surprise on a pre-reveal rail. Each stem now
 // allows (s|ing|ed) suffixes + tolerant [\s-]? separators inside multi-word/hyphenated terms.
-const BANNED_VOCAB = /\b(swap(s|ping|ped)?|re[\s-]?design(s|ing|ed)?|re[\s-]?build(s|ing)?|rebuilt|hand[\s-]?s?[\s-]?over(s|ing)?|hand[\s-]?off(s)?|receiving[\s-]?team|stranger(s)?|transfer(s|ring|red)?)\b/i;
+const BANNED_VOCAB = /\b(swap(s|ping|ped)?|hand[\s-]?s?[\s-]?over(s|ing)?|hand[\s-]?off(s)?|receiving[\s-]?team|another[\s-]?team|someone[\s-]?else|rotat(e|es|ing|ed|ion)|stranger(s)?|transfer(s|ring|red)?)\b/i;
 
 const SYSTEMS = {
   surface: `You are the Coach inside Horsepower, a workshop tool. A team is documenting their CURRENT business workflow as: persona/owner, trigger, inputs, phases (each with "moments that matter"), intent, and outcome — PLUS the WHY behind every element.

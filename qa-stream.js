@@ -84,10 +84,10 @@ async function main() {
     ok('ops applied + broadcast (Clerk persona on the canvas)', blocks.some(b => b.type === 'persona' && /clerk/i.test(b.text)), blocks.map(b => b.type + ':' + b.text));
 
     // ---- TEST 2: vocab trip mid-stream → fallback, banned word NEVER on the wire ----
-    nextReply = { reply: 'Now we SWAP your workflow to the other team to redesign it.', ops: [], done: false };
+    nextReply = { reply: "Now let's swap teams so the other group takes your workflow.", ops: [], done: false };
     const r2 = await streamCoach({ mode: 'surface', interview: true, stream: true, code, teamId: teamA, messages: [{ role: 'user', content: 'what next?' }] });
     const ci2 = r2.full.indexOf(CTRL); const prose2 = ci2 >= 0 ? r2.full.slice(0, ci2) : r2.full;
-    ok('vocab-trip: banned word never reached the wire', !/swap|redesign/i.test(prose2), prose2.slice(0, 60));
+    ok('vocab-trip: banned word never reached the wire', !/swap/i.test(prose2), prose2.slice(0, 60));
     ok('vocab-trip: control frame says replace + degraded', (() => { try { const d = JSON.parse(r2.full.slice(ci2 + CTRL.length)); return d.replace === true && d.degraded === true; } catch { return false; } })());
 
     // ---- TEST 3: done rides the control frame ----

@@ -172,29 +172,51 @@ const post = (body) => fetch(BASE + '/api/coach', { method: 'POST', headers: { '
     ok('H-R7-2: unseated farrier:whisper rejected (authz)', !(teamA.canvas.chat || []).some(m => m.role === 'farrier'), teamA.canvas.chat);
     ghost.close();
 
-    // H-R7-3: Farrier whisper containing a banned word → error, chat unchanged (server vocab lint)
+    // H-R7-3: Farrier whisper containing a still-banned word (names the SWAP) → error, chat unchanged (server vocab lint)
     const beforeLen = (teamOf(fac.lastState, teamAId).canvas.chat || []).length;
     fac.errors = [];
-    fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'time to redesign this' })); await wait(200);
+    fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'time to swap this' })); await wait(200);
     teamA = teamOf(fac.lastState, teamAId);
     const afterLen = (teamA.canvas.chat || []).length;
-    ok('H-R7-3: banned-vocab whisper → error + chat unchanged (server lint)',
+    ok('H-R7-3: banned-vocab whisper (swap) → error + chat unchanged (server lint)',
       fac.errors.length > 0 && afterLen === beforeLen && !(teamA.canvas.chat || []).some(m => m.role === 'farrier'), { errs: fac.errors, beforeLen, afterLen });
 
-    // H-R7-3b (M-1 fix): an INFLECTED banned word also trips the lint (base-form-only let these leak the surprise)
+    // H-R7-3b: INFLECTED still-banned words (swapping/handover/transferring) trip the lint (base-form-only let these leak the surprise)
     const beforeLen2 = (teamOf(fac.lastState, teamAId).canvas.chat || []).length;
     fac.errors = [];
-    fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'start rebuilding it — we\'re swapping yours' })); await wait(200);
+    fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'start swapping it — we\'re transferring yours' })); await wait(200);
     teamA = teamOf(fac.lastState, teamAId);
-    ok('H-R7-3b: inflected banned vocab (rebuilding/swapping) → error + chat unchanged',
-      fac.errors.length > 0 && (teamA.canvas.chat || []).length === beforeLen2 && !(teamA.canvas.chat || []).some(m => m.role === 'farrier' && /rebuild|swap/i.test(m.content)),
+    ok('H-R7-3b: inflected banned vocab (swapping/transferring) → error + chat unchanged',
+      fac.errors.length > 0 && (teamA.canvas.chat || []).length === beforeLen2 && !(teamA.canvas.chat || []).some(m => m.role === 'farrier' && /swap|transfer/i.test(m.content)),
       { errs: fac.errors });
+
+    // H-R7-3c: the NEWLY-banned swap-naming terms (rotation/another team/someone else) also trip the lint
+    const newlyBanned = ['this rotation happens next', 'you build for another team', 'someone else gets your work', 'a handover to the receiving team'];
+    let newlyBannedAllCaught = true;
+    for (const txt of newlyBanned) {
+      const bl = (teamOf(fac.lastState, teamAId).canvas.chat || []).length;
+      fac.errors = [];
+      fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: txt })); await wait(150);
+      teamA = teamOf(fac.lastState, teamAId);
+      if (!(fac.errors.length > 0 && (teamA.canvas.chat || []).length === bl)) newlyBannedAllCaught = false;
+    }
+    ok('H-R7-3c: newly-banned swap-naming vocab (rotation/another team/someone else/receiving team) → all caught', newlyBannedAllCaught);
+
+    // H-R7-3d: the NO-LONGER-banned arc words (redesign/rebuild) now PASS — the workshop arc is revealed
+    const beforeLen3 = (teamOf(fac.lastState, teamAId).canvas.chat || []).length;
+    fac.errors = [];
+    fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'time to redesign and rebuild this AI-native' })); await wait(200);
+    teamA = teamOf(fac.lastState, teamAId);
+    const arcNote = (teamA.canvas.chat || []).find(m => m.role === 'farrier' && /redesign/i.test(m.content));
+    ok('H-R7-3d: redesign/rebuild whisper now ALLOWED → lands as role:farrier (arc no longer secret)',
+      fac.errors.length === 0 && !!arcNote && (teamA.canvas.chat || []).length === beforeLen3 + 1,
+      { errs: fac.errors, arcNote: arcNote && arcNote.content });
 
     // H-R7-4: clean Farrier whisper → lands as role:'farrier' in the target team's chat
     fac.send(J({ type: 'farrier:whisper', workshopCode: code, teamId: teamAId, text: 'your trigger is still empty — 5 min left' })); await wait(200);
     teamA = teamOf(fac.lastState, teamAId);
-    const note = (teamA.canvas.chat || []).find(m => m.role === 'farrier');
-    ok('H-R7-4: clean whisper lands as role:farrier', !!note && /trigger is still empty/.test(note.content), note);
+    const note = (teamA.canvas.chat || []).find(m => m.role === 'farrier' && /trigger is still empty/.test(m.content));
+    ok('H-R7-4: clean whisper lands as role:farrier', !!note, note);
 
     // H-R7-5 (leak): a member of team B sees NO canvas/chat for team A (stub) → whisper invisible cross-team
     const bStateTeamA = teamOf(b1.lastState, teamAId);
