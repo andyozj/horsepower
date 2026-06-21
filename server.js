@@ -1810,7 +1810,7 @@ wss.on('connection', ws => {
       }
       case 'team:create': {
         if (w.sandbox) return;                    // Guard 2: a sandbox never grows real teams (silent — no leak signal)
-        if (w.state !== 'lobby' && w.state !== 'surface') { /* latecomers allowed pre-swap */ }
+        if (w.state === 'closed') return send(ws, { type: 'error', error: 'This workshop has wrapped up — ask your facilitator for a new code.' });
         const team = { id: newId(), name: String(msg.name || 'Team').slice(0, 40), members: [], canvas: emptyCanvas(), gateGreen: false, teardown: null, receivedFromTeamId: null, redesign: null, amendmentRequests: [] };
         const member = { id: newId(), name: String(msg.memberName || 'Member').slice(0, 40), steed: msg.steed || null, online: true, token: newId(16) };
         team.members.push(member);
@@ -1836,6 +1836,8 @@ wss.on('connection', ws => {
             broadcast(w); break;
           }
         }
+        // a NEW member can't seat into a finished room (reconnects above via reclaim still work)
+        if (w.state === 'closed') return send(ws, { type: 'error', error: 'This workshop has wrapped up — ask your facilitator for a new code.' });
         const member = { id: newId(), name: String(msg.memberName || 'Member').slice(0, 40), steed: msg.steed || null, online: true, token: newId(16) };
         team.members.push(member);
         ws.teamId = team.id; ws.memberId = member.id;
@@ -1942,7 +1944,7 @@ wss.on('connection', ws => {
           // reject filler
           if (msg.outcome === 'transforms' || msg.outcome === 'removed' || msg.outcome === 'stays') {
             const note = String(msg.note || '').trim();
-            if (/freed up|higher.?value/i.test(note)) return send(ws, { type: 'error', error: '"Freed up for higher-value work" is rejected — name input, output, and the skill.' });
+            if (/freed up|higher.?value/i.test(note)) return send(ws, { type: 'error', severity: 'danger', error: '“Freed up for higher-value work” doesn’t count — name the new role this person actually holds (or the design move that absorbs their work).' });
             land.outcome = msg.outcome; land.note = note.slice(0, 400);
             land.coachFlag = null; land.coachReq = null;   // Slice C: a fresh landing resets the Coach's verdict — re-challenge to re-flag
             broadcast(w);

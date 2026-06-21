@@ -130,7 +130,8 @@ input:disabled,textarea:disabled,select:disabled{opacity:.5; cursor:not-allowed;
 .node:focus-visible{outline:2px solid var(--ink); outline-offset:3px}
 label{font-size:13px; font-weight:500; color:var(--muted); display:block; margin:0 0 5px}
 .field{margin-bottom:14px}
-.err{color:var(--red-pen); font-size:13px; margin-top:6px}
+.err{color:#a51f12; font-size:13px; font-weight:600; margin-top:6px} /* darker red — clears 4.5:1 on cream (the light red-pen was ~3.7:1) */
+.field input.errfield, input.errfield{border-color:#a51f12; box-shadow:0 0 0 2px rgba(165,31,18,.14)}
 .row{display:flex; gap:10px; align-items:center}
 .spread{display:flex; justify-content:space-between; align-items:center; gap:12px}
 .glyph{width:18px; height:18px; flex:none; display:inline-block; vertical-align:middle}
@@ -230,6 +231,8 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 #toasts{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:var(--z-toast); display:flex; flex-direction:column; gap:8px; align-items:center}
 .toast{background:var(--ink); color:var(--card); padding:9px 16px; border-radius:10px; font-size:14px; box-shadow:2px 3px 0 rgba(33,49,79,.25); max-width:90vw; animation:toastIn var(--t-feedback) var(--ease-settle) both}
 .toast.warn{background:var(--card); color:var(--ink); border:1.5px solid var(--thin)}
+.toast.danger{background:#a51f12; color:#fff; border:1.5px solid #7a160c; font-weight:600} /* rejections/errors read as errors, not advisories */
+input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker placeholder — the default grey was ~4.28:1 on cream */
 .toast.warn{animation:toastIn var(--t-feedback) var(--ease-settle) both, toastWiggle .26s ease 2}
 .toast.out{animation:toastOut .24s ease forwards}
 @keyframes toastIn{0%{opacity:0; transform:translateY(16px)}100%{opacity:1; transform:translateY(0)}}
@@ -717,7 +720,7 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 #reveal .stampbox{transform:rotate(-5deg)}
 #reveal .twist{color:var(--ink); max-width:640px; font-size:20px; line-height:1.5}
 #reveal .twist b{color:var(--ink); background:linear-gradient(transparent 62%, var(--highlighter) 62%, var(--highlighter) 92%, transparent 92%); padding:0 2px; -webkit-box-decoration-break:clone; box-decoration-break:clone}
-#reveal .twist .twist-sub{display:block; margin-top:12px; font-size:16px; color:var(--muted-strong)}
+#reveal .twist .twist-sub{display:block; margin-top:12px; font-size:16px; color:var(--ink)}
 @media (prefers-reduced-motion: reduce){ #reveal{transition:none} #reveal.on .stampbox,#reveal.on .twist,#reveal.on #reveal-go,#reveal.on #reveal-parcel{animation:none !important} }
 
 /* ---------- share (a stage) ---------- */
@@ -1332,7 +1335,7 @@ const glyph = (id, cls='glyph') => `<svg class="${cls}" aria-hidden="true"><use 
 // B3: role-based main landmark + one sr-only heading per view (roles, not retagging — zero layout fallout)
 function asMain(node, title){ node.setAttribute('role','main'); node.prepend(el('h1',{class:'sr-only'}, title)); return node; }
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function toast(msg, warn, ms){ const t = el('div',{class:'toast'+(warn?' warn':''), role: warn?'alert':null},msg); $('#toasts').append(t);
+function toast(msg, warn, ms){ const kind = warn===true?'warn':(typeof warn==='string'?warn:''); const t = el('div',{class:'toast'+(kind?' '+kind:''), role: warn?'alert':null},msg); $('#toasts').append(t);
   setTimeout(()=>{ if(REDUCED){ t.remove(); return; } t.classList.add('out'); setTimeout(()=>t.remove(),240); }, ms||3360); }
 // B1/§2.7: SR-only announcer (canvas outcomes, phase changes). Polite, outside #app so render() never destroys it.
 let _annT=null;
@@ -1495,7 +1498,7 @@ function connect(){
     else if (m.type === 'joined'){ if(m.hostKey) me.hostKey=m.hostKey; if(m.teamId) me.teamId=m.teamId; if(m.memberId) me.memberId=m.memberId; saveMe(); noteFreshCoach(m.state); state=m.state; afterState(); render(); }
     else if (m.type === 'seated'){ me.teamId=m.teamId; me.memberId=m.memberId; if(m.token) me.seatToken=m.token; saveMe(); if(state && state.state!=='lobby') ui.joinedMid=true; }
     else if (m.type && m.type.indexOf('voice:')===0){ if(window.VC) VC.onEvent(m); }   // Slice B Mode 2 realtime relay events
-    else if (m.type === 'error'){ toast(m.error, true); }
+    else if (m.type === 'error'){ toast(m.error, m.severity || true); }
   };
   ws.onclose = () => { retryMs = Math.min(retryMs * 1.7, 10000); setTimeout(connect, retryMs + Math.random() * 1500); };
 }
@@ -1644,6 +1647,8 @@ function render(){
     if (ui.roomView){ app.innerHTML=''; app.append(topbar(), asMain(viewRoom(),'Room view')); return; }
     app.innerHTML=''; app.append(topbar(), asMain(viewConsole(),'Farrier console')); return;
   }
+  // a teamless member who lands in a CLOSED room sees an honest "ended" screen, not a live-looking picker
+  if (!me.teamId && state && state.state==='closed'){ app.innerHTML=''; app.append(topbar(), asMain(viewEnded(),'Workshop ended')); return; }
   if (!me.teamId){ app.innerHTML=''; app.append(topbar(), asMain(viewPicker(),'Pick your team')); return; }
   const st = state.state;
   app.innerHTML='';
@@ -1870,10 +1875,13 @@ function viewLanding(){
   const jerr = el('div',{class:'err', style:'display:none'});
   const joinBtn = el('button',{class:'btn primary', style:'width:100%', 'data-testid':'join-btn', onclick:async()=>{
     const code=(jcode.value||'').toUpperCase().trim(), name=(jname.value||'').trim();
-    if(name.length<1){ jerr.textContent='Enter your name.'; jerr.style.display='block'; return; }
-    if(code.length<4||code.length>6){ jerr.textContent='That’s not a valid room code.'; jerr.style.display='block'; return; }
+    // validate BOTH fields at once + outline the offending one(s) — no two-round-trip correction
+    jname.classList.remove('errfield'); jcode.classList.remove('errfield');
+    const probs=[]; if(name.length<1){ probs.push('enter your name'); jname.classList.add('errfield'); }
+    if(code.length<4||code.length>6){ probs.push('check the code'); jcode.classList.add('errfield'); }
+    if(probs.length){ jerr.textContent = probs[0].charAt(0).toUpperCase()+probs[0].slice(1)+(probs[1]?' · '+probs[1]:'')+'.'; jerr.style.display='block'; return; }
     const r = await fetch('/api/workshop/'+code);
-    if(!r.ok){ jerr.textContent='That room doesn’t exist — check the code.'; jerr.style.display='block'; return; }
+    if(!r.ok){ jerr.textContent='That room doesn’t exist — check the code.'; jcode.classList.add('errfield'); jerr.style.display='block'; return; }
     me.role='member'; me.code=code; me.name=name; me.teamId=null; me.memberId=null; saveMe();
     if(!ws||ws.readyState!==1) connect(); else sendJoin();
     view='picker';
@@ -1973,6 +1981,15 @@ function reclaimPicker(t, ghosts){
     el('button',{class:'btn primary sm', 'data-testid':'join-fresh', onclick:()=>{ wsSend({type:'team:join', teamId:t.id, memberName:me.name, steed:me.steed}); ov.remove(); }},'I’m new here →')));
   ov.append(card); document.body.append(ov);
 }
+function viewEnded(){
+  const wrap=el('div',{class:'center-wrap', style:'flex-direction:column; gap:14px'});
+  const card=el('div',{class:'card', style:'text-align:center; max-width:440px'});
+  card.append(el('img',{src:'/img/farewell.png', alt:'', 'aria-hidden':'true', style:'width:160px;height:160px;object-fit:contain;display:block;margin:0 auto 6px', onerror:function(){this.remove();}}));
+  card.append(el('h2',{},'This workshop has wrapped up'));
+  card.append(el('p',{class:'meta', style:'margin-top:8px'},'The room you tried to join has already finished. Ask your facilitator for a fresh code — or start your own.'));
+  card.append(el('div',{class:'row', style:'justify-content:center; margin-top:14px'}, el('button',{class:'btn primary', onclick:goHome},'Back to start')));
+  wrap.append(card); return wrap;
+}
 function viewPicker(){
   ensureSteed();
   const wrap = el('div',{class:'pickerwrap'});
@@ -1980,7 +1997,7 @@ function viewPicker(){
 
   // ---- left: poster header + the teaching sketch ----
   const head = el('div',{class:'pickhead'});
-  head.append(el('h2',{class:'anim-rise'},'Pick your stable'));
+  head.append(el('h2',{class:'anim-rise', html:'Pick your stable <span style="font-family:Caveat,cursive; font-size:.62em; color:var(--muted-strong); font-weight:400">(your team)</span>'}));
   head.append(el('p',{class:'tag anim-rise', style:'animation-delay:100ms', html:'Find your team on the wall — and while you saddle up, here’s how we’ll <b>map a process</b>.'}));
   head.append(tourSketch());
   wrap.append(head);
@@ -2006,7 +2023,7 @@ function viewPicker(){
   card.append(list);
   card.append(el('div',{style:'height:1px; background:var(--line-soft); margin:18px 0'}));
   const nm = el('input',{placeholder:'New stable name, e.g. AP Squad', maxlength:'40', 'data-testid':'create-team-name'});
-  card.append(el('div',{class:'field'}, el('label',{},'Start a stable'), nm));
+  card.append(el('div',{class:'field'}, el('label',{},'Start a stable (a new team)'), nm));
   card.append(el('button',{class:'btn primary', style:'width:100%', 'data-testid':'create-team-btn', onclick:()=>{
     if(!nm.value.trim()) return; wsSend({type:'team:create', name:nm.value.trim(), memberName:me.name, steed:me.steed});
   }}, '+ Start a stable'));
@@ -3458,11 +3475,14 @@ async function sendInterviewTurn(text){
   wsSend({type:'chat:post', role:'user', name:me.name, content:text});
   coachBusy=true; coachStatus='thinking'; { const s=$('#coach-status'); if(s) s.textContent=coachStatusText(); }
   const hist=(chatNow('surface')||[]).slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user', content:(x.name?x.name+': ':'')+x.content})).concat([{role:'user',content:text}]);
+  const ac=new AbortController(); const to=setTimeout(()=>ac.abort(), 25000);   // never spin "thinking…" forever
   try{
-    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'},
+    const r=await fetch('/api/coach',{method:'POST',headers:{'content-type':'application/json'}, signal:ac.signal,
       body:JSON.stringify({mode:'surface', interview:true, code:me.code, teamId:me.teamId, messages:hist})});
+    clearTimeout(to);
     const d=await r.json();
     coachBusy=false; coachStatus=d.degraded?'offline':'idle';
+    if(d.degraded && !ui.degradedNoticed){ ui.degradedNoticed=true; wsSend({type:'chat:post', role:'system', content:'(The Coach is running offline — rule-based prompts. Your map and the Newcomer check still work.)'}); }
     // Mode 1 is STT-only by design: the transcript came in by voice, the Coach replies in TEXT (typed
     // into the thread). No TTS — Converse (Mode 2) is the spoken back-and-forth.
     // the SERVER appends the interview reply (greeting + every turn) + broadcasts — the client must NOT
@@ -3470,7 +3490,7 @@ async function sendInterviewTurn(text){
     // A2c: when the Coach hands off (done), persist it per-team + render so Surface flips to the verify stage.
     if(d.done && me.teamId){ me.ivDone=me.ivDone||{}; me.ivDone[me.teamId]=true; saveMe(); render(); }
     const s=$('#coach-status'); if(s) s.textContent=coachStatusText();
-  }catch(e){ coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:'Coach is offline — keep going, the map and checks all work without it.'}); }
+  }catch(e){ clearTimeout(to); coachBusy=false; coachStatus='offline'; wsSend({type:'chat:post', role:'system', content:(e&&e.name==='AbortError')?'The Coach took too long — it’s offline for now. Keep going; your map and the checks work without it.':'Coach is offline — keep going, the map and checks all work without it.'}); render(); }
 }
 // TEXT turn for Rebuild (and any non-surface chat): replies in the text thread, NEVER spoken. Used by the
 // rail composer AND the rebuild "type your move" — so typing always stays text (only dictation/STT adds audio-IN).
