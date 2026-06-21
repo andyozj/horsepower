@@ -287,6 +287,15 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .coachdock{display:flex; flex-direction:column; background:var(--card); border-top:1px solid var(--line-soft); box-shadow:0 -3px 14px rgba(33,49,79,.05)}
 .coachdock .dockmsgs{max-height:22vh; overflow:auto; padding:8px 12px; display:flex; flex-direction:column; gap:7px; border-bottom:1.5px dashed var(--line-soft)}
 .coachdock .dockbar{display:flex; gap:8px; align-items:flex-end; padding:8px 12px}
+/* "Coach is thinking…" pending-reply indicator */
+.bubble.thinking{align-self:flex-start; display:inline-flex; align-items:center; gap:8px}
+.bubble.thinking .tdots{display:inline-flex; gap:3px}
+.bubble.thinking .tdots i{width:6px; height:6px; border-radius:50%; background:var(--red-pen); display:inline-block; animation:tdot 1s ease-in-out infinite}
+.bubble.thinking .tdots i:nth-child(2){animation-delay:.15s}
+.bubble.thinking .tdots i:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,100%{opacity:.3; transform:translateY(0)}50%{opacity:1; transform:translateY(-2px)}}
+.bubble.thinking .tlabel{font-size:13px; color:var(--muted-strong)}
+@media (prefers-reduced-motion:reduce){ .bubble.thinking .tdots i{animation:none; opacity:.7} }
 .coachdock .dockav{flex:none; display:flex; align-items:center}
 .coachdock .dockinput{flex:1; resize:none; min-height:38px; max-height:96px}
 .coachdock .docktoggle{flex:none; width:34px; height:34px; border-radius:8px; border:1.5px solid var(--line-soft); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center}
@@ -1377,10 +1386,13 @@ const COACH_IMG = { hero:'coach-hero', listen:'coach-listen', question:'coach-qu
 function coachAvatar(size=28, expr='hero'){
   const file = COACH_IMG[expr] || COACH_IMG.hero;
   const fb = coachAvatarSvg(size).replace(/`/g,'').replace(/"/g,"'");
-  return `<span class="coach-av" style="width:${size}px;height:${size}px;display:inline-flex;flex:none;border-radius:50%;overflow:hidden;border:1.5px solid var(--red-pen);background:var(--pop);vertical-align:middle">`+
+  // the procedural face is ALWAYS underneath, so there's never an empty ring while the PNG loads
+  // (the old version showed the bare --pop circle until the img loaded — looked like a missing image on slow links).
+  return `<span class="coach-av" style="position:relative;width:${size}px;height:${size}px;display:inline-flex;flex:none;border-radius:50%;overflow:hidden;border:1.5px solid var(--red-pen);background:var(--pop);vertical-align:middle">`+
+    fb+
     `<img src="/img/${file}.png" alt="" aria-hidden="true" width="${size}" height="${size}" `+
-    `style="width:100%;height:100%;object-fit:cover;display:block" `+
-    `onerror="this.parentNode.classList.add('av-fb');this.parentNode.style.border='none';this.parentNode.innerHTML=\`${fb}\`"></span>`;
+    `style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .25s ease" `+
+    `onload="this.style.opacity=1" onerror="this.remove()"></span>`;
 }
 
 // ---------- steeds (randomised player identity 🐎) ----------
@@ -3022,6 +3034,7 @@ function interviewDock(t){
   if(open){
     const msgs=el('div',{class:'dockmsgs', id:'coach-msgs', 'aria-live':'polite'});
     (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
     dock.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   }
   const bar=el('div',{class:'dockbar'});
@@ -3181,8 +3194,17 @@ function gateBar(t){
   }
   const gate = keepOpen(el('details',{'data-testid':'gate'}), 'gate');  // closed by default — the chip says what's left; tap to expand
   gate.append(el('summary',{style:`list-style:none; cursor:pointer`}, el('span',{class:'gchip '+(ready?'ok':'bad')+(ready?' anim-rise':'')}, ready?'✓ ready — a newcomer could run with this':'Newcomer check — '+(g.gate.checks.filter(c=>!c.ok).length)+' to fix')));
-  const box=el('div',{style:'position:absolute; bottom:46px; right:12px; background:var(--card); border:1.5px solid var(--ink); border-radius:11px; padding:10px 14px; z-index:var(--z-panel); box-shadow:2px 3px 0 rgba(33,49,79,.12)'});
-  g.gate.checks.forEach(c=> box.append(el('div',{style:'font-size:13px; padding:2px 0; color:'+(c.ok?'var(--ok)':'var(--thin)')}, (c.ok?'✓ ':'✕ ')+c.label)) );
+  const box=el('div',{style:'position:absolute; bottom:46px; right:12px; width:284px; background:var(--card); border:1.5px solid var(--ink); border-radius:11px; padding:11px 14px; z-index:var(--z-panel); box-shadow:2px 3px 0 rgba(33,49,79,.12)'});
+  // each failing check gets a concrete "how to fix" — "✕ Owner is a real role" alone wasn't actionable
+  const GATE_HINTS={ owner:'add a Persona and name a real role (not “the team”)', phases:'each Phase needs a Moment inside it', intent:'make Intent a decision (3+ words), not an artifact like “a report”', inputs:'add an Input block (what the work starts from)', outcome:'add an Outcome block (what’s true at the end)', served:'in the inspector, set one persona’s capacity to “served”', why:'open each persona/phase → fill its WHY + capacity', orphans:'clear the parking lot — map each note or let it go', conflicts:'resolve the flagged conflicts on the map' };
+  const fails=g.gate.checks.filter(c=>!c.ok), passes=g.gate.checks.filter(c=>c.ok);
+  if(fails.length){
+    box.append(el('div',{style:'font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--thin); margin-bottom:5px'}, 'Still to fix ('+fails.length+')'));
+    fails.forEach(c=> box.append(el('div',{style:'padding:3px 0'},
+      el('div',{style:'font-size:13px; color:var(--thin)'}, '✕ '+c.label),
+      GATE_HINTS[c.key]?el('div',{class:'meta', style:'margin:1px 0 0 13px; font-size:12px'}, GATE_HINTS[c.key]):null)) );
+  } else box.append(el('div',{style:'font-size:13px; color:var(--ok); font-weight:600'}, '✓ All checks pass — a newcomer could run with this.'));
+  if(passes.length) box.append(el('div',{style:'font-size:12px; color:var(--muted); margin-top:'+(fails.length?'8px':'6px')+'; border-top:1px solid var(--line-soft); padding-top:6px'}, 'Done: '+passes.map(c=>c.label).join(' · ')));
   gate.append(box);
   bar.append(gate);
   return bar;
@@ -3381,6 +3403,7 @@ function converseTypePanel(t){
   card.append(el('div',{class:'ivhead', html: coachAvatar(40)+'<div><b>Type to the Coach</b><div class="meta">'+(canDict?'Type or dictate':'Type')+' — I’ll reply in text and build your map'+(conv?'. Or switch to a spoken conversation.':'.')+'</div></div>'}));
   const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
   (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
   card.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works…', 'data-testid':'coach-input', rows:'2'});
@@ -3404,6 +3427,13 @@ function dockMicButton(){
   const b=el('button',{class:'btn sm ghost ivmic'+(rec?' recording':''), 'data-testid':'voice-dock', title:'Tap to talk to the Coach', html:glyph('g-mic')+(rec?'Send':'Talk')});
   b.onclick=()=>{ VC.toggle(); };
   return b;
+}
+// a visible "Coach is thinking…" bubble — shown in the interview thread while a reply is pending so a
+// slow live-AI turn (cold-start / concurrent load) reads as "working", not "frozen".
+function thinkingBubble(){
+  return el('div',{class:'bubble coach thinking', role:'status'},
+    el('span',{class:'tdots','aria-hidden':'true'}, el('i'), el('i'), el('i')),
+    el('span',{class:'tlabel'}, 'Coach is thinking…'));
 }
 async function sendInterviewTurn(text){
   text=(text||'').trim(); if(!text||coachBusy) return;
@@ -3459,6 +3489,7 @@ function interviewHero(t){
   hero.append(el('div',{class:'ivhead', html: coachAvatar(44)+'<div><b>Talk me through your workflow</b><div class="meta">I’ll ask, you answer — and I’ll build the map as we go.</div></div>'}));
   const msgs=el('div',{class:'msgs ivmsgs', 'aria-live':'polite'});
   (t.canvas.chat||[]).forEach(m=>msgs.append(bubble(m)));
+  if(coachBusy) msgs.append(thinkingBubble());   // visible "Coach is thinking…" so a slow reply never reads as dead air
   hero.append(msgs); setTimeout(()=>{ msgs.scrollTop=msgs.scrollHeight; },0);
   const comp=el('div',{class:'composer ivcomposer'});
   const inp=el('textarea',{placeholder:'Type how it really works… (or just answer the Coach)', 'data-testid':'coach-input', rows:'2'});
