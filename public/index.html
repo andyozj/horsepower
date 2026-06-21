@@ -271,6 +271,11 @@ input.ticket::placeholder{letter-spacing:.08em; font-size:14px; font-weight:400;
 .composer textarea{resize:none; min-height:42px; max-height:120px}
 /* A2 Surface Stage-1 interview hero */
 .work.interviewing{justify-content:center; align-items:flex-start; padding:24px; overflow:auto}
+/* the graduation: interview → workspace. Plays ONCE when the map first forms (voice OR text, identical),
+   so the swap reads as "the conversation becomes your map", not a hard cut. */
+@keyframes graduateIn{0%{opacity:0; transform:translateY(16px) scale(.992)}100%{opacity:1; transform:translateY(0) scale(1)}}
+.work.stage2.graduate-in{animation:graduateIn .45s var(--ease-settle) both}
+@media (prefers-reduced-motion:reduce){ .work.stage2.graduate-in{animation:none} }
 .interviewhero{width:min(760px,94%); margin:0 auto; background:var(--card); border:1.5px solid var(--line-soft); border-radius:var(--r-paper); padding:18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-float); max-height:calc(100vh - 150px)}
 .interviewhero .ivhead{display:flex; gap:12px; align-items:center}
 .interviewhero .ivhead .meta{font-size:13px; color:var(--muted-strong)}
@@ -2952,10 +2957,17 @@ function viewSurface(){
   // staring at a blank map. Once there's enough, the map graduates to the hero and the Coach drops to the
   // bottom-right corner blob (still live). TEXT: chat-hero until the Coach hands off.
   const mapReady = (t.canvas.blocks || []).length >= 5;
-  if(converse && !skipped){ if(!mapReady) return interviewHero(t); }   // big talking stage while the map is sparse
-  else if(!handedOff && !skipped) return interviewHero(t);             // text chat hero / type panel
+  // VOICE and TEXT are the SAME interview — only the input differs (mic vs keyboard). BOTH stay full-screen
+  // until the map starts to form (≥5 blocks) or the Coach hands off, then BOTH graduate IDENTICALLY: the map
+  // becomes the hero, the Coach drops to the corner/dock. (Text used to wait for full hand-off — that
+  // divergence is gone, so the flow no longer depends on the mode of communication.)
+  if(!skipped && !mapReady && !handedOff) return interviewHero(t);
   // ---- Stage 2: the map is the HERO; voice → corner blob, text → bottom dock ----
   const work = el('div',{class:'work stage2'});
+  // FIRST graduation from the interview → animate the workspace in ONCE (same for both modes), and for text
+  // open the dock so the chat is visibly relocated, not collapsed. "Draw it myself" (skipped) is an instant
+  // choice — no graduation animation.
+  if(!skipped){ ui.gradAnim=ui.gradAnim||{}; if(!ui.gradAnim[t.id]){ ui.gradAnim[t.id]=true; work.classList.add('graduate-in'); if(!converse) ui.dockOpen=true; } }
   const left = el('div',{style:'flex:1; display:flex; flex-direction:column; min-width:0; position:relative'});
   // A0: reuse the live canvas instance across broadcasts (keyed by team) so nodes keep identity and
   // the reconciler applies incremental updates instead of rebuilding the whole map every state.
@@ -2995,7 +3007,7 @@ function interviewReadyClient(canvas){ return ['trigger','persona','phase','inte
 function mapHasOverlap(canvas){ const b=(canvas.blocks||[]); for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){ if(Math.abs((b[i].x||0)-(b[j].x||0))<40 && Math.abs((b[i].y||0)-(b[j].y||0))<40) return true; } return false; }
 // A2c: the Coach's "I mapped it — verify & edit" hand-off banner (advisory).
 function verifyBanner(t){
-  const n=el('div',{class:'verifybanner', 'data-testid':'verify-banner', html: coachAvatar(30)+'<span><b>The Coach mapped your workflow.</b> Give it a look — edit anything I got wrong, then you’re set.</span>'});
+  const n=el('div',{class:'verifybanner', 'data-testid':'verify-banner', html: coachAvatar(30)+'<span><b>Here’s your map so far.</b> Edit anything I got wrong — or keep talking to add more.</span>'});
   n.append(el('button',{class:'btn sm primary', 'data-testid':'verify-ok', onclick:()=>{ me.ivVerified=me.ivVerified||{}; me.ivVerified[t.id]=true; saveMe(); n.remove(); }}, 'Looks right ✓'));
   return n;
 }
