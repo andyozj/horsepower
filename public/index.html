@@ -1509,19 +1509,20 @@ document.addEventListener('focusin', e=>{ if(e.target.matches && e.target.matche
 document.addEventListener('focusout', e=>{ if(e.target.matches && e.target.matches('.node .label[contenteditable="true"], .inspector textarea, .inspector .sysin, .commitcard textarea, .pulsecard textarea, .landperson textarea, .assumefloat textarea, .scratch textarea, .addorphan input, .whisperbox input, .timerctl input')){ editingLock=false; if(pendingRender){ pendingRender=false; setTimeout(render,0); } } });
 // Hold SPACE = push-to-talk in the spoken Coach (release to send). Gated to the voice stage and disabled
 // while typing in a field, so it never hijacks a space you meant to type.
-let _spacePTT=false;
+let _spaceDown=false;
 function _voiceStageLive(){ return ui.voice && ui.voice.converse && ui.voiceMode!=='type' && !!document.querySelector('[data-testid=voice-orb]'); }
 function _isTextField(el){ return el && el.matches && el.matches('input, textarea, select, [contenteditable="true"]'); }
+// Spacebar is a TOGGLE, identical to tapping the orb: press to start talking, press again to send. Holding a
+// key for a whole run-on workflow answer fights the natural pauses people leave — toggle lets them pause freely.
 document.addEventListener('keydown', e=>{
-  if(e.code!=='Space' || e.repeat || _spacePTT) return;
+  if(e.code!=='Space' || e.repeat) return;
   if(_isTextField(e.target) || !_voiceStageLive()) return;
-  e.preventDefault(); _spacePTT=true;
-  if(window.VC && !VC.recording) VC.toggle();        // start talking
+  e.preventDefault(); _spaceDown=true;
+  if(window.VC && !VC._arming) VC.toggle();            // tap to talk / tap again to send (toggle's own guards handle in-flight replies)
 }, true);
 document.addEventListener('keyup', e=>{
-  if(e.code!=='Space' || !_spacePTT) return;
-  _spacePTT=false; e.preventDefault();
-  if(window.VC && VC.recording) VC.toggle();          // release → send
+  if(e.code!=='Space' || !_spaceDown) return;
+  _spaceDown=false; e.preventDefault();                // swallow the keyup so Space never scrolls the page or re-activates a button
 }, true);
 
 function myTeam(){ return state && me.teamId ? state.teams.find(t=>t.id===me.teamId) : null; }
@@ -3406,6 +3407,7 @@ function b64ToBuf(b64){ const s=atob(b64); const b=new Uint8Array(s.length); for
 // tool. The session warms on entry so the first turn never races the handshake. Degrades to text if off.
 const VC = {
   active:false, recording:false, ready:false, phase:'idle',   // idle|connecting|listening|thinking|speaking
+  _armed:false, _arming:false, _cancelStart:false,            // mic graph is acquired ONCE and kept warm; recording just gates which frames we send
   captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'', youText:'',
   transcript:[],   // [{role:'you'|'coach', text, done}] — the readable, scrollable conversation log
   // transcript helpers: a "live" entry is the in-progress turn we keep appending streamed deltas to.
@@ -3425,17 +3427,16 @@ const VC = {
   // the new session's 'ready' re-arms us. Without this, the old session's teardown reset active=false after
   // the new one opened, so the first Rebuild turn hit a cold handshake.
   restart(p){ this.phaseFor=p; this.restarting=true; this.ready=false; this.setPhase('connecting'); try{ wsSend({type:'voice:start', turn: ui.voiceTurn}); }catch(_){} clearTimeout(this._restartT); this._restartT=setTimeout(()=>{ this.restarting=false; }, 4000); },
-  pause(){ if(this.recording) this._stopCapture(); this.setPhase('idle'); this._render(); },   // stop listening but KEEP the session warm (instant resume)
-  async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
-    if(this.recording){
-      if(ui.voiceTurn==='ptt'){ this._stopCapture(); try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
-      else { this.pause(); }
-      return;
-    }
-    if(!voiceSupported()){ toast('Voice isn’t supported here — tap “Type”.'); return; }
-    this.ensureSession();
+  pause(){ this.recording=false; this.setPhase('idle'); this._render(); },   // stop SENDING but keep the mic+session warm (instant resume)
+  // Acquire the mic + audio graph ONCE and keep it hot for the whole session. Idempotent. The processor is
+  // always running but only ships frames while `recording` — so a press is instant (no getUserMedia delay,
+  // no clipped first word) and there's no per-turn teardown/rebuild race. Returns true once the graph is live.
+  async _arm(){
+    if(this._armed) return true;
+    if(this._arming) return false;                 // already warming from a prior press — don't double-acquire
+    this._arming=true;
     try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
-    catch(e){ toast('Mic blocked — tap “Type” to write instead.'); this.hangup(); return; }
+    catch(e){ this._arming=false; toast('Mic blocked — tap “Type” to write instead.'); return false; }
     try{
       this.captureCtx=this.captureCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
       if(this.captureCtx.state==='suspended') await this.captureCtx.resume();
@@ -3443,17 +3444,31 @@ const VC = {
       if(this.playCtx.state==='suspended') this.playCtx.resume();
       this.src=this.captureCtx.createMediaStreamSource(this.stream);
       this.proc=this.captureCtx.createScriptProcessor(4096,1,1);
-      // stream the mic CONTINUOUSLY while live — Azure server-VAD decides turns + barge-in (no per-turn tap)
       this.proc.onaudioprocess=e=>{ if(!this.recording) return; const f=e.inputBuffer.getChannelData(0); const i16=new Int16Array(f.length);
         for(let k=0;k<f.length;k++){ let s=Math.max(-1,Math.min(1,f[k])); i16[k]= s<0 ? s*0x8000 : s*0x7fff; }
         wsSend({type:'voice:audio', audio:bufToB64(i16.buffer)}); };
       this.sink=this.captureCtx.createGain(); this.sink.gain.value=0;     // muted sink so the processor runs (no echo loop)
       this.src.connect(this.proc); this.proc.connect(this.sink); this.sink.connect(this.captureCtx.destination);
-      this.recording=true; this.coachText=''; this.setPhase('listening');   // live + streaming; just talk
-      if(typeof render==='function') render();                              // drop into the corner blob → map fills the screen
-    }catch(e){ toast('Couldn’t start the mic.'); this.hangup(); }
+      this._armed=true; this._arming=false; return true;
+    }catch(e){ this._arming=false; toast('Couldn’t start the mic.'); return false; }
   },
-  _stopCapture(){ this.recording=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
+  async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
+    if(this.recording){                             // release → SEND (ptt) or PAUSE (hands-free) — instant, mic stays warm
+      if(ui.voiceTurn==='ptt'){ this.recording=false; try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
+      else { this.pause(); }
+      return;
+    }
+    if(this.phase==='thinking') return;             // a reply is already in flight — ignore a stray re-press (no double-commit / duplicate turn)
+    if(!voiceSupported()){ toast('Voice isn’t supported here — tap “Type”.'); return; }
+    this.ensureSession();
+    this._cancelStart=false;
+    const ok=await this._arm();                      // instant after the first turn; the one-time getUserMedia delay is here
+    if(!ok){ this.hangup(); return; }
+    if(this._cancelStart){ this._cancelStart=false; return; }   // released before the mic warmed (a too-quick tap) → start NOTHING, so we never commit an empty turn
+    this.recording=true; this.coachText=''; this.setPhase('listening');   // now sending frames; just talk
+    if(typeof render==='function') render();                              // drop into the corner blob → map fills the screen
+  },
+  _stopCapture(){ this.recording=false; this._armed=false; this._arming=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
   sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this._seal(); this._finishYou(text); this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); this._render(); return true; },
   hangup(){ if(this.recording) this._stopCapture(); clearTimeout(this._connT); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
   onEvent(m){
@@ -3469,7 +3484,7 @@ const VC = {
         if(neverConnected){ toast('Live voice dropped — switching you to typing.'); ui.voiceMode='type'; render(); } }   // closed before warming = a failed connect → fall back; a normal hangup has active=false already
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
-      else if(m.event==='turn-done'){ this._seal(); this.setPhase(this.active && ui.voiceTurn!=='ptt' ? 'listening' : 'idle'); }   // hands-free: back to listening · PTT: idle until the next tap
+      else if(m.event==='turn-done'){ this._seal(); if(this.recording) return; this.setPhase(this.active && ui.voiceTurn!=='ptt' ? 'listening' : 'idle'); }   // hands-free: back to listening · PTT: idle until the next tap — but NEVER flip to idle while the mic is live (kept the label honest with recording)
     } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); }
     else if(m.type==='voice:coach-text'){ this._append('coach', m.delta||''); this._render(); }
     else if(m.type==='voice:you-text'){ if(m.delta!=null) this._append('you', m.delta); else this._finishYou(m.text||''); this._render(); }
@@ -3486,7 +3501,7 @@ const VC = {
     }catch(e){}
   },
   _render(){
-    const LB={ idle:'Hold space or tap to talk', connecting:'Connecting…', listening:'Listening — release, or tap, to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
+    const LB={ idle:'Press space or tap to talk', connecting:'Connecting…', listening:'Listening — press space or tap to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
     const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
     document.querySelectorAll('[data-testid=voice-blob]').forEach(b=>{ b.dataset.phase=this.phase; });   // lets the pill show a clear listening/thinking/speaking state
     document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
@@ -3525,7 +3540,7 @@ function voiceStage(t){
   const stage=el('div',{class:'voicestage'});
   if(ui.voice && ui.voice.converse) setTimeout(()=>VC.ensureSession(),0);   // warm the session before the first tap
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
-  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Hold the spacebar — or tap the orb — to talk. Release to send.')));
+  stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Press space — or tap the orb — to start talking. Press again to send.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
   orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
   stage.append(el('div',{class:'orbwrap'}, orb));
