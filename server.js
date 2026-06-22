@@ -945,9 +945,17 @@ app.get('/api/workshop/:code', (req, res) => {
   // existence + lobby facts only — full state arrives over the WS after a real join
   res.json({ code: w.code, state: w.state, teams: w.teams.map(t => ({ id: t.id, name: t.name, members: t.members.length })) });
 });
+// Short build marker so a deploy is unambiguously verifiable (which commit is THIS instance serving?).
+// Render injects RENDER_GIT_COMMIT; locally fall back to a best-effort git read, else 'dev'.
+const BUILD = (() => {
+  const sha = process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || process.env.SOURCE_COMMIT;
+  if (sha) return String(sha).slice(0, 7);
+  try { return require('child_process').execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  catch { return 'dev'; }
+})();
 app.get('/api/health', (req, res) => {
   if (shuttingDown) return res.status(503).json({ ok: false, shuttingDown: true });
-  res.json({ ok: true, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
+  res.json({ ok: true, build: BUILD, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
              db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
              voice: voiceCaps(),
              workshops: workshops.size, uptime: Math.round(process.uptime()) });
