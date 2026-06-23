@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The retrofit trap — presenter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4efe2; --card:#fffaf0; --ink:#21314f; --ink-soft:#2b3d5e;
+  --muted:#566079; --muted-strong:#454f68; --muted-soft:#7b8298;
+  --line:#cfc4a6; --line-soft:#ded3b6;
+  --red:#e23b3b; --red-bright:#ff5a5a; --gold:#b8860b; --gold-deep:#a96f12; --hl:#ffd24a;
+  --ok:#2e7d52; --ok-bright:#49c07e; --lock:#7c3aed; --blue:#3b6fe2;
+  --amber:#fbe6a8; --amber-line:#e6b53d;
+  --d-text:#f1ece0; --d-muted:#aab2c6; --d-line:#3a4c6e;
+  --t:.55s cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%}
+body{font-family:Inter,system-ui,sans-serif; color:var(--ink); background:var(--paper); overflow:hidden; -webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:Fraunces,serif; font-optical-sizing:auto; font-weight:600; letter-spacing:-.02em; line-height:1.04}
+b,strong{font-weight:600}
+
+.deck{position:relative; width:100vw; height:100vh}
+.slide{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:clamp(34px,6vw,120px); gap:clamp(13px,1.5vw,24px); opacity:0; transform:translateY(20px) scale(.992); transition:opacity var(--t), transform var(--t); pointer-events:none; visibility:hidden; background-color:var(--paper); background-image:radial-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1.1px, transparent 1.1px); background-size:26px 26px}
+.slide.active{opacity:1; transform:none; pointer-events:auto; visibility:visible}
+.slide.past{transform:translateY(-20px) scale(.992)}
+.nojs .slide#s1{opacity:1; visibility:visible; transform:none}
+.slide.dark{background-color:var(--ink); color:var(--d-text); background-image:radial-gradient(rgba(241,236,224,.06) 1.1px, transparent 1.1px); background-size:26px 26px}
+.slide.dark .lede,.slide.dark .sub{color:var(--d-muted)}
+.slide.dark .title,.slide.dark h2,.slide.dark h3{color:var(--d-text)}
+.slide.dark .eyebrow{color:var(--red-bright)}
+
+.eyebrow{font-family:Caveat,cursive; font-size:clamp(20px,2.3vw,30px); color:var(--red); font-weight:700; transform:rotate(-1.4deg); display:inline-block}
+.hl{background:linear-gradient(transparent 56%, var(--hl) 56%, var(--hl) 93%, transparent 93%); color:var(--ink); padding:0 .12em; -webkit-box-decoration-break:clone; box-decoration-break:clone}
+.lede{font-size:clamp(16px,1.5vw,21px); color:var(--muted-strong); line-height:1.55; max-width:62ch}
+.sub{font-size:clamp(13.5px,1.25vw,16px); color:var(--muted-soft); line-height:1.5}
+.head .eyebrow{margin-bottom:.2em}
+.slide h2.title{font-size:clamp(30px,4.2vw,60px); max-width:21ch}
+.slide h2.title.sm{font-size:clamp(24px,3vw,42px); max-width:24ch}
+.kicker{font-family:Caveat,cursive; font-size:clamp(22px,2.7vw,36px); color:var(--red); transform:rotate(-1deg)}
+.dark .kicker{color:var(--red-bright)}
+.punch{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.8vw,40px); line-height:1.12; letter-spacing:-.02em}
+.seg{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--gold-deep); font-weight:700}
+.dark .seg{color:var(--gold)}
+.livetag{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--red); background:color-mix(in srgb,var(--red) 9%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent); border-radius:999px; padding:6px 13px}
+.livetag .ld{width:8px; height:8px; border-radius:50%; background:var(--red); animation:lp 1.8s ease-in-out infinite}
+.dark .livetag{color:var(--red-bright); background:rgba(255,90,90,.12); border-color:rgba(255,90,90,.4)}
+.dark .livetag .ld{background:var(--red-bright)}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
+
+#s1{align-items:flex-start}
+.wordmark{font-family:Fraunces,serif; font-weight:900; font-size:clamp(52px,10vw,140px); line-height:.9; font-variation-settings:"opsz" 144,"WONK" 1; letter-spacing:-.03em; color:var(--d-text)}
+.s1sub{margin-top:.6em; font-size:clamp(16px,1.6vw,22px); color:var(--d-muted); max-width:52ch; line-height:1.5}
+
+.cascade{display:flex; align-items:stretch; gap:clamp(8px,1vw,16px); flex-wrap:wrap; margin-top:8px}
+.tier{flex:1 1 200px; min-width:180px; background:var(--card); border:1.6px solid var(--ink); border-radius:14px; padding:14px 18px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.dark .tier{background:var(--ink-soft); border-color:var(--d-line); box-shadow:none; color:var(--d-text)}
+.tier .tk{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,24px)}
+.tier .ts{font-size:13px; color:var(--muted-soft); line-height:1.45; margin-top:3px}
+.dark .tier .ts{color:var(--d-muted)}
+.casarrow{align-self:center; font-family:Caveat,cursive; font-size:30px; color:var(--muted-soft)}
+.dark .casarrow{color:var(--d-muted)}
+.goal{margin-top:14px; font-size:14.5px; color:var(--muted-strong)} .goal b{color:var(--ink)}
+.dark .goal{color:var(--d-muted)} .dark .goal b{color:var(--d-text)}
+
+/* task */
+.taskhead{display:flex; align-items:baseline; justify-content:space-between; gap:14px}
+.tasknum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--muted-soft)}
+.queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--gold-deep)} .queued b{font-variant-numeric:tabular-nums}
+.taskbody{display:grid; grid-template-columns:.85fr 1.15fr; gap:clamp(22px,3vw,52px); align-items:start; margin-top:8px}
+@media (max-width:880px){ .taskbody{grid-template-columns:1fr} }
+.tlabel{font-family:Caveat,cursive; font-size:clamp(16px,1.6vw,21px); color:var(--muted-soft); margin-bottom:2px}
+.tlabel.pain{color:var(--red); margin-top:12px}
+.taskbody p{font-size:clamp(14px,1.4vw,18px); color:var(--muted-strong); line-height:1.5}
+.asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(18px,1.9vw,25px); color:var(--ink); margin-bottom:10px}
+.feed{display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow:auto; padding-right:4px}
+.feedempty{font-size:14px; color:var(--muted-soft); font-style:italic; padding:10px 0}
+.achip{background:var(--amber); border:1.6px solid var(--amber-line); border-radius:12px 12px 12px 3px; padding:11px 15px; font-size:clamp(14px,1.35vw,17px); line-height:1.4; color:#5a4410; box-shadow:2px 3px 0 -1px color-mix(in srgb,var(--gold) 26%,transparent); animation:pop .3s cubic-bezier(.2,.9,.3,1.2)}
+.achip.dead{background:color-mix(in srgb,var(--red) 11%,var(--card)); border-color:color-mix(in srgb,var(--red) 45%,transparent); color:#7a1f1f; box-shadow:none}
+.achip.real{background:color-mix(in srgb,var(--ok) 12%,var(--card)); border-color:color-mix(in srgb,var(--ok) 48%,transparent); color:#1f5236; box-shadow:none}
+.achip .who{font-weight:700; opacity:.7; font-size:.82em; margin-right:6px}
+@keyframes pop{from{opacity:0; transform:translateY(8px) scale(.96)}to{opacity:1; transform:none}}
+.tdots{display:flex; gap:7px; margin-top:4px}
+.tdot{width:24px; height:6px; border-radius:3px; background:color-mix(in srgb,var(--line) 80%,transparent)}
+.tdot.on{background:var(--gold-deep)}
+
+/* pipeline */
+.pipe{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:10px}
+.bot{position:relative; background:var(--ink-soft); border:1.5px solid var(--d-line); border-radius:12px; padding:14px 17px; min-width:140px; max-width:180px}
+.bot .bn{font-size:13px; color:var(--d-text); line-height:1.35; font-weight:500}
+.bot .chk{position:absolute; top:-9px; right:-9px; width:22px; height:22px; border-radius:50%; background:var(--ok); display:flex; align-items:center; justify-content:center}
+.bot .chk svg{width:13px; height:13px; color:#fff}
+.pipe .parrow{color:var(--ok-bright); font-size:22px}
+.dark .triumph{font-family:Caveat,cursive; font-size:clamp(20px,2.2vw,28px); color:var(--ok-bright); margin-top:10px}
+
+/* scarcity */
+.scar{display:flex; flex-direction:column; gap:8px; margin-top:8px}
+.scarrow{display:grid; grid-template-columns:1.05fr 1.6fr auto; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:12px 16px}
+.scarrow .st{font-family:Fraunces,serif; font-weight:600; font-size:clamp(14px,1.45vw,18px)}
+.scarrow .sc{font-size:clamp(13px,1.35vw,16px); color:var(--muted-strong); line-height:1.4}
+.tag{font-size:11.5px; font-weight:700; letter-spacing:.05em; padding:5px 11px; border-radius:999px; white-space:nowrap}
+.tag.dead{color:var(--red); background:color-mix(in srgb,var(--red) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent)}
+.tag.real{color:var(--ok); background:color-mix(in srgb,var(--ok) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--ok) 45%,transparent)}
+.scarrow.alive{border-color:color-mix(in srgb,var(--ok) 45%,transparent); background:color-mix(in srgb,var(--ok) 6%,var(--card))}
+.barline{margin-top:10px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,25px)} .barline .r{color:var(--red)}
+.reflex{margin-top:13px; background:color-mix(in srgb,var(--gold) 8%,var(--card)); border:1.4px solid color-mix(in srgb,var(--gold) 35%,transparent); border-radius:13px; padding:13px 18px; font-size:clamp(13.5px,1.35vw,17px); color:var(--muted-strong); line-height:1.5; max-width:76ch} .reflex b{color:var(--gold-deep)}
+
+/* versus */
+.versus{display:grid; grid-template-columns:1fr 1fr; gap:clamp(18px,2.4vw,40px); margin-top:8px; align-items:stretch}
+@media (max-width:880px){ .versus{grid-template-columns:1fr} }
+.vpanel{border-radius:16px; padding:clamp(18px,2vw,26px); border:1.7px solid}
+.vpanel.bad{background:color-mix(in srgb,var(--red) 7%,var(--card)); border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.vpanel.good{background:color-mix(in srgb,var(--ok) 8%,var(--card)); border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.vpanel h3{font-size:clamp(18px,2vw,26px); margin-bottom:4px}
+.vpanel .vlab{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); margin-bottom:10px}
+.vpanel.bad .vlab{color:var(--red)} .vpanel.good .vlab{color:var(--ok)}
+.vpanel p{font-size:clamp(14px,1.4vw,17.5px); color:var(--muted-strong); line-height:1.5} .vpanel.bad p{opacity:.82}
+.vsteps{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+.vstep{font-size:12px; font-weight:600; padding:5px 11px; border-radius:8px; background:#fff; border:1.4px solid var(--line)}
+.vpanel.bad .vstep{opacity:.6; text-decoration:line-through}
+.lockchip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--lock); background:color-mix(in srgb,var(--lock) 9%,var(--card)); border:1.4px solid color-mix(in srgb,var(--lock) 45%,transparent); border-radius:999px; padding:5px 12px; margin-top:13px} .lockchip svg{width:13px; height:13px}
+.struck{display:inline-block; background:var(--ink-soft); border:1.6px dashed var(--d-line); border-radius:13px; padding:14px 20px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.8vw,23px); color:var(--d-muted); position:relative; margin-top:6px}
+.struck::after{content:""; position:absolute; left:6%; right:6%; top:52%; height:2.5px; background:var(--red-bright); transform:rotate(-3deg)}
+
+/* timeboxed scarcity game board */
+.roundhead{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap}
+.rtimer{flex:0 0 auto; text-align:center; background:var(--card); border:2px solid var(--ink); border-radius:16px; padding:9px 22px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.rtimer .rt-num{display:block; font-family:Fraunces,serif; font-weight:600; font-size:clamp(32px,4.2vw,56px); line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:var(--ink)}
+.rtimer .rt-lab{font-family:Caveat,cursive; font-size:16px; color:var(--muted-soft)}
+.rtimer.low{border-color:var(--red); animation:tpulse 1s ease-in-out infinite}
+.rtimer.low .rt-num,.rtimer.done .rt-num{color:var(--red)}
+@keyframes tpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+/* the racecourse fills the slide */
+.slide.raceslide{justify-content:flex-start}
+.racecourse{flex:1 1 auto; min-height:0; margin-top:14px; position:relative; border:2.5px solid var(--ink); border-radius:16px; overflow:hidden;
+  background:var(--paper); box-shadow:inset 0 2px 12px -7px rgba(33,49,79,.5)}
+.racecourse::after{content:''; position:absolute; top:0; bottom:0; right:0; width:20px; border-left:2px solid var(--ink); z-index:1;
+  background:repeating-conic-gradient(var(--ink) 0% 25%, #fff 0% 50%) 0 0/10px 10px}
+.track{position:absolute; inset:0 20px 0 0; display:flex; flex-direction:column}
+.trackempty{margin:auto; color:var(--muted-soft); font-style:italic; font-size:17px}
+.lane{flex:1 1 0; min-height:0; position:relative; display:grid; grid-template-columns:clamp(124px,16vw,212px) 1fr; align-items:center; border-bottom:1.5px dashed rgba(33,49,79,.15)}
+.lane:nth-child(even){background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.lane:last-child{border-bottom:none}
+.lane.lead{background:color-mix(in srgb,var(--gold) 13%,transparent)}
+.stall{display:flex; align-items:center; gap:9px; height:100%; padding-left:10px; border-right:2px solid rgba(33,49,79,.22); overflow:hidden}
+.stall .lno{flex:0 0 auto; font-family:Fraunces,serif; font-weight:600; font-size:13px; color:var(--muted-soft); width:15px}
+.stall .shead{flex:0 0 auto; height:82%; aspect-ratio:1; object-fit:contain}
+.stall .sname{font-family:Fraunces,serif; font-weight:600; font-size:clamp(13px,1.8vh,19px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lane.lead .sname{color:var(--gold-deep)}
+.ltrack{position:relative; height:100%}
+.runner{position:absolute; top:0; height:100%; left:3%; transform:translateX(-50%); transition:left .7s cubic-bezier(.25,.9,.3,1); display:flex; align-items:center; gap:7px; white-space:nowrap}
+.gallop{flex:0 0 auto; height:72%; aspect-ratio:1; background-repeat:no-repeat; background-position:center bottom; background-size:contain;
+  animation:gallop .46s steps(1) infinite; filter:drop-shadow(2px 3px 1px rgba(33,49,79,.22))}
+@keyframes gallop{0%{background-image:url(/img/trot-key-1.png)}25%{background-image:url(/img/trot-key-2.png)}50%{background-image:url(/img/trot-key-3.png)}75%{background-image:url(/img/trot-key-4.png)}100%{background-image:url(/img/trot-key-1.png)}}
+@media (prefers-reduced-motion:reduce){ .gallop{animation:none; background-image:url(/img/trot-key-1.png)} }
+.runner .rscore{font-family:Fraunces,serif; font-weight:600; font-size:clamp(18px,2.7vh,32px); color:var(--ink); font-variant-numeric:tabular-nums}
+.lane.lead .rscore{color:var(--gold-deep)}
+.runner .rosette{position:absolute; left:-26px; top:-8px; width:clamp(20px,3vh,30px); height:auto}
+.winline{flex:0 0 auto; margin-top:12px; min-height:30px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(18px,2vw,26px); color:var(--ink); display:flex; align-items:center; gap:10px}
+.winline .crown{color:var(--gold-deep)} .winline.show{animation:pop .5s}
+@keyframes pop{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+
+.handoff{align-items:flex-start}
+.handoff .big{font-family:Fraunces,serif; font-weight:600; font-size:clamp(32px,4.6vw,68px); letter-spacing:-.02em; line-height:1.03; color:var(--d-text)}
+.handoff .arrow{color:var(--gold)}
+.handoff .cue{margin-top:14px; font-family:Caveat,cursive; font-size:clamp(19px,2vw,27px); color:var(--d-muted)}
+
+/* join bar + chrome */
+.joinbar{position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:20; display:flex; align-items:center; gap:14px; background:color-mix(in srgb,var(--ink) 90%, transparent); color:var(--d-text); border:1px solid var(--d-line); border-radius:999px; padding:7px 16px; font-size:13.5px; box-shadow:0 4px 16px -6px rgba(0,0,0,.4)}
+.joinbar .jcode{font-family:Fraunces,serif; font-weight:700; letter-spacing:.12em; color:var(--hl)}
+.joinbar .jurl{opacity:.85; font-variant-numeric:tabular-nums}
+.joinbar .jcount{display:inline-flex; align-items:center; gap:6px; font-weight:600}
+.joinbar .jdot{width:7px; height:7px; border-radius:50%; background:var(--ok-bright)}
+.joinbig{margin-top:1.1em; display:inline-flex; flex-direction:column; gap:6px; background:rgba(255,255,255,.06); border:1px solid var(--d-line); border-radius:16px; padding:18px 24px}
+.joinbig .jl{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--d-muted)}
+.joinbig .jv{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.6vw,36px); color:var(--d-text)}
+.joinbig .jv b{color:var(--hl); letter-spacing:.1em}
+
+/* slide 1 — QR join hero */
+.s1grid{display:flex; gap:clamp(28px,5vw,84px); align-items:center; width:100%; flex-wrap:wrap}
+.s1left{flex:1 1 440px; min-width:300px}
+.s1join{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:14px}
+.qrcard{background:#fff; border-radius:24px; padding:clamp(16px,1.6vw,24px); box-shadow:0 22px 60px -22px rgba(0,0,0,.65); display:flex; flex-direction:column; align-items:center; gap:12px}
+.qrbox{width:clamp(176px,21vw,256px); height:clamp(176px,21vw,256px); display:flex; align-items:center; justify-content:center}
+.qrbox svg,.qrbox img{width:100%; height:100%; display:block; shape-rendering:crispEdges}
+.qrcap{font-family:Caveat,cursive; font-size:clamp(19px,1.8vw,24px); color:var(--ink); font-weight:700}
+.joinmeta{display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center}
+.joinmeta .jl{font-family:Caveat,cursive; font-size:clamp(16px,1.5vw,20px); color:var(--d-muted)}
+.joinmeta .jv{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.7vw,24px); color:var(--d-text)}
+.joinmeta .jv b{color:var(--hl); letter-spacing:.08em}
+
+.brandtag{position:fixed; top:20px; left:clamp(24px,5vw,60px); font-family:Fraunces,serif; font-weight:600; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:7px; z-index:10; transition:color var(--t)}
+.brandtag.ondark{color:var(--d-text)}
+.foot{position:fixed; bottom:18px; left:clamp(24px,5vw,60px); right:clamp(24px,5vw,60px); display:flex; align-items:center; justify-content:space-between; z-index:10}
+.dots{display:flex; gap:6px; flex-wrap:wrap; max-width:60vw}
+.dots button{width:8px; height:8px; border-radius:50%; border:1.5px solid var(--line); background:transparent; cursor:pointer; padding:0; transition:background .2s,border-color .2s}
+.dots button.on{background:var(--red); border-color:var(--red)}
+.dots button.mark{border-color:var(--gold-deep)}
+.count{font-family:Fraunces,serif; font-weight:600; font-size:13px; color:var(--muted-soft); font-variant-numeric:tabular-nums; transition:color var(--t)} .count.ondark{color:var(--d-muted)}
+.nojs .deckchrome{display:none}
+@media (prefers-reduced-motion:reduce){ .slide{transition:opacity .2s; transform:none!important} .livetag .ld{animation:none} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-horse" viewBox="0 0 24 24"><path d="M5 20c-1-5 1-8 4-9 1-2 0-4 2-5 1 3 3 3 5 4 2 1 3 3 3 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.4" cy="9.3" r=".9" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 5h11l-2 3.2 2 3.3H6z" fill="currentColor" opacity=".45"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M7 4h10v4.5a5 5 0 0 1-10 0V4z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 6.2H4.2v1a3 3 0 0 0 3 3M17 6.2h2.8v1a3 3 0 0 1-3 3M9.5 20h5M12 14.5V20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="g-runner" viewBox="0 0 24 24"><path fill="currentColor" d="M23 8v8l-3 1l-3.09-5.5c-.26-.46-.99-.23-.91.31L17 21L7 17l1.15-8.06A6.92 6.92 0 0 1 15 3h8l-1.58 2.37C22.36 5.88 23 6.86 23 8M4 5h3.58c.5-.76 1.12-1.43 1.83-2H4c-.55 0-1 .45-1 1s.45 1 1 1m1.84 6H2c-.55 0-1 .45-1 1s.45 1 1 1h3.55zM3 9h3.12l.05-.34c.08-.58.22-1.13.41-1.66H3c-.55 0-1 .45-1 1s.45 1 1 1"/></symbol>
+  <symbol id="g-horse" viewBox="0 0 24 24"><path fill="currentColor" d="M22 6v3.5l-1.5.5l-1.54-2.46c-.13-.21-.46-.12-.46.13v3.58c0 .98-.39 1.86-1 2.53V21H15v-6h-.25c-.21 0-.42-.03-.62-.06l-4.44-.74l-1.12 2.01l.96 4.79H7l-1-4.75c-.03-.3 0-.6.16-.86l1.02-1.81a3.27 3.27 0 0 1-1.68-2.77c-.04.15-.06.37-.03.69c.03.44.14 1.09.07 1.81c-.04.72-.37 1.46-.79 1.95c-.43.49-.9.83-1.4 1.09l-.7-.7c.19-.47.38-.89.42-1.28c.06-.37-.01-.67-.12-.94l-.53-1.13c-.21-.51-.47-1.25-.42-2.12c.03-.85.5-1.96 1.39-2.57c.9-.61 1.87-.69 2.66-.53c.5.1 1.01.34 1.45.68c.37-.17.8-.26 1.25-.26h5.75V7c0-2.21 1.79-4 4-4H22l-.89 1.34c.54.36.89.97.89 1.66"/></symbol>
+</defs></svg>
+
+<div class="joinbar deckchrome" id="joinbar"><span class="jurl" id="jurl">starting…</span><span class="jcode" id="jcode"></span><span class="jcount"><span class="jdot"></span><span id="jcount">0</span> in</span></div>
+<div class="brandtag deckchrome" id="brand"><svg class="horse" width="20" height="20"><use href="#i-horse"/></svg> FORGE · redesign lab</div>
+
+<div class="deck" id="deck">
+
+  <!-- ===== INTERLUDE 1 — THE RETROFIT ===== -->
+
+  <section class="slide dark" id="s1">
+    <div class="s1grid">
+      <div class="s1left">
+        <div class="seg">Interlude 1 · before the main deck</div>
+        <div class="wordmark">Redesign<br>a workflow.</div>
+        <p class="s1sub">Grab your phone and scan to join. I'll show you a real process — one step at a time — and for each step, you tell me: <b>what would you build to help?</b></p>
+      </div>
+      <div class="s1join">
+        <div class="qrcard">
+          <div class="qrbox" id="qrbox"></div>
+          <div class="qrcap">scan to join</div>
+        </div>
+        <div class="joinmeta"><span class="jl">or open</span><span class="jv" id="joinbig">…</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 SCRAMBLED TASKS (live feeds) — bam, bam, bam, bam -->
+  <section class="slide light task" data-prompt="t-review" data-label="Reviewing &amp; sending questions back — what would you build?" data-mode="build">
+    <div class="taskhead"><span class="tasknum">Step #2</span><span class="queued">tools queued · <b>1</b> / 4</span></div>
+    <h2 class="title sm">Review what came up — and send your questions back.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">Today</div><p>You read the pack, spot gaps, write clarifying questions, and wait for a new version.</p>
+        <div class="tlabel pain">The pain</div><p>Rounds of back-and-forth before it's right.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="feed" data-prompt="t-review"><div class="feedempty">answers from the room land here…</div></div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task" data-prompt="t-rollup" data-label="Rolling it all up — what would you build?" data-mode="build">
+    <div class="taskhead"><span class="tasknum">Step #4</span><span class="queued">tools queued · <b>2</b> / 4</span></div>
+    <h2 class="title sm">Roll several of these up into one combined view.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">Today</div><p>Take everyone's packs and merge them into a single view to pass upward.</p>
+        <div class="tlabel pain">The pain</div><p>Slow, manual, and stale by the time it's done.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="feed" data-prompt="t-rollup"><div class="feedempty">answers from the room land here…</div></div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task" data-prompt="t-deck" data-label="Building the deck — what would you build?" data-mode="build">
+    <div class="taskhead"><span class="tasknum">Step #1</span><span class="queued">tools queued · <b>3</b> / 4</span></div>
+    <h2 class="title sm">Pull the numbers together and build the deck.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">Today</div><p>Export from every system, then assemble the slides.</p>
+        <div class="tlabel pain">The pain</div><p>A day of swivel-chair, every cycle.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="feed" data-prompt="t-deck"><div class="feedempty">answers from the room land here…</div></div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task" data-prompt="t-meeting" data-label="The review meeting — what would you build?" data-mode="build">
+    <div class="taskhead"><span class="tasknum">Step #3</span><span class="queued">tools queued · <b>4</b> / 4</span></div>
+    <h2 class="title sm">Run the review meeting and walk through the pack.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">Today</div><p>Get everyone in a room; someone scribbles the actions and owners.</p>
+        <div class="tlabel pain">The pain</div><p>Decisions get lost; the follow-up slips.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="feed" data-prompt="t-meeting"><div class="feedempty">answers from the room land here…</div></div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span></div>
+  </section>
+
+  <!-- ASSEMBLY (fake triumph) -->
+  <section class="slide dark">
+    <div class="head"><div class="eyebrow">the result</div><h2 class="title sm">Wire them together: the <span class="hl">Autonomous Reporting</span> machine.</h2></div>
+    <div class="pipe">
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">build the deck</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">draft the questions</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">take the minutes</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">consolidate &amp; pass up</div></div>
+    </div>
+    <div class="triumph">Four tools. Every step automated.</div>
+    <p class="punch" style="margin-top:14px">Looks like a win, doesn't it?</p>
+  </section>
+
+  <!-- CONFESSION -->
+  <section class="slide dark">
+    <div class="head"><div class="eyebrow">but look again</div><h2 class="title">Look at what I asked you. <span class="hl">Every single time.</span></h2></div>
+    <p class="lede"><b>"What tool would you build for this step?"</b> — four times, you answered the question I rigged. It's the exact question that lands in this lab every week. And every answer made the process a little more permanent.</p>
+    <p class="punch" style="margin-top:18px">We've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
+  </section>
+
+  <!-- HANDOFF → MAIN DECK -->
+  <section class="slide dark handoff" data-mark>
+    <div class="seg">end of interlude 1</div>
+    <div class="big">So why does that keep<br>happening? <span class="arrow">→</span></div>
+    <div class="cue">↪ switch to the main deck — the case for redesign over retrofit.</div>
+  </section>
+
+  <!-- ===== INTERLUDE 2 — FIND THE SCARCITY ===== -->
+
+  <section class="slide light" data-mark>
+    <div class="head"><div class="seg">Interlude 2 · after the main deck</div><h2 class="title sm">Those four tasks? They were <span class="hl">one process.</span></h2></div>
+    <p class="lede">Scrambled and alone, so you fixed each in isolation. Really, they're the monthly business review — and the whole thing <b>runs again at every level:</b></p>
+    <div class="cascade">
+      <div class="tier"><div class="tk">Local</div><div class="ts">build · review · meet · roll up →</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Regional</div><div class="ts">build · review · meet · roll up →</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Global</div><div class="ts">…and again.</div></div>
+    </div>
+    <div class="goal">Let's redo it — but this time, <b>don't tell me what to build.</b></div>
+  </section>
+
+  <section class="slide light raceslide" data-prompt="race" data-label="Assumption Race — surface every hidden assumption" data-mode="race" data-round="1">
+    <div class="roundhead">
+      <div class="head"><div class="eyebrow">on your phones now</div><h2 class="title sm">Assumption Race: surface every hidden <span class="hl">assumption.</span></h2></div>
+      <div class="rtimer" id="rtimer"><span class="rt-num" id="rtnum">4:00</span><span class="rt-lab">on the clock</span></div>
+    </div>
+    <p class="lede">Every step quietly assumes something is true. On your phone, name as many buried assumptions as you can before the buzzer — each one, your horse gallops on. <b>Most found wins.</b></p>
+    <div class="racecourse">
+      <div class="track" id="track"><div class="trackempty" id="trackempty">horses line up as the room joins…</div></div>
+    </div>
+  </section>
+
+  <section class="slide light">
+    <div class="head"><div class="eyebrow">what you found</div><h2 class="title sm">Why each step <span class="hl">exists.</span></h2></div>
+    <div class="scar">
+      <div class="scarrow"><div class="st">Build the deck</div><div class="sc">the level above can't see your numbers, so you package them</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">The question loop</div><div class="sc">they can't drill into the data themselves, so they ask — and you resend</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">Roll it up</div><div class="sc">numbers couldn't combine themselves across the level below</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow alive"><div class="st">The decision in the room</div><div class="sc">someone must own a consequential, hard-to-reverse call</div><span class="tag real">STILL REAL</span></div>
+    </div>
+    <div class="barline">Three of four exist for a scarcity that's <span class="r">already gone.</span> One is still real.</div>
+    <div class="reflex">The reflex to keep: <b>what scarcity was this step a workaround for — and is it still real?</b> If it's dead, don't build the bot. Delete the step.</div>
+  </section>
+
+  <!-- ===== INTERLUDE 3 — REDESIGN THE WHOLE ===== -->
+
+  <section class="slide dark" data-prompt="redesign" data-label="Forget the steps. What should this BE?" data-mode="open" data-mark>
+    <div class="head"><div class="seg">Interlude 3</div><h2 class="title sm">Now redesign it — not step by step. <span class="hl">The whole thing.</span></h2></div>
+    <p class="lede">Three steps are workarounds for scarcities that are gone. One real job remains: <b>someone owns the call.</b> Forget the steps — start from the job. What should this actually be?</p>
+    <div style="margin-top:6px"><span class="livetag"><span class="ld"></span>live · the room redesigns the whole</span></div>
+    <div class="feed" data-prompt="redesign" style="margin-top:14px; max-height:34vh"><div class="feedempty">redesigns from the room land here…</div></div>
+  </section>
+
+  <section class="slide dark">
+    <div class="head"><div class="eyebrow">careful —</div><h2 class="title sm">"One unified platform" is <span class="hl">still</span> a faster horse.</h2></div>
+    <div class="struck">auto-build the deck · auto-answer the questions · auto-consolidate</div>
+    <p class="lede" style="margin-top:16px">If the answer kept the deck, the review loop, and the roll-up — you've made the same broken shape faster. <b>Retrofit isn't a visibility problem. It's a lens problem.</b></p>
+  </section>
+
+  <section class="slide light">
+    <div class="head"><div class="eyebrow">the redesign</div><h2 class="title sm">What's the <span class="hl">job</span> — really?</h2></div>
+    <div class="versus">
+      <div class="vpanel bad">
+        <div class="vlab">a faster cascade</div><h3>Same shape, automated.</h3>
+        <p>Still a deck, a review loop, a roll-up at every tier — just generated and summarized by AI.</p>
+        <div class="vsteps"><span class="vstep">build</span><span class="vstep">review</span><span class="vstep">meet</span><span class="vstep">roll up</span></div>
+      </div>
+      <div class="vpanel good">
+        <div class="vlab">the redesign</div><h3>There is no deck, and no review loop.</h3>
+        <p>Every tier sees the same live, trusted numbers and drills in themselves. No packaging, no questions, no resends, no roll-up. What's left: the decision — and a real conversation about what to do.</p>
+        <span class="lockchip"><svg><use href="#i-lock"/></svg> a human still owns the decision</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide dark handoff" data-mark>
+    <div class="seg">end of interlude 3</div>
+    <div class="big">Redesign. Don't retrofit.<br>No engines on horses. <span class="arrow">→</span></div>
+    <div class="cue">↪ back to the main deck — to close.</div>
+  </section>
+
+</div>
+
+<div class="foot deckchrome">
+  <div class="dots" id="dots"></div>
+  <div class="count" id="count">1 / 18</div>
+</div>
+
+<script src="qrcode.min.js"></script>
+<script>
+  document.documentElement.classList.remove('nojs');
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const count=document.getElementById('count');
+  const brand=document.getElementById('brand');
+  let i=0;
+
+  slides.forEach((s,n)=>{ const b=document.createElement('button'); b.setAttribute('aria-label','Slide '+(n+1)); if(s.hasAttribute('data-mark')) b.classList.add('mark'); b.onclick=(e)=>{e.stopPropagation(); go(n);}; dotsWrap.append(b); });
+  const dots=[...dotsWrap.children];
+
+  function go(n){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{ s.classList.toggle('active',k===n); s.classList.toggle('past',k<n); });
+    dots.forEach((d,k)=>d.classList.toggle('on',k===n));
+    count.textContent=(n+1)+' / '+slides.length;
+    const dark=slides[n].classList.contains('dark');
+    brand.classList.toggle('ondark',dark);
+    count.classList.toggle('ondark',dark);
+    i=n; syncPrompt();
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(i+1); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
+    else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
+  });
+  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
+
+  /* ---- live wiring ---- */
+  const params=new URLSearchParams(location.search); const hostKey=params.get('host')||'';
+  let ws, answers={};
+  function feedFor(pid){ return document.querySelector('.feed[data-prompt="'+pid+'"]'); }
+  function addChip(pid,a){ const f=feedFor(pid); if(!f) return; const e=f.querySelector('.feedempty'); if(e) e.remove(); const c=document.createElement('div'); c.className='achip'+(a.tag?(' '+a.tag):''); if(a.name){ const w=document.createElement('span'); w.className='who'; w.textContent=a.name; c.appendChild(w); } c.appendChild(document.createTextNode(a.text)); f.appendChild(c); f.scrollTop=f.scrollHeight; }
+  function renderFeed(pid){ const f=feedFor(pid); if(!f) return; f.innerHTML=''; const arr=answers[pid]||[]; if(!arr.length){ f.innerHTML='<div class="feedempty">answers from the room land here…</div>'; } else arr.forEach(a=>addChip(pid,a)); }
+  function renderAll(){ document.querySelectorAll('.feed[data-prompt]').forEach(f=>renderFeed(f.dataset.prompt)); }
+  const ROUND_MS=240000; // 4-min timebox for the Dead-or-Alive round
+  let curRound=null;
+  function wsSend(o){ if(ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
+  function syncPrompt(){
+    const s=slides[i]; const pid=s.dataset.prompt;
+    if(pid) wsSend({type:'setPrompt', prompt:{ id:pid, label:s.dataset.label||'What would you build?', mode:s.dataset.mode||'build' }});
+    const round=s.dataset.round||null;          // timeboxed round → auto start on enter, stop on leave
+    if(round!==curRound){
+      if(round) wsSend({type:'timer', action:'start', durationMs:ROUND_MS});
+      else wsSend({type:'timer', action:'stop'});
+      curRound=round;
+    }
+  }
+  function setCount(n){ const el=document.getElementById('jcount'); if(el) el.textContent=n; }
+
+  /* round timer + cracked board */
+  let timerEnd=0, timerInt=null;
+  function fmt(ms){ ms=Math.max(0,ms); const s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  function tick(){
+    const el=document.getElementById('rtnum'), box=document.getElementById('rtimer'); if(!el||!box) return;
+    const rem=timerEnd-Date.now(); el.textContent=fmt(rem);
+    box.classList.toggle('low', rem>0 && rem<=30000);
+    if(rem<=0){ el.textContent='time!'; box.classList.remove('low'); box.classList.add('done'); clearInterval(timerInt); timerInt=null; }
+  }
+  function setTimer(t){
+    clearInterval(timerInt); timerInt=null;
+    const box=document.getElementById('rtimer'); const w=document.getElementById('winline');
+    if(t && t.endsAt){ timerEnd=t.endsAt; if(box) box.classList.remove('done'); if(w){w.classList.remove('show'); w.innerHTML='';} tick(); timerInt=setInterval(tick,250); }
+    else { timerEnd=0; const el=document.getElementById('rtnum'); if(el) el.textContent=fmt(ROUND_MS); if(box) box.classList.remove('low','done'); }
+  }
+  let lastBoard=[];
+  function renderBoard(board){
+    board=board||[]; lastBoard=board;
+    const track=document.getElementById('track'); if(!track) return;
+    if(!board.length){ track.innerHTML='<div class="trackempty" id="trackempty">horses line up as the room joins…</div>'; return; }
+    const top=Math.max(...board.map(r=>r.score),0);
+    const lanes=board.slice().sort((a,b)=>a.id.localeCompare(b.id)); // stable lane order
+    track.innerHTML='';
+    lanes.forEach((r,k)=>{
+      const lead = top>0 && r.score===top;
+      const pos = Math.min(93, 4 + r.score*8.5);
+      const head='/img/steed-'+r.steed.color+'.png';
+      const lane=document.createElement('div'); lane.className='lane'+(lead?' lead':'');
+      lane.innerHTML=
+        '<div class="stall"><span class="lno">'+(k+1)+'</span>'+
+          '<img class="shead" src="'+head+'" alt="" onerror="this.style.display=\'none\'">'+
+          '<span class="sname">'+esc(r.name)+'</span></div>'+
+        '<div class="ltrack"><span class="runner" style="left:'+pos+'%">'+
+          (lead?'<img class="rosette" src="/img/rosette.png" alt="" onerror="this.style.display=\'none\'">':'')+
+          '<span class="gallop"></span><span class="rscore">'+r.score+'</span>'+
+        '</span></div>';
+      track.appendChild(lane);
+    });
+  }
+  function announceWinner(){
+    const w=document.getElementById('winline'); if(!w||!lastBoard.length) return;
+    const top=Math.max(...lastBoard.map(r=>r.score),0);
+    if(top<=0){ w.classList.remove('show'); w.innerHTML=''; return; }
+    const winners=lastBoard.filter(r=>r.score===top);
+    const who = winners.length===1 ? esc(winners[0].name) : winners.map(r=>esc(r.name)).join(' & ');
+    w.innerHTML='<svg class="crown" width="26" height="26"><use href="#i-cup"/></svg> '+who+' — '+top+' assumption'+(top===1?'':'s')+' surfaced';
+    w.classList.add('show');
+  }
+  function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function renderQR(url){
+    const box=document.getElementById('qrbox'); if(!box) return;
+    try{
+      const qr=qrcode(0,'M'); qr.addData(url); qr.make();
+      box.innerHTML=qr.createSvgTag({cellSize:6, margin:1, scalable:true});
+    }catch(e){ box.innerHTML='<div style="font:600 14px Inter;color:#21314f;text-align:center">'+url+'</div>'; }
+  }
+  fetch('/api/info').then(r=>r.json()).then(d=>{
+    const url='http://'+d.ip+':'+d.port;
+    document.getElementById('jurl').textContent=url;
+    document.getElementById('jcode').textContent='code '+d.code;
+    const jb=document.getElementById('joinbig'); if(jb) jb.innerHTML=url+' &nbsp;·&nbsp; <b>'+d.code+'</b>';
+    renderQR(url);
+  }).catch(()=>{});
+
+  function connect(){
+    ws=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws');
+    ws.onopen=()=>{ ws.send(JSON.stringify({type:'present', hostKey})); };
+    ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;}
+      if(m.type==='state'){ answers=m.answers||{}; renderAll(); setCount(m.count||0); setTimer(m.timer); renderBoard(m.board); syncPrompt(); }
+      else if(m.type==='answer'){ (answers[m.promptId]=answers[m.promptId]||[]).push(m.answer); addChip(m.promptId,m.answer); }
+      else if(m.type==='count'){ setCount(m.count||0); }
+      else if(m.type==='timer'){ setTimer(m.timer); }
+      else if(m.type==='board'){ renderBoard(m.board); }
+      else if(m.type==='cleared'){ answers={}; renderAll(); renderBoard([]); const w=document.getElementById('winline'); if(w){w.classList.remove('show'); w.innerHTML='';} }
+      else if(m.type==='denied'){ console.warn('Presenter denied — open the /present?host=… link from the server console.'); }
+    };
+    ws.onclose=()=>setTimeout(connect,1500);
+    ws.onerror=()=>{ try{ws.close();}catch{} };
+  }
+  connect();
+  go(0);
+</script>
+</body>
+</html>

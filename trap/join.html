@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Join — FORGE redesign lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4efe2; --card:#fffaf0; --ink:#21314f; --muted:#7b8298; --muted-strong:#454f68;
+  --line:#cfc4a6; --red:#e23b3b; --gold-deep:#a96f12; --gold:#b8860b; --hl:#ffd24a; --ok:#2e7d52; --amber:#fbe6a8; --amber-line:#e6b53d;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%}
+body{font-family:Inter,system-ui,sans-serif; color:var(--ink); background:var(--paper);
+  background-image:radial-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1.1px,transparent 1.1px); background-size:24px 24px;
+  -webkit-font-smoothing:antialiased; min-height:100%; display:flex; flex-direction:column}
+.wrap{flex:1; display:flex; flex-direction:column; padding:18px; max-width:560px; margin:0 auto; width:100%}
+.brand{display:flex; align-items:center; gap:8px; font-family:Fraunces,serif; font-weight:600; font-size:16px; color:var(--ink); margin-bottom:6px}
+.brand svg{width:20px; height:20px}
+.code{font-family:Fraunces,serif; font-weight:700; letter-spacing:.14em; color:var(--gold-deep); font-size:15px}
+.card{background:var(--card); border:1.6px solid var(--line); border-radius:18px; padding:20px; margin-top:auto; margin-bottom:auto; box-shadow:0 10px 30px -16px rgba(33,49,79,.35)}
+h1{font-family:Fraunces,serif; font-weight:600; font-size:25px; line-height:1.12; letter-spacing:-.02em; margin-bottom:6px}
+.sub{color:var(--muted-strong); font-size:14.5px; line-height:1.5; margin-bottom:16px}
+label{display:block; font-family:Caveat,cursive; font-size:20px; color:var(--muted-strong); margin-bottom:7px}
+input,textarea{width:100%; font-family:Inter,sans-serif; font-size:17px; color:var(--ink); background:#fff; border:1.6px solid var(--line); border-radius:12px; padding:13px 15px; outline:none}
+input::placeholder,textarea::placeholder{color:#8a8470}
+input:focus,textarea:focus{border-color:var(--gold-deep)}
+textarea{min-height:58px; resize:none; line-height:1.4}
+.btn{display:block; width:100%; margin-top:12px; font-family:Inter,sans-serif; font-weight:600; font-size:17px; color:#fff; background:var(--ink); border:none; border-radius:12px; padding:15px; cursor:pointer; transition:transform .1s, background .2s, opacity .2s}
+.btn:active{transform:scale(.98)} .btn:disabled{opacity:.45}
+.status{font-size:12px; color:var(--muted); text-align:center; padding:10px}
+.status b{color:var(--ok)}
+
+/* legacy build/open prompt */
+.waiting{text-align:center; color:var(--muted-strong); padding:24px 4px}
+.waiting .big{font-family:Fraunces,serif; font-weight:600; font-size:21px; margin-bottom:8px}
+.waiting .dotpulse{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--gold-deep); animation:pl 1.4s ease-in-out infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.25}}
+.sent{background:color-mix(in srgb,var(--ok) 12%,var(--card)); border:1.5px solid color-mix(in srgb,var(--ok) 45%,transparent); color:#1f5236; border-radius:12px; padding:12px 15px; font-size:14.5px; margin-top:12px; display:none}
+.sent.show{display:block; animation:pop .3s}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.mine{margin-top:14px; display:flex; flex-direction:column; gap:7px}
+.mine .m{background:var(--amber); border:1.5px solid var(--amber-line); border-radius:10px 10px 10px 3px; padding:9px 13px; font-size:14px; color:#5a4410}
+
+/* ===== Assumption Race ===== */
+.ghead{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px}
+.me{display:flex; align-items:center; gap:11px}
+.mehorse{width:56px; height:56px; flex:0 0 auto; border-radius:50%; background:#fff; border:2.5px solid var(--line); overflow:hidden; display:flex; align-items:center; justify-content:center}
+.mehorse img{width:100%; height:100%; object-fit:contain}
+.mename{font-family:Fraunces,serif; font-weight:600; font-size:17px; line-height:1}
+.mescore{font-family:Inter,sans-serif; font-size:12.5px; color:var(--muted-strong); margin-top:2px; display:flex; align-items:baseline; gap:5px}
+.mescore b{font-size:23px; font-weight:700; color:var(--gold-deep); font-variant-numeric:tabular-nums; line-height:1}
+.gtimer{font-family:Fraunces,serif; font-weight:600; font-size:22px; font-variant-numeric:tabular-nums; color:var(--ink); background:#fff; border:1.6px solid var(--line); border-radius:10px; padding:4px 12px}
+.gtimer.low,.gtimer.done{color:var(--red); border-color:var(--red)}
+.gsub{color:var(--muted-strong); font-size:13.5px; line-height:1.45; margin:6px 0 12px}
+.steps{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:12px}
+.chip{flex:1 1 auto; font-family:Inter,sans-serif; font-weight:600; font-size:13px; color:var(--muted-strong); background:#fff; border:1.6px solid var(--line); border-radius:11px; padding:9px 10px; cursor:pointer; text-align:center; position:relative; transition:border-color .15s, background .15s, color .15s}
+.chip.sel{border-color:var(--gold-deep); background:color-mix(in srgb,var(--gold) 11%,#fff); color:var(--ink)}
+.chip .badge{display:inline-block; min-width:17px; margin-left:4px; font-size:11px; font-weight:700; color:#fff; background:var(--gold-deep); border-radius:99px; padding:0 5px; line-height:16px}
+.chip .badge.zero{background:var(--line); color:var(--muted)}
+.askcard{background:color-mix(in srgb,var(--gold) 6%,#fff); border:1.5px solid color-mix(in srgb,var(--gold) 26%,transparent); border-left:4px solid var(--gold-deep); border-radius:12px; padding:11px 14px; margin-bottom:11px}
+.stepblurb{font-size:13px; color:var(--muted-strong); margin-bottom:7px; line-height:1.4}
+.qline{font-family:Caveat,cursive; font-size:19px; color:var(--ink); line-height:1.15}
+.anote{font-size:13.5px; line-height:1.4; margin-top:10px; padding:10px 13px; border-radius:11px; display:none}
+.anote.show{display:block; animation:pop .3s}
+.anote.ok{background:color-mix(in srgb,var(--ok) 12%,#fff); border:1.5px solid color-mix(in srgb,var(--ok) 42%,transparent); color:#1f5236}
+.anote.no{background:color-mix(in srgb,var(--amber) 55%,#fff); border:1.5px solid var(--amber-line); color:#5a4410}
+.found{margin-top:14px; display:flex; flex-direction:column; gap:7px}
+.found .fhead{font-family:Caveat,cursive; font-size:16px; color:var(--muted-strong)}
+.found .f{background:var(--amber); border:1.5px solid var(--amber-line); border-radius:10px 10px 10px 3px; padding:8px 12px; font-size:13.5px; color:#5a4410; display:flex; gap:7px; align-items:flex-start}
+.found .f .tick{color:var(--ok); font-weight:700}
+.waitbanner{background:color-mix(in srgb,var(--gold) 9%,#fff); border:1.5px dashed var(--amber-line); border-radius:12px; padding:12px 14px; font-size:13.5px; color:#5a4410; text-align:center; margin-bottom:12px; display:none}
+.waitbanner.show{display:block}
+.gdone{text-align:center; padding:14px 4px}
+.gdone .dh{font-family:Fraunces,serif; font-weight:600; font-size:23px; margin-bottom:8px}
+.gdone .dl{font-size:14.5px; color:var(--muted-strong); line-height:1.5}
+.gdone .big{font-family:Fraunces,serif; font-weight:600; font-size:40px; color:var(--gold-deep); margin:6px 0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-horse" viewBox="0 0 24 24"><path d="M5 20c-1-5 1-8 4-9 1-2 0-4 2-5 1 3 3 3 5 4 2 1 3 3 3 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.4" cy="9.3" r=".9" fill="currentColor"/></symbol>
+</defs></svg>
+<div class="wrap">
+  <div class="brand"><svg viewBox="0 0 24 24" fill="none"><path d="M5 20c-1-5 1-8 4-9 1-2 0-4 2-5 1 3 3 3 5 4 2 1 3 3 3 6" stroke="#21314f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.4" cy="9.3" r=".9" fill="#21314f"/></svg> FORGE · redesign lab <span class="code" id="code"></span></div>
+
+  <!-- join / account creation -->
+  <div class="card" id="joincard">
+    <h1>Pick your horse.</h1>
+    <p class="sub">Add a name if you like and join the paddock. You'll be given a steed — that's your racer when the round begins.</p>
+    <label>your name (optional)</label>
+    <input id="name" maxlength="40" placeholder="e.g. Sam from OpCo" autocomplete="off">
+    <button class="btn" id="joinbtn">Join the paddock</button>
+  </div>
+
+  <!-- legacy build/open prompt -->
+  <div class="card" id="livecard" style="display:none">
+    <div id="waiting" class="waiting"><div class="big">Hang tight.</div><div>Waiting for the next question <span class="dotpulse"></span></div></div>
+    <div id="promptarea" style="display:none">
+      <label id="plabel">…</label>
+      <textarea id="answer" placeholder="Type your answer…"></textarea>
+      <button class="btn" id="sendbtn">Send</button>
+      <div class="sent" id="sent">Sent ✓ — add another if you like.</div>
+      <div class="mine" id="mine"></div>
+    </div>
+  </div>
+
+  <!-- Assumption Race -->
+  <div class="card" id="gamecard" style="display:none">
+    <div class="ghead">
+      <div class="me"><span class="mehorse" id="mehorse"></span><div><div class="mename" id="mename">—</div><div class="mescore"><b id="myscore">0</b> found</div></div></div>
+      <div class="gtimer" id="gtimer">—</div>
+    </div>
+    <div class="gsub">Every step hides assumptions about what's hard. Name them — each one your horse gallops on. <b>Most found wins.</b></div>
+
+    <div class="waitbanner" id="waitbanner">The race hasn't started yet — get ready.</div>
+
+    <div id="playarea">
+      <div class="steps" id="stepchips"></div>
+      <div class="stepbody" id="stepbody">
+        <div class="askcard"><div class="stepblurb" id="stepblurb"></div><div class="qline">What does this step assume is true — or quietly work around?</div></div>
+        <textarea id="amsg" rows="2" placeholder="name one assumption…"></textarea>
+        <button class="btn" id="asend" disabled>Send it</button>
+        <div class="anote" id="anote"></div>
+        <div class="found" id="found"></div>
+      </div>
+    </div>
+
+    <div class="gdone" id="gdone" style="display:none"></div>
+  </div>
+
+  <div class="status" id="status">connecting…</div>
+</div>
+
+<script>
+  let ws, joined=false, active=null, me=null;
+  const $=id=>document.getElementById(id);
+  fetch('/api/info').then(r=>r.json()).then(d=>{ $('code').textContent='· code '+d.code; }).catch(()=>{});
+  function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  /* ---- view routing ---- */
+  function show(prompt){
+    active=prompt;
+    if(!joined) return;
+    const race = prompt && prompt.mode==='race';
+    $('gamecard').style.display = race? 'block':'none';
+    $('livecard').style.display = race? 'none':'block';
+    if(race){ ensureGame(); return; }
+    $('waiting').style.display = prompt? 'none':'block';
+    $('promptarea').style.display = prompt? 'block':'none';
+    if(prompt){
+      $('plabel').textContent=prompt.label||'What would you build?';
+      $('answer').setAttribute('placeholder', prompt.mode==='open'? 'Describe the redesign…' : 'Type the tool you’d build…');
+      $('mine').innerHTML=''; $('sent').classList.remove('show');
+    }
+  }
+  $('sendbtn').onclick=()=>{ const t=$('answer').value.trim(); if(!t||!active) return; ws.send(JSON.stringify({type:'submit', promptId:active.id, text:t, tag:null})); const m=document.createElement('div'); m.className='m'; m.textContent=t; $('mine').appendChild(m); $('answer').value=''; $('sent').classList.add('show'); };
+  $('joinbtn').onclick=()=>{ joined=true; ws.send(JSON.stringify({type:'join', name:$('name').value.trim()})); $('joincard').style.display='none'; show(active); };
+
+  /* ---- identity ---- */
+  function renderMe(){
+    if(!me) return;
+    const box=$('mehorse'); box.style.borderColor=me.steed.hex||'var(--line)'; box.innerHTML='';
+    const img=new Image(); img.alt=''; img.src='/img/steed-'+me.steed.color+'.png';
+    img.onerror=()=>{ box.innerHTML='<svg viewBox="0 0 24 24" style="width:58%;color:'+(me.steed.hex||'#21314f')+'"><use href="#i-horse"/></svg>'; };
+    box.appendChild(img);
+    $('mename').textContent=me.name && me.name!==me.steed.name ? (me.name+' · '+me.steed.name) : me.steed.name;
+    $('myscore').textContent=me.score||0;
+  }
+
+  /* ---- the race ---- */
+  let STEPS=[], gameInit=false, selStep=null, raceLive=false, raceDone=false;
+  const found={}; // stepId -> [texts]
+  function ensureGame(){
+    renderMe();
+    if(gameInit){ syncRaceState(); return; }
+    fetch('/api/steps').then(r=>r.json()).then(d=>{
+      STEPS=d.steps||[]; STEPS.forEach(s=>found[s.id]=[]); selStep=STEPS[0]&&STEPS[0].id;
+      gameInit=true; renderChips(); renderStep(); syncRaceState();
+    }).catch(()=>{ $('stepchips').innerHTML='<div class="status">couldn’t load — refresh.</div>'; });
+  }
+  function renderChips(){
+    const c=$('stepchips'); c.innerHTML='';
+    STEPS.forEach(s=>{
+      const n=(found[s.id]||[]).length;
+      const el=document.createElement('button'); el.className='chip'+(s.id===selStep?' sel':'');
+      el.innerHTML=esc(s.title)+'<span class="badge'+(n?'':' zero')+'">'+n+'</span>';
+      el.onclick=()=>{ selStep=s.id; renderChips(); renderStep(); $('amsg').focus(); };
+      c.appendChild(el);
+    });
+  }
+  function renderStep(){
+    const s=STEPS.find(x=>x.id===selStep); if(!s) return;
+    $('stepblurb').textContent='“'+s.blurb+'”';
+    $('anote').classList.remove('show');
+    const f=$('found'); const arr=found[s.id]||[];
+    f.innerHTML = arr.length? ('<div class="fhead">you’ve surfaced here:</div>'+arr.map(t=>'<div class="f"><span class="tick">✓</span>'+esc(t)+'</div>').join('')) : '';
+  }
+  function note(ok,msg){ const n=$('anote'); n.className='anote show '+(ok?'ok':'no'); n.textContent=msg; }
+  let pending=false;
+  function updateSend(){ $('asend').disabled = !$('amsg').value.trim() || !raceLive || raceDone || pending; }
+  function submitAssume(){
+    if(!raceLive || raceDone || pending) return;
+    const t=$('amsg').value.trim(); if(!t) return;
+    pending=true; $('asend').disabled=true; $('asend').textContent='…';
+    ws.send(JSON.stringify({type:'assume', step:selStep, text:t}));
+  }
+  $('asend').onclick=submitAssume;
+  $('amsg').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submitAssume(); } });
+  $('amsg').addEventListener('input', updateSend);
+
+  function onResult(m){
+    pending=false; $('asend').textContent='Send it';
+    if(m.accept){
+      if(typeof m.score==='number'){ me.score=m.score; $('myscore').textContent=m.score; }
+      const sid=m.step||selStep; (found[sid]=found[sid]||[]).push(m.text||$('amsg').value.trim());
+      $('amsg').value=''; renderChips(); if(sid===selStep) renderStep();
+      note(true, m.note||'Nice — your horse moves!');
+    } else {
+      note(false, m.note||'Not quite — try another angle.');
+    }
+    updateSend();
+  }
+
+  function syncRaceState(){
+    $('waitbanner').classList.toggle('show', !raceLive && !raceDone);
+    $('playarea').style.display = raceDone? 'none':'block';
+    const dis = !raceLive || raceDone;
+    $('amsg').disabled=dis; updateSend();
+    if(raceDone) showDone();
+  }
+  function showDone(){
+    $('gdone').style.display='block';
+    $('gdone').innerHTML='<div class="dh">Time! 🐎</div><div class="big">'+(me?me.score:0)+'</div><div class="dl">assumptions surfaced. Look up at the board — and notice how many of them are no longer even true.</div>';
+  }
+
+  /* ---- timer ---- */
+  let tEnd=0, tInt=null;
+  function fmt(ms){ ms=Math.max(0,ms); const s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  function tTick(){ const el=$('gtimer'); const rem=tEnd-Date.now(); el.textContent=fmt(rem);
+    el.classList.toggle('low', rem>0 && rem<=30000);
+    if(rem<=0){ el.textContent='time!'; el.classList.remove('low'); el.classList.add('done'); clearInterval(tInt); tInt=null; raceLive=false; raceDone=true; syncRaceState(); } }
+  function setTimer(t){ clearInterval(tInt); tInt=null; const el=$('gtimer');
+    if(t && t.endsAt){ tEnd=t.endsAt; raceLive=true; raceDone=false; if(el) el.classList.remove('done'); tTick(); tInt=setInterval(tTick,250); }
+    else { tEnd=0; raceLive=false; if(el){ el.textContent='—'; el.classList.remove('low','done'); } }
+    if(gameInit) syncRaceState();
+  }
+
+  /* ---- socket ---- */
+  function connect(){
+    ws=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws');
+    ws.onopen=()=>{ $('status').textContent='connected'; };
+    ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;}
+      if(m.type==='you'){ me={pid:m.pid, steed:m.steed, name:m.name, score:m.score||0}; renderMe(); }
+      else if(m.type==='prompt'){ show(m.activePrompt); }
+      else if(m.type==='timer'){ setTimer(m.timer); }
+      else if(m.type==='assumeResult'){ onResult(m); }
+    };
+    ws.onclose=()=>{ $('status').textContent='reconnecting…'; setTimeout(connect,1500); };
+    ws.onerror=()=>{ try{ws.close();}catch{} };
+  }
+  connect();
+</script>
+</body>
+</html>

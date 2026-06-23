@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The retrofit trap — interactive interludes</title>
+<meta name="description" content="Three interactive interludes that bracket the main deck: retrofit the steps, find the scarcity, redesign the whole.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4efe2; --card:#fffaf0; --ink:#21314f; --ink-soft:#2b3d5e;
+  --muted:#566079; --muted-strong:#454f68; --muted-soft:#7b8298;
+  --line:#cfc4a6; --line-soft:#ded3b6;
+  --red:#e23b3b; --red-bright:#ff5a5a; --gold:#b8860b; --gold-deep:#a96f12; --hl:#ffd24a;
+  --ok:#2e7d52; --ok-bright:#49c07e; --lock:#7c3aed; --blue:#3b6fe2;
+  --amber:#fbe6a8; --amber-line:#e6b53d;
+  --d-text:#f1ece0; --d-muted:#aab2c6; --d-line:#3a4c6e;
+  --t:.55s cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%}
+body{
+  font-family:Inter,system-ui,sans-serif; color:var(--ink); background:var(--paper);
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:Fraunces,serif; font-optical-sizing:auto; font-weight:600; letter-spacing:-.02em; line-height:1.04}
+b,strong{font-weight:600}
+
+.deck{position:relative; width:100vw; height:100vh}
+.slide{
+  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(34px,6vw,120px); gap:clamp(13px,1.5vw,24px);
+  opacity:0; transform:translateY(20px) scale(.992);
+  transition:opacity var(--t), transform var(--t); pointer-events:none; visibility:hidden;
+  background-color:var(--paper);
+  background-image:radial-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1.1px, transparent 1.1px);
+  background-size:26px 26px;
+}
+.slide.active{opacity:1; transform:none; pointer-events:auto; visibility:visible}
+.slide.past{transform:translateY(-20px) scale(.992)}
+.nojs .slide#s1{opacity:1; visibility:visible; transform:none}
+
+.slide.dark{
+  background-color:var(--ink); color:var(--d-text);
+  background-image:radial-gradient(rgba(241,236,224,.06) 1.1px, transparent 1.1px);
+  background-size:26px 26px;
+}
+.slide.dark .lede,.slide.dark .sub{color:var(--d-muted)}
+.slide.dark .title,.slide.dark h2,.slide.dark h3{color:var(--d-text)}
+.slide.dark .eyebrow{color:var(--red-bright)}
+
+.eyebrow{font-family:Caveat,cursive; font-size:clamp(20px,2.3vw,30px); color:var(--red); font-weight:700; transform:rotate(-1.4deg); display:inline-block}
+.hl{background:linear-gradient(transparent 56%, var(--hl) 56%, var(--hl) 93%, transparent 93%); color:var(--ink); padding:0 .12em; -webkit-box-decoration-break:clone; box-decoration-break:clone}
+.lede{font-size:clamp(16px,1.5vw,21px); color:var(--muted-strong); line-height:1.55; max-width:62ch}
+.sub{font-size:clamp(13.5px,1.25vw,16px); color:var(--muted-soft); line-height:1.5}
+.muted{color:var(--muted-soft)}
+
+.head .eyebrow{margin-bottom:.2em}
+.slide h2.title{font-size:clamp(30px,4.4vw,64px); max-width:21ch}
+.slide h2.title.sm{font-size:clamp(25px,3.2vw,45px); max-width:24ch}
+.kicker{font-family:Caveat,cursive; font-size:clamp(22px,2.7vw,36px); color:var(--red); transform:rotate(-1deg)}
+.dark .kicker{color:var(--red-bright)}
+.punch{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.8vw,40px); line-height:1.12; letter-spacing:-.02em}
+
+/* segment tag + live tag */
+.seg{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--gold-deep); font-weight:700; letter-spacing:.01em}
+.dark .seg{color:var(--gold)}
+.livetag{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--red); background:color-mix(in srgb,var(--red) 9%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent); border-radius:999px; padding:6px 13px}
+.livetag .ld{width:8px; height:8px; border-radius:50%; background:var(--red); animation:lp 1.8s ease-in-out infinite}
+.dark .livetag{color:var(--red-bright); background:rgba(255,90,90,.12); border-color:rgba(255,90,90,.4)}
+.dark .livetag .ld{background:var(--red-bright)}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* slide 1 */
+#s1{align-items:flex-start}
+.wordmark{font-family:Fraunces,serif; font-weight:900; font-size:clamp(54px,11vw,150px); line-height:.9; font-variation-settings:"opsz" 144,"WONK" 1; letter-spacing:-.03em; color:var(--d-text)}
+.s1sub{margin-top:.7em; font-size:clamp(16px,1.7vw,23px); color:var(--d-muted); max-width:50ch; line-height:1.5}
+.ponies{position:absolute; right:clamp(28px,6vw,110px); bottom:clamp(28px,6vw,80px); font-family:Caveat,cursive; font-size:clamp(18px,1.8vw,25px); color:color-mix(in srgb,var(--red-bright) 78%,var(--ink)); transform:rotate(-3deg); text-align:right; line-height:1.3}
+
+/* cascade flow */
+.cascade{display:flex; align-items:stretch; gap:clamp(8px,1vw,16px); flex-wrap:wrap; margin-top:8px}
+.tier{flex:1 1 200px; min-width:180px; background:var(--card); border:1.6px solid var(--ink); border-radius:14px; padding:14px 18px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.dark .tier{background:var(--ink-soft); border-color:var(--d-line); box-shadow:none; color:var(--d-text)}
+.tier .tk{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,24px)}
+.tier .ts{font-size:13px; color:var(--muted-soft); line-height:1.45; margin-top:3px}
+.dark .tier .ts{color:var(--d-muted)}
+.casarrow{align-self:center; font-family:Caveat,cursive; font-size:30px; color:var(--muted-soft)}
+.dark .casarrow{color:var(--d-muted)}
+.goal{margin-top:14px; font-size:14.5px; color:var(--muted-strong)}
+.goal b{color:var(--ink)} .dark .goal{color:var(--d-muted)} .dark .goal b{color:var(--d-text)}
+
+/* task template */
+.taskhead{display:flex; align-items:baseline; justify-content:space-between; gap:14px}
+.tasknum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--muted-soft); letter-spacing:.02em}
+.queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--gold-deep)}
+.queued b{font-variant-numeric:tabular-nums}
+.taskbody{display:grid; grid-template-columns:1fr 1fr; gap:clamp(24px,3.5vw,64px); align-items:start; margin-top:10px}
+@media (max-width:880px){ .taskbody{grid-template-columns:1fr} }
+.tlabel{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--muted-soft); margin-bottom:2px}
+.tlabel.pain{color:var(--red); margin-top:14px}
+.taskbody p{font-size:clamp(15px,1.45vw,19px); color:var(--muted-strong); line-height:1.5}
+.asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(18px,1.9vw,25px); color:var(--ink); margin-bottom:9px}
+.heylab{background:var(--amber); border:1.7px solid var(--amber-line); border-radius:14px 14px 14px 4px; padding:16px 19px; font-size:clamp(15px,1.5vw,19.5px); line-height:1.45; color:#5a4410; box-shadow:3px 5px 0 -1px color-mix(in srgb,var(--gold) 28%,transparent); transform:rotate(-.5deg)}
+.heylab .hey{font-weight:700; color:var(--gold-deep)}
+.tdots{display:flex; gap:7px; margin-top:6px}
+.tdot{width:26px; height:6px; border-radius:3px; background:color-mix(in srgb,var(--line) 80%,transparent)}
+.tdot.on{background:var(--gold-deep)}
+
+/* pipeline */
+.pipe{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px}
+.bot{position:relative; background:var(--ink-soft); border:1.5px solid var(--d-line); border-radius:12px; padding:13px 15px; min-width:128px; max-width:160px}
+.bot .bn{font-size:12.5px; color:var(--d-text); line-height:1.35; font-weight:500}
+.bot .chk{position:absolute; top:-9px; right:-9px; width:22px; height:22px; border-radius:50%; background:var(--ok); display:flex; align-items:center; justify-content:center}
+.bot .chk svg{width:13px; height:13px; color:#fff}
+.pipe .parrow{color:var(--ok-bright); font-size:20px}
+.dark .triumph{font-family:Caveat,cursive; font-size:clamp(20px,2.2vw,28px); color:var(--ok-bright); margin-top:8px}
+
+/* scarcity table */
+.scar{display:flex; flex-direction:column; gap:8px; margin-top:8px}
+.scarrow{display:grid; grid-template-columns:1.15fr 1.5fr auto; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:11px 16px}
+.scarrow .st{font-family:Fraunces,serif; font-weight:600; font-size:clamp(14px,1.4vw,17px)}
+.scarrow .sc{font-size:clamp(13px,1.3vw,15.5px); color:var(--muted-strong); line-height:1.4}
+.tag{font-size:11.5px; font-weight:700; letter-spacing:.05em; padding:5px 11px; border-radius:999px; white-space:nowrap}
+.tag.dead{color:var(--red); background:color-mix(in srgb,var(--red) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent)}
+.tag.real{color:var(--ok); background:color-mix(in srgb,var(--ok) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--ok) 45%,transparent)}
+.scarrow.alive{border-color:color-mix(in srgb,var(--ok) 45%,transparent); background:color-mix(in srgb,var(--ok) 6%,var(--card))}
+.barline{margin-top:10px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,25px)}
+.barline .r{color:var(--red)}
+.reflex{margin-top:14px; background:color-mix(in srgb,var(--gold) 8%,var(--card)); border:1.4px solid color-mix(in srgb,var(--gold) 35%,transparent); border-radius:13px; padding:14px 18px; font-size:clamp(14px,1.4vw,17.5px); color:var(--muted-strong); line-height:1.5; max-width:74ch}
+.reflex b{color:var(--gold-deep)}
+
+/* versus */
+.versus{display:grid; grid-template-columns:1fr 1fr; gap:clamp(18px,2.4vw,40px); margin-top:8px; align-items:stretch}
+@media (max-width:880px){ .versus{grid-template-columns:1fr} }
+.vpanel{border-radius:16px; padding:clamp(18px,2vw,26px); border:1.7px solid}
+.vpanel.bad{background:color-mix(in srgb,var(--red) 7%,var(--card)); border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.vpanel.good{background:color-mix(in srgb,var(--ok) 8%,var(--card)); border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.vpanel h3{font-size:clamp(18px,2vw,26px); margin-bottom:4px}
+.vpanel .vlab{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); margin-bottom:10px}
+.vpanel.bad .vlab{color:var(--red)} .vpanel.good .vlab{color:var(--ok)}
+.vpanel p{font-size:clamp(14px,1.4vw,17.5px); color:var(--muted-strong); line-height:1.5}
+.vpanel.bad p{opacity:.82}
+.vsteps{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+.vstep{font-size:12px; font-weight:600; padding:5px 11px; border-radius:8px; background:#fff; border:1.4px solid var(--line)}
+.vpanel.bad .vstep{opacity:.6; text-decoration:line-through}
+.lockchip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--lock); background:color-mix(in srgb,var(--lock) 9%,var(--card)); border:1.4px solid color-mix(in srgb,var(--lock) 45%,transparent); border-radius:999px; padding:5px 12px; margin-top:13px}
+.lockchip svg{width:13px; height:13px}
+
+.struck{display:inline-block; background:var(--ink-soft); border:1.6px dashed var(--d-line); border-radius:13px; padding:14px 20px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.8vw,23px); color:var(--d-muted); position:relative; margin-top:6px}
+.struck::after{content:""; position:absolute; left:6%; right:6%; top:52%; height:2.5px; background:var(--red-bright); transform:rotate(-3deg)}
+
+/* handoff / intermission slide */
+.handoff{align-items:flex-start}
+.handoff .big{font-family:Fraunces,serif; font-weight:600; font-size:clamp(34px,5vw,72px); letter-spacing:-.02em; line-height:1.02; color:var(--d-text)}
+.handoff .arrow{color:var(--gold)}
+.handoff .cue{margin-top:14px; font-family:Caveat,cursive; font-size:clamp(19px,2vw,27px); color:var(--d-muted)}
+
+/* chrome */
+.brandtag{position:fixed; top:24px; left:clamp(34px,6vw,120px); font-family:Fraunces,serif; font-weight:600; font-size:16px; font-variation-settings:"opsz" 36,"WONK" 1; color:var(--ink); display:flex; align-items:center; gap:8px; z-index:10; transition:color var(--t)}
+.brandtag.ondark{color:var(--d-text)}
+.brandtag .horse{width:21px; height:21px}
+.foot{position:fixed; bottom:22px; left:clamp(34px,6vw,120px); right:clamp(34px,6vw,120px); display:flex; align-items:center; justify-content:space-between; z-index:10}
+.dots{display:flex; gap:7px; flex-wrap:wrap; max-width:60vw}
+.dots button{width:8px; height:8px; border-radius:50%; border:1.5px solid var(--line); background:transparent; cursor:pointer; padding:0; transition:background .2s,border-color .2s}
+.dots button.on{background:var(--red); border-color:var(--red)}
+.dots button.mark{border-color:var(--gold-deep)}
+.count{font-family:Fraunces,serif; font-weight:600; font-size:13.5px; color:var(--muted-soft); font-variant-numeric:tabular-nums; transition:color var(--t)}
+.count.ondark{color:var(--d-muted)}
+.hint{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); font-family:Caveat,cursive; font-size:16px; color:var(--muted-soft); z-index:10; transition:opacity .4s,color var(--t)}
+.hint.ondark{color:var(--d-muted)}
+.nojs .deckchrome{display:none}
+
+@media (prefers-reduced-motion:reduce){ .slide{transition:opacity .2s; transform:none!important} .livetag .ld{animation:none} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-horse" viewBox="0 0 24 24"><path d="M5 20c-1-5 1-8 4-9 1-2 0-4 2-5 1 3 3 3 5 4 2 1 3 3 3 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.4" cy="9.3" r=".9" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+</defs></svg>
+
+<div class="brandtag deckchrome" id="brand"><svg class="horse"><use href="#i-horse"/></svg> FORGE · redesign lab</div>
+
+<div class="deck" id="deck">
+
+  <!-- ============ SEGMENT 1 — THE RETROFIT (kick-off) ============ -->
+
+  <!-- 1 — TITLE (dark) -->
+  <section class="slide dark" id="s1">
+    <div class="seg">Interlude 1 · before the main deck</div>
+    <div class="wordmark">Redesign<br>a workflow.</div>
+    <p class="s1sub">Play along with me. I'll show you a real process — one step at a time — and for each step, you tell me: <b>what would you build to help?</b></p>
+    <div class="ponies">no wrong answers…<br>(yet)</div>
+  </section>
+
+  <!-- 2 — THE SETUP (light) -->
+  <section class="slide light">
+    <div class="head">
+      <div class="eyebrow">the workflow</div>
+      <h2 class="title sm">Every month, the business <span class="hl">reports up.</span></h2>
+    </div>
+    <p class="lede">Each local company packages how it's doing and sends it to its region. Each region pulls every market together and reports to global. Global reads it and steers.</p>
+    <div class="cascade">
+      <div class="tier"><div class="tk">Local company</div><div class="ts">gather the numbers, build the story</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Regional office</div><div class="ts">collect every market, consolidate, present</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Global office</div><div class="ts">read the pack, decide, direct</div></div>
+    </div>
+    <div class="goal">Your job, each step I show you: <b>tell me what tool would help.</b></div>
+  </section>
+
+  <!-- 3 — THE RULE (light) -->
+  <section class="slide light">
+    <div class="head">
+      <div class="eyebrow">how to play</div>
+      <h2 class="title">One task at a time. Don't worry about the <span class="hl">big picture.</span></h2>
+    </div>
+    <p class="lede">I'll put a single step on the screen — something a real person does every month to keep this running. For each one, just answer: <b>what would you build to make it better?</b> Don't overthink the whole thing. Just this one task.</p>
+    <p class="sub" style="margin-top:6px">Ready? Here's the first.</p>
+  </section>
+
+  <!-- 4–9 : SCRAMBLED TASKS (light, interactive) -->
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #4</span><span class="queued">tools queued · <b>1</b> / 6</span></div>
+    <h2 class="title sm">Chase the people who still haven't sent their numbers.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>You email, ping, and re-ping the late submitters — every single month.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>Half of month-end is just nagging.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build a bot that auto-chases the late ones and escalates the no-shows.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #1</span><span class="queued">tools queued · <b>2</b> / 6</span></div>
+    <h2 class="title sm">Pull this period's figures from six systems into one sheet.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>Export, copy, paste, reformat — across six different tools.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>A full day of swivel-chair, every cycle.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build an integration bot that auto-pulls everything straight into the template.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #6</span><span class="queued">tools queued · <b>3</b> / 6</span></div>
+    <h2 class="title sm">Write the commentary explaining why the numbers moved.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>Someone stares at the variance and writes up the story behind it.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>It's slow — and it's largely the same story most months.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build an AI that drafts the narrative straight from the numbers.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #2</span><span class="queued">tools queued · <b>4</b> / 6</span></div>
+    <h2 class="title sm">Reconcile the figures that don't line up across markets.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>Two systems disagree; someone hunts down which number is right.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>Days lost to numbers that should just agree.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build a reconciliation agent that flags and fixes the mismatches.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #5</span><span class="queued">tools queued · <b>5</b> / 6</span></div>
+    <h2 class="title sm">Turn the 200-slide pack into a one-page exec readout.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>Someone reads all 200 slides and distills the top five things.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>Nobody upstream has time for 200 slides.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build a GenAI summarizer that writes the exec readout.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span></div>
+  </section>
+
+  <section class="slide light task">
+    <div class="taskhead"><span class="tasknum">Task #3</span><span class="queued">tools queued · <b>6</b> / 6</span></div>
+    <h2 class="title sm">Sit through the review meeting and capture every decision.</h2>
+    <div class="taskbody">
+      <div class="tcol">
+        <div class="tlabel">What happens today</div>
+        <p>An hour of slides; someone scribbles the actions and owners.</p>
+        <div class="tlabel pain">The pain</div>
+        <p>Decisions get lost; the follow-up slips.</p>
+      </div>
+      <div class="ask">
+        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+        <div class="heylab"><span class="hey">Hey Lab —</span> build an auto-minutes bot that captures and assigns the actions.</div>
+      </div>
+    </div>
+    <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span></div>
+  </section>
+
+  <!-- 10 — THE ASSEMBLY (dark, fake triumph) -->
+  <section class="slide dark">
+    <div class="head">
+      <div class="eyebrow">the result</div>
+      <h2 class="title sm">Wire them together: the <span class="hl">Autonomous Reporting</span> machine.</h2>
+    </div>
+    <div class="pipe">
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">auto-pull figures</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">reconcile mismatches</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">chase the late ones</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">draft the commentary</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">summarize for exec</div></div>
+      <span class="parrow">→</span>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">capture decisions</div></div>
+    </div>
+    <div class="triumph">Six tools. Every step automated.</div>
+    <p class="punch" style="margin-top:14px">Looks like a win, doesn't it?</p>
+  </section>
+
+  <!-- 11 — THE CONFESSION (dark) -->
+  <section class="slide dark">
+    <div class="head">
+      <div class="eyebrow">but look again</div>
+      <h2 class="title">Look at what I asked you. <span class="hl">Every single time.</span></h2>
+    </div>
+    <p class="lede"><b>"What tool would you build for this step?"</b> — six times, you answered the question I rigged. It's the exact question that lands in this lab every week. And every answer you gave made the process a little more permanent.</p>
+    <p class="punch" style="margin-top:18px">We've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
+  </section>
+
+  <!-- 12 — HANDOFF → MAIN DECK (dark) -->
+  <section class="slide dark handoff" data-mark>
+    <div class="seg">end of interlude 1</div>
+    <div class="big">So why does that keep<br>happening? <span class="arrow">→</span></div>
+    <div class="cue">↪ switch to the main deck — the case for redesign over retrofit.</div>
+  </section>
+
+  <!-- ============ SEGMENT 2 — FIND THE SCARCITY (redo #1) ============ -->
+
+  <!-- 13 — WELCOME BACK / UN-SCRAMBLE (light) -->
+  <section class="slide light" data-mark>
+    <div class="head">
+      <div class="seg">Interlude 2 · after the main deck</div>
+      <h2 class="title sm">Those six tasks? They were <span class="hl">one process.</span></h2>
+    </div>
+    <p class="lede">Scrambled and alone, so you fixed each in isolation. Really, they're the monthly business review — climbing three tiers.</p>
+    <div class="cascade">
+      <div class="tier"><div class="tk">Local</div><div class="ts">pull · reconcile · write the story</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Regional</div><div class="ts">chase · consolidate · present</div></div>
+      <span class="casarrow">→</span>
+      <div class="tier"><div class="tk">Global</div><div class="ts">summarize · review · decide</div></div>
+    </div>
+    <div class="goal">Let's redo it — but this time, <b>don't tell me what to build.</b></div>
+  </section>
+
+  <!-- 14 — SCARCITY ACTIVITY (light, interactive) -->
+  <section class="slide light">
+    <div class="head">
+      <div class="eyebrow">the redo</div>
+      <h2 class="title sm">For each step: what <span class="hl">scarcity</span> was it a workaround for — and is it still alive?</h2>
+    </div>
+    <p class="lede">Every step was invented to get around something that used to be slow, scattered, or expensive. Name that thing. Then ask the only question that matters: <b>is it still true today?</b></p>
+    <div style="margin-top:8px"><span class="livetag"><span class="ld"></span>live · the room tags each step — dead or still real</span></div>
+  </section>
+
+  <!-- 15 — SCARCITY SYNTHESIS (light) -->
+  <section class="slide light">
+    <div class="head">
+      <div class="eyebrow">what you found</div>
+      <h2 class="title sm">Why each step <span class="hl">exists.</span></h2>
+    </div>
+    <div class="scar">
+      <div class="scarrow"><div class="st">Pull the figures</div><div class="sc">data was scattered across systems that couldn't talk</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">Reconcile markets</div><div class="sc">no shared source of truth, so numbers were matched by hand</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">Chase submissions</div><div class="sc">no live view, so each team's numbers had to be requested</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">Write commentary</div><div class="sc">synthesis was slow human craft, locked in a few heads</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow"><div class="st">Summarize the pack</div><div class="sc">no one upstream could see down into the detail themselves</div><span class="tag dead">DEAD</span></div>
+      <div class="scarrow alive"><div class="st">Own the decision</div><div class="sc">someone must be accountable for a consequential, hard-to-reverse call</div><span class="tag real">STILL REAL</span></div>
+    </div>
+    <div class="barline">Five of six exist for a scarcity that's <span class="r">already gone.</span> One is still real.</div>
+    <div class="reflex">The reflex to keep: <b>what scarcity was this step a workaround for — and is it still real?</b> If it's dead, don't build the bot. Delete the step.</div>
+  </section>
+
+  <!-- ============ SEGMENT 3 — REDESIGN THE WHOLE (redo #2) ============ -->
+
+  <!-- 16 — REDESIGN ACTIVITY (dark, interactive) -->
+  <section class="slide dark" data-mark>
+    <div class="head">
+      <div class="seg">Interlude 3</div>
+      <h2 class="title sm">Now redesign it — not step by step. <span class="hl">The whole thing.</span></h2>
+    </div>
+    <p class="lede">Five steps are workarounds for scarcities that are gone. One real job remains: <b>someone owns the call.</b> Forget the steps. Start from the job — and tell me what this should actually be.</p>
+    <div style="margin-top:8px"><span class="livetag"><span class="ld"></span>live · the room redesigns the whole</span></div>
+  </section>
+
+  <!-- 17 — STILL A HORSE (dark, the bluff guard) -->
+  <section class="slide dark">
+    <div class="head">
+      <div class="eyebrow">careful —</div>
+      <h2 class="title sm">"One unified platform" is <span class="hl">still</span> a faster horse.</h2>
+    </div>
+    <div class="struck">auto-pull · auto-consolidate · auto-generate every deck</div>
+    <p class="lede" style="margin-top:16px">If the answer kept the cascade, the period, the decks, and the meeting — you've made the same broken shape faster. <b>Retrofit isn't a visibility problem. It's a lens problem.</b></p>
+  </section>
+
+  <!-- 18 — THE OBLITERATE / VERSUS (light) -->
+  <section class="slide light">
+    <div class="head">
+      <div class="eyebrow">the redesign</div>
+      <h2 class="title sm">What's the <span class="hl">job</span> — really?</h2>
+    </div>
+    <div class="versus">
+      <div class="vpanel bad">
+        <div class="vlab">a faster cascade</div>
+        <h3>Same shape, automated.</h3>
+        <p>Three tiers, monthly freeze, decks and a review meeting — just generated and summarized by AI.</p>
+        <div class="vsteps"><span class="vstep">gather</span><span class="vstep">consolidate</span><span class="vstep">deck</span><span class="vstep">review</span></div>
+      </div>
+      <div class="vpanel good">
+        <div class="vlab">the redesign</div>
+        <h3>There is no monthly review.</h3>
+        <p>Every market's true state is live and drill-downable. The moment something material moves, the system surfaces it — with a recommended call — to whoever owns that lever, <b>when it moves</b>, not on a calendar.</p>
+        <span class="lockchip"><svg><use href="#i-lock"/></svg> a human still owns the decision</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19 — THE DISTORTION (dark, second punch) -->
+  <section class="slide dark">
+    <div class="head">
+      <div class="eyebrow">and it's worse than waste</div>
+      <h2 class="title sm">Every tier doesn't just relay. It <span class="hl">polishes.</span></h2>
+    </div>
+    <p class="lede">By the time the story climbs from a local floor to the global boardroom, it's been curated, softened, and aged by weeks. The cascade doesn't just cost time — <b>it launders the truth on the way up.</b></p>
+    <p class="punch" style="margin-top:16px">Redesign it, and the top sees reality.<br><span style="color:var(--ok-bright)">Unfiltered. Now.</span></p>
+  </section>
+
+  <!-- 20 — HANDOFF → MAIN DECK CLOSE (dark) -->
+  <section class="slide dark handoff" data-mark>
+    <div class="seg">end of interlude 3</div>
+    <div class="big">Redesign. Don't retrofit.<br>No engines on horses. <span class="arrow">→</span></div>
+    <div class="cue">↪ back to the main deck — to close.</div>
+  </section>
+
+</div>
+
+<div class="foot deckchrome">
+  <div class="dots" id="dots"></div>
+  <div class="count" id="count">1 / 20</div>
+</div>
+<div class="hint deckchrome" id="hint">← → or space — play along</div>
+
+<script>
+  document.documentElement.classList.remove('nojs');
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const count=document.getElementById('count');
+  const hint=document.getElementById('hint');
+  const brand=document.getElementById('brand');
+  let i=0;
+  slides.forEach((s,n)=>{ const b=document.createElement('button'); b.setAttribute('aria-label','Slide '+(n+1)); if(s.hasAttribute('data-mark')) b.classList.add('mark'); b.onclick=(e)=>{e.stopPropagation(); go(n);}; dotsWrap.append(b); });
+  const dots=[...dotsWrap.children];
+  function go(n){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{ s.classList.toggle('active',k===n); s.classList.toggle('past',k<n); });
+    dots.forEach((d,k)=>d.classList.toggle('on',k===n));
+    count.textContent=(n+1)+' / '+slides.length;
+    const dark=slides[n].classList.contains('dark');
+    brand.classList.toggle('ondark',dark);
+    count.classList.toggle('ondark',dark);
+    hint.classList.toggle('ondark',dark);
+    i=n; if(hint && n>0) hint.style.opacity='0';
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(i+1); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
+    else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
+  });
+  document.getElementById('deck').addEventListener('click',e=>{ go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
+  go(0);
+</script>
+</body>
+</html>

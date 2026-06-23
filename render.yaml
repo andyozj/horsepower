@@ -3,6 +3,27 @@
 # WebSockets + persistent Node are supported on free; the only free-tier limits are
 # idle-sleep (~15 min) and NO persistent disk (workshop data resets on restart — see DEPLOY.md).
 services:
+  # ── The retrofit-trap interactive deck (FORGE offsite) — a SEPARATE standalone app ──
+  # Apply this in Render: Blueprint → "Apply" to create the service, then set ANTHROPIC_API_KEY
+  # + HOSTKEY in its Environment. Presenter link: https://<name>.onrender.com/present?host=<HOSTKEY>
+  - type: web
+    name: horsepower-trap
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node trap-server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: HOSTKEY
+        sync: false                         # SET → stable presenter link (else it rotates each restart)
+      - key: ANTHROPIC_API_KEY
+        sync: false                         # SET → the live AI assumption-judge; unset → free rule-based bank
+      - key: AI_MODEL
+        sync: false                         # OPTIONAL — defaults to claude-opus-4-8
+
   - type: web
     name: horsepower
     runtime: node
