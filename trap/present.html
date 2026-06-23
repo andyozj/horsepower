@@ -36,6 +36,8 @@ b,strong{font-weight:600}
 
 .eyebrow{font-family:Caveat,cursive; font-size:clamp(20px,2.3vw,30px); color:var(--red); font-weight:700; transform:rotate(-1.4deg); display:inline-block}
 .hl{background:linear-gradient(transparent 56%, var(--hl) 56%, var(--hl) 93%, transparent 93%); color:var(--ink); padding:0 .12em; -webkit-box-decoration-break:clone; box-decoration-break:clone}
+/* on DARK slides the navy highlighted word would vanish above the swipe band — use a solid gold block so the word stays fully readable */
+.dark .hl{background:var(--hl); border-radius:3px; padding:.02em .14em}
 .lede{font-size:clamp(16px,1.5vw,21px); color:var(--muted-strong); line-height:1.55; max-width:62ch}
 .sub{font-size:clamp(13.5px,1.25vw,16px); color:var(--muted-soft); line-height:1.5}
 .head .eyebrow{margin-bottom:.2em}
@@ -217,7 +219,7 @@ b,strong{font-weight:600}
 </defs></svg>
 
 <div class="joinbar deckchrome" id="joinbar"><span class="jurl" id="jurl">starting…</span><span class="jcode" id="jcode"></span><span class="jcount"><span class="jdot"></span><span id="jcount">0</span> in</span></div>
-<div class="brandtag deckchrome" id="brand"><svg class="horse" width="20" height="20"><use href="#i-horse"/></svg> FORGE · redesign lab</div>
+<div class="brandtag deckchrome" id="brand"><svg class="horse" width="23" height="23" viewBox="0 0 24 24"><use href="#g-horse"/></svg> FORGE · redesign lab</div>
 
 <div class="deck" id="deck">
 
@@ -325,7 +327,7 @@ b,strong{font-weight:600}
   <section class="slide dark">
     <div class="head"><div class="eyebrow">but look again</div><h2 class="title">Look at what I asked you. <span class="hl">Every single time.</span></h2></div>
     <p class="lede"><b>"What tool would you build for this step?"</b> — four times, you answered the question I rigged. It's the exact question that lands in this lab every week. And every answer made the process a little more permanent.</p>
-    <p class="punch" style="margin-top:18px">We've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
+    <p class="punch" style="margin-top:18px">You've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
   </section>
 
   <!-- HANDOFF → MAIN DECK -->
