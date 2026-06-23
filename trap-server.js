@@ -77,9 +77,11 @@ const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace
 
 // Mirrors server.js's Anthropic config EXACTLY so it works against the same gateway
 // (e.g. the Heineken GenAI proxy: full URL in ANTHROPIC_BASE_URL + api-key auth header).
+// Defaults target the Heineken GenAI gateway (same as the main app) so ONLY ANTHROPIC_API_KEY
+// need be set; all three are env-overridable for a direct-Anthropic or other deploy.
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || process.env.AI_MODEL || 'claude-opus-4-8';
-const ANTHROPIC_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'x-api-key').toLowerCase();
+const ANTHROPIC_URL = process.env.ANTHROPIC_BASE_URL || 'https://genai.heineken.com/models/anthropic/v1/messages';
+const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'api-key').toLowerCase();
 async function callAI(system, user){
   const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
   try{
