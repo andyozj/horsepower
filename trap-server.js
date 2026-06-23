@@ -79,7 +79,7 @@ const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace
 // (e.g. the Heineken GenAI proxy: full URL in ANTHROPIC_BASE_URL + api-key auth header).
 // Defaults target the Heineken GenAI gateway (same as the main app) so ONLY ANTHROPIC_API_KEY
 // need be set; all three are env-overridable for a direct-Anthropic or other deploy.
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || process.env.AI_MODEL || 'claude-opus-4-8';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || process.env.AI_MODEL || 'claude-sonnet-4-6';
 const ANTHROPIC_URL = process.env.ANTHROPIC_BASE_URL || 'https://genai.heineken.com/models/anthropic/v1/messages';
 const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'api-key').toLowerCase();
 async function callAI(system, user){
@@ -130,7 +130,7 @@ app.use('/img', express.static(path.join(__dirname, 'public', 'img')));   // reu
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'trap', 'join.html')));
 app.get('/present', (_req, res) => res.sendFile(path.join(__dirname, 'trap', 'present.html')));
 app.get('/api/info', (_req, res) => res.json({ ip: lanIp(), port: PORT, code: CODE }));
-app.get('/api/health', (_req, res) => res.json({ ok: true, ai: AI_ON, code: CODE }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, ai: AI_ON, code: CODE, model: ANTHROPIC_MODEL, build: (process.env.RENDER_GIT_COMMIT||'dev').slice(0,7) }));
 app.get('/api/steps', (_req, res) => res.json({ ai: AI_ON, steps: STEPS.map(s=>({ id:s.id, title:s.title, blurb:s.blurb, today:s.today, pain:s.pain })) }));
 
 const server = http.createServer(app);
