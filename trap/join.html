@@ -79,9 +79,9 @@ textarea{min-height:58px; resize:none; line-height:1.4}
 .gdone .dl{font-size:14.5px; color:var(--muted-strong); line-height:1.5}
 .gdone .big{font-family:Fraunces,serif; font-weight:600; font-size:40px; color:var(--gold-deep); margin:6px 0}
 .gdone .drank{font-family:Caveat,cursive; font-size:21px; color:var(--gold-deep); margin-bottom:2px}
-.stepblurb .ctx{margin-bottom:4px} .stepblurb .ctx:last-child{margin-bottom:0}
-.stepblurb .ctx-l{font-family:Caveat,cursive; font-size:14px; margin-right:6px; color:var(--gold-deep)}
-.stepblurb .ctx-l.pain{color:var(--red)}
+.askcard .ctx{margin-bottom:4px} .askcard .ctx:last-child{margin-bottom:0}
+.askcard .ctx-l{font-family:Caveat,cursive; font-size:14.5px; margin-right:7px; color:var(--gold-deep)}
+.askcard .ctx-l.pain{color:var(--red)}
 .found .f .tick{white-space:nowrap}
 .found .fmore{font-size:12px; color:var(--muted-strong); padding-left:2px; margin-top:1px}
 </style>
@@ -107,6 +107,7 @@ textarea{min-height:58px; resize:none; line-height:1.4}
     <div id="waiting" class="waiting"><div class="big">Hang tight.</div><div>Waiting for the next question <span class="dotpulse"></span></div></div>
     <div id="promptarea" style="display:none">
       <label id="plabel">…</label>
+      <div class="askcard" id="buildctx" style="display:none"></div>
       <textarea id="answer" placeholder="Type your answer…"></textarea>
       <button class="btn" id="sendbtn">Send</button>
       <div class="sent" id="sent">Sent ✓ — add another if you like.</div>
@@ -161,7 +162,8 @@ textarea{min-height:58px; resize:none; line-height:1.4}
       $('plabel').textContent=prompt.label||'What would you build?';
       $('answer').setAttribute('placeholder', prompt.mode==='open'? 'Describe the redesign…' : 'Type the tool you’d build…');
       $('mine').innerHTML=''; $('sent').classList.remove('show');
-    }
+      renderBuildCtx(prompt.id);
+    } else { const bc=$('buildctx'); if(bc) bc.style.display='none'; }
   }
   $('sendbtn').onclick=()=>{ const t=$('answer').value.trim(); if(!t||!active) return; ws.send(JSON.stringify({type:'submit', promptId:active.id, text:t, tag:null})); const m=document.createElement('div'); m.className='m'; m.textContent=t; $('mine').appendChild(m); $('answer').value=''; $('sent').classList.add('show'); };
   function lsGet(k){ try{return localStorage.getItem(k)||'';}catch(e){return '';} }
@@ -181,16 +183,38 @@ textarea{min-height:58px; resize:none; line-height:1.4}
     $('myscore').textContent=me.score||0;
   }
 
+  /* ---- steps (shared by build slides 2-5 AND the race) ---- */
+  let STEPS=[], stepsLoaded=false, stepsLoading=false; const stepsCbs=[];
+  function loadSteps(cb){
+    if(stepsLoaded){ cb&&cb(); return; }
+    if(cb) stepsCbs.push(cb);
+    if(stepsLoading) return; stepsLoading=true;
+    fetch('/api/steps').then(r=>r.json()).then(d=>{ STEPS=d.steps||[]; stepsLoaded=true; stepsLoading=false; stepsCbs.splice(0).forEach(f=>f()); })
+      .catch(()=>{ stepsLoading=false; stepsCbs.splice(0).forEach(f=>f()); });
+  }
+  // the "what would you build?" slides (2-5) carry prompt ids t-deck/t-review/… → strip "t-" to find the step
+  function renderBuildCtx(pid){
+    const bc=$('buildctx'); if(!bc) return;
+    loadSteps(()=>{
+      const sid=String(pid||'').replace(/^t-/,''); const s=STEPS.find(x=>x.id===sid);
+      if(s && (s.today||s.pain)){
+        bc.style.display='block';
+        bc.innerHTML='<div class="ctx"><span class="ctx-l">Today</span>'+esc(s.today||s.blurb)+'</div>'+(s.pain?('<div class="ctx"><span class="ctx-l pain">The pain</span>'+esc(s.pain)+'</div>'):'');
+      } else bc.style.display='none';
+    });
+  }
+
   /* ---- the race ---- */
-  let STEPS=[], gameInit=false, selStep=null, raceLive=false, raceDone=false;
+  let gameInit=false, selStep=null, raceLive=false, raceDone=false;
   const found={}; // stepId -> [texts]
   function ensureGame(){
     renderMe();
     if(gameInit){ syncRaceState(); return; }
-    fetch('/api/steps').then(r=>r.json()).then(d=>{
-      STEPS=d.steps||[]; STEPS.forEach(s=>{ found[s.id]=found[s.id]||[]; }); if(!selStep) selStep=STEPS[0]&&STEPS[0].id;
+    loadSteps(()=>{
+      if(!STEPS.length){ $('stepchips').innerHTML='<div class="status">couldn’t load — refresh.</div>'; return; }
+      STEPS.forEach(s=>{ found[s.id]=found[s.id]||[]; }); if(!selStep) selStep=STEPS[0]&&STEPS[0].id;
       gameInit=true; renderChips(); renderStep(); syncRaceState();
-    }).catch(()=>{ $('stepchips').innerHTML='<div class="status">couldn’t load — refresh.</div>'; });
+    });
   }
   function renderChips(){
     const c=$('stepchips'); c.innerHTML='';
