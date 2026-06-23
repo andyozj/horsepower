@@ -2461,6 +2461,19 @@ function makeCanvas(opts){
     local.zoom=1; local.pan.x=0; local.pan.y=0; applyTransform();
     toast('Map tidied into lanes — drag anything to fine-tune.');
   }
+  // Safety net: if the interview handed off a map with NO arrows (the Coach forgot to connect anything),
+  // wire the unambiguous spine — trigger → phases (in described/array order) → intent → outcome — so the
+  // flow reads as a path, not a pile. Only fires when arrows are essentially absent (never fights the
+  // Coach's own wiring), wires only the backbone (personas/inputs stay free), and everything stays editable.
+  function autoWire(){
+    if((c.arrows||[]).length >= 2) return;
+    const bl=c.blocks||[]; const of=ty=>bl.filter(b=>b.type===ty);
+    const spine=[...of('trigger').slice(0,1), ...of('phase'), ...of('intent').slice(0,1), ...of('outcome').slice(0,1)];
+    let added=false;
+    for(let i=0;i<spine.length-1;i++){ const a=spine[i], b=spine[i+1];
+      if(a.id!==b.id && !c.arrows.some(x=>x.from===a.id&&x.to===b.id)){ c.arrows.push({id:'aw'+Date.now().toString(36)+i, from:a.id, to:b.id}); added=true; } }
+    if(added){ commit(); draw(); }
+  }
 
   if (editable){
     const tb = el('div',{class:'toolbar'});
@@ -2976,6 +2989,7 @@ function makeCanvas(opts){
 
   draw();
   root._tidy = tidy;   // exposed so a handoff can auto-arrange a freshly-dumped (colliding) map once
+  root._autowire = autoWire;   // exposed so a handoff can wire the spine if the Coach left it unconnected
   root._view = ()=>({zoom:local.zoom, pan:{x:local.pan.x, y:local.pan.y}});
   root._fit = (cw,ch,maxScale=1)=>{
     // the fit box covers blocks AND teardown overlay cards (~214×96) — otherwise the
@@ -3126,6 +3140,11 @@ function viewSurface(){
   if(handedOff && !skipped && !(me.ivTidied&&me.ivTidied[t.id]) && mapHasOverlap(t.canvas)){
     me.ivTidied=me.ivTidied||{}; me.ivTidied[t.id]=true; saveMe();
     setTimeout(()=>{ try{ cv._tidy && cv._tidy(); }catch(e){} }, 90);
+  }
+  // ...and wire the spine if the Coach handed off an unconnected pile (per-team-once; no-op if already wired)
+  if(handedOff && !skipped && !(me.ivWired&&me.ivWired[t.id])){
+    me.ivWired=me.ivWired||{}; me.ivWired[t.id]=true; saveMe();
+    setTimeout(()=>{ try{ cv._autowire && cv._autowire(); }catch(e){} }, 120);
   }
   // A2c: the Coach's verify hand-off banner — only when it handed off (not on a plain "draw it myself")
   // and the team hasn't confirmed yet. Advisory (the Newcomer-check is the real gate); editing stays free.

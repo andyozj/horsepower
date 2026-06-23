@@ -1031,7 +1031,7 @@ You are given the CURRENT MAP (block ids + labels). Return ONLY JSON, no prose:
 Op types (key to existing ids; use a tmpId for a new block you connect in the same turn):
   {"op":"add","tmpId":"t1","type":"persona|trigger|input|phase|moment|intent|outcome","text":"<short label>","why":"<the reason it exists, if they gave one>","capacity":"operates|accountable|served|informed (personas only)","forces":"law|external-party|physics|policy|habit (what forces this to exist, if clear)","freq":"<how often it runs/decides, if said>","stakes":"<what breaks / who catches it when wrong, for pain or decisions>","verified":true (intent ONLY — set once you've confirmed it's a real decision, not an artifact/restatement),"decider":"<who actually MAKES the call, on a decision/approval — may differ from the accountable owner>","approvals":"<the sign-off chain in order, on an approval step — e.g. 'clerk → cost-centre mgr → controller if >£10k'>"}
   {"op":"update","id":"<existing id>","text?":"…","why?":"…","capacity?":"…","pain?":true,"forces?":"…","freq?":"…","stakes?":"…","verified?":true,"decider?":"…","approvals?":"…"}
-  {"op":"connect","from":"<id|tmpId>","to":"<id|tmpId>"}
+  {"op":"connect","from":"<id | tmpId | exact block label>","to":"<id | tmpId | exact block label>"}
   {"op":"remove","id":"<existing id>"}
 EXTRACTION RULES — get these right, they are the whole point:
 1. PEOPLE: every distinct person or role they name gets its OWN persona block — the clerk, the approver, the manager, the owner, each separately. NEVER fold a person into a phase/step: an approval done by the controller is a "Financial Controller" PERSONA (plus, if useful, a phase) — not a "controller sign-off" step with no person behind it. Don't lose anyone they mentioned.
@@ -1039,7 +1039,7 @@ EXTRACTION RULES — get these right, they are the whole point:
 2. CAPACITY: set a capacity on EVERY persona by INFERRING it from how they describe the role — don't wait for them to say the word. Whoever approves / signs off / owns the result / is "on the hook" = accountable. Whoever does the hands-on work (keys it, matches it, chases it) = operates. Whoever the work is ultimately for = served. Whoever is only cc'd / kept in the loop = informed.
 3. INTENT vs OUTCOME are different blocks and must stay distinct. Intent = the DECISION the work drives ("decide pay, dispute, or hold") — never an artifact ("a report") and never a restatement of the outcome. Outcome = what is TRUE at the end ("invoice settled, clean audit trail"). If you have one but not the other, ask the question that gets the missing one.
 4. WHY: attach the reason to a block whenever they give one, even loosely ("because over £10k a slip is material"). Pursue the WHY behind load-bearing steps and roles.
-5. CONNECT the flow — don't leave blocks floating when you have the context to link them. Use connect ops to wire: the trigger → the first phase; each phase → the next in sequence; the persona who owns/does a phase → that phase; each input → the phase where it's used; and the final phase → the intent → the outcome. Only link what they actually implied; never invent a connection you're unsure of, but a block you clearly understand should not sit unconnected.
+5. CONNECT the flow — this is MANDATORY, not optional: a map of floating boxes with no arrows is a failure. EVERY turn, after you add or find blocks, emit connect ops so the flow reads as a path, not a pile. Wire: the trigger → the first phase; each phase → the next in sequence; the persona who owns/does a phase → that phase; each input → the phase where it's used; and the final phase → the intent → the outcome. For "from"/"to" you may use the block's id, its tmpId (same turn), OR its exact label text — whichever is easiest; connecting by label is fine. Connect blocks from EARLIER turns too (use their labels/ids from the CURRENT MAP) — don't leave a block you clearly understand sitting unconnected. Only skip a link you genuinely can't infer.
 6. CAPTURE FOR THE REDESIGN — this map will be torn down and rebuilt AI-native, so a thin map makes a real redesign impossible. While you interview, for the LOAD-BEARING elements (pain-flagged steps, the key decision points, the accountable role, any check/approval) set the structured fields, not just prose: "forces" = what makes it exist — "law" / "external-party" / "physics" (real) vs "policy" / "habit" (movable); "that's how it's done" is habit. For a pain point or a decision, set "freq" (how often it happens) and "stakes" (what breaks / who gets the angry call when it's wrong) — that is exactly what later decides automate-vs-keep-human. Mark genuine friction with pain:true. Don't interrogate every block — hunt this only where it's load-bearing, and never let it hold up the hand-off.
 7. DECISION RIGHTS & VERIFY THE INTENT — the rebuild locks the intent, so it must be a REAL decision. Once you've confirmed it drives a real choice (it survived "what would you do differently if it said something else?" and isn't an artifact), set verified:true on the intent block. On a decision or approval step, set "decider" = who actually makes the call (often NOT the accountable owner — the doer may decide while the owner signs off), and on an approval step set "approvals" = the sign-off chain in order. These decide what an AI agent could own versus what needs a human gate.
 Set "done": true ONLY once the workflow is fully captured — a trigger, EVERY named person as a persona WITH a capacity (including the SERVED party — whoever the work is ultimately for), the inputs, the phases/moments, a real intent (a decision) AND a distinct outcome. When you set done:true, your reply is a short warm hand-off ("That’s your workflow mapped — take a look and fix anything I got wrong."). Until then, done:false and keep interviewing.
@@ -1209,9 +1209,16 @@ function applyOps(canvas, ops) {
         decider: op.decider != null ? op.decider : (b.meta || {}).decider,
         approvals: op.approvals != null ? op.approvals : (b.meta || {}).approvals }));
     } else if (op.op === 'connect') {
-      const from = tmp[String(op.from)] || str(op.from, 40), to = tmp[String(op.to)] || str(op.to, 40);
-      const have = new Set(canvas.blocks.map(b => b.id));
-      if (from !== to && have.has(from) && have.has(to) && canvas.arrows.length < CONFIG.MAX_ARROWS)
+      // Resolve each endpoint to a real block id. The model is told to use ids/tmpIds, but it very often
+      // connects by the visible LABEL instead (esp. across turns, where the random hex id is awkward) — those
+      // used to silently drop, leaving every block unconnected. Accept id, tmpId, OR an exact label match.
+      const byText = new Map(canvas.blocks.map(b => [String(b.text || '').trim().toLowerCase(), b.id]));
+      const ids = new Set(canvas.blocks.map(b => b.id));
+      const resolve = v => { const k = String(v); if (tmp[k]) return tmp[k]; if (ids.has(k)) return k;
+        return byText.get(str(v, 80).trim().toLowerCase()) || k; };
+      const from = resolve(op.from), to = resolve(op.to);
+      if (from !== to && ids.has(from) && ids.has(to) && canvas.arrows.length < CONFIG.MAX_ARROWS
+          && !canvas.arrows.some(a => a.from === from && a.to === to))   // de-dup repeated connects
         canvas.arrows.push({ id: 'a' + crypto.randomBytes(6).toString('hex'), from, to });
     } else if (op.op === 'remove') {
       const id = str(op.id, 40); const b = canvas.blocks.find(x => x.id === id);
