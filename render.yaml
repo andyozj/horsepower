@@ -19,10 +19,17 @@ services:
         value: "20"
       - key: HOSTKEY
         sync: false                         # SET → stable presenter link (else it rotates each restart)
+      # AI assumption-judge. COPY THESE FROM THE `horsepower` SERVICE so it hits the same
+      # gateway (e.g. the Heineken GenAI proxy). With ONLY the key set, a gateway key 401s
+      # against api.anthropic.com and the bot silently falls back to accept-everything.
       - key: ANTHROPIC_API_KEY
-        sync: false                         # SET → the live AI assumption-judge; unset → free rule-based bank
-      - key: AI_MODEL
-        sync: false                         # OPTIONAL — defaults to claude-opus-4-8
+        sync: false                         # the gateway/Anthropic key
+      - key: ANTHROPIC_BASE_URL
+        sync: false                         # FULL url, e.g. https://genai.heineken.com/models/anthropic/v1/messages
+      - key: ANTHROPIC_AUTH_HEADER
+        sync: false                         # the proxy uses 'api-key' (native Anthropic uses 'x-api-key')
+      - key: ANTHROPIC_MODEL
+        sync: false                         # same model as the main app (default claude-opus-4-8)
 
   - type: web
     name: horsepower

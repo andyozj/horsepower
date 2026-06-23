@@ -75,17 +75,20 @@ function nextSteed(){ const i = steedSeq++; const sk = STEED_SKINS[i % STEED_SKI
 
 const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace(/\s+/g,' ').trim();
 
+// Mirrors server.js's Anthropic config EXACTLY so it works against the same gateway
+// (e.g. the Heineken GenAI proxy: full URL in ANTHROPIC_BASE_URL + api-key auth header).
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || process.env.AI_MODEL || 'claude-opus-4-8';
+const ANTHROPIC_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'x-api-key').toLowerCase();
 async function callAI(system, user){
-  const base = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/,'');
-  const model = process.env.AI_MODEL || 'claude-opus-4-8';
   const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
   try{
-    const r = await fetch(base+'/v1/messages', {
+    const r = await fetch(ANTHROPIC_URL, {
       method:'POST', signal: ctrl.signal,
-      headers:{ 'content-type':'application/json', 'x-api-key':process.env.ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model, max_tokens:160, system, messages:[{role:'user',content:user}] })
+      headers:{ 'content-type':'application/json', [ANTHROPIC_AUTH_HEADER]:process.env.ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens:160, system, messages:[{role:'user',content:user}] })
     });
-    if(!r.ok) throw new Error('AI '+r.status);
+    if(!r.ok) throw new Error('AI '+r.status+': '+(await r.text()).slice(0,160));
     const j = await r.json();
     return (j.content||[]).map(c=>c.text||'').join('').trim();
   } finally { clearTimeout(to); }
