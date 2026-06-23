@@ -32,21 +32,33 @@ function lanIp(){
 const session = { code: CODE, activePrompt: null, answers: {} /* promptId -> [{id,name,text,tag}] */,
   timer: null /* {endsAt, durationMs} */ };
 
+// durable participant records keyed by a token the phone keeps in localStorage —
+// so a refresh/reconnect restores the same steed + score + found list (no ghost lanes).
+const players = new Map(); // token -> {token, pid, steed, name, score, found:{stepId:[..]}, foundNorm:Set}
+
 // ── Assumption Race (Interlude 2) — the 4 steps + the assumptions each is built on ──
 // Players race to surface as many genuine assumptions as they can before the buzzer.
 // (The dead/alive judgement is delivered by the facilitator on the synthesis slide, not graded here.)
 const STEPS = [
   { id:'deck', title:'Build the deck',
     blurb:'pull the numbers together and package them into slides to send up',
+    today:'Export from every system, then assemble the slides by hand.',
+    pain:'A full day of swivel-chair, every cycle.',
     assumptions:['the people above can’t see your numbers themselves','raw numbers need a human to package them into a story','reporting has to happen on a fixed monthly cycle','the audience can’t pull the detail they want on demand'] },
   { id:'review', title:'The question loop',
     blurb:'they read the pack, spot gaps, send questions back, and you resend',
+    today:'You read the pack, spot gaps, write clarifying questions, and wait for a new version.',
+    pain:'Rounds of back-and-forth before it’s right.',
     assumptions:['the reviewer can’t drill into the data themselves','every answer has to round-trip back through you','questions can only be asked against a static pack','you can’t see what they’re looking at'] },
   { id:'rollup', title:'Roll it up',
     blurb:'merge everyone’s packs into one combined view to pass upward',
+    today:'Take everyone’s packs and merge them into a single view to pass upward.',
+    pain:'Slow, manual, and stale by the time it’s done.',
     assumptions:['the numbers can’t combine themselves across teams','a human is needed to reconcile mismatches','each team reports in its own format','consolidation can only happen after everyone submits'] },
   { id:'meeting', title:'The decision in the room',
     blurb:'everyone meets, walks the pack, and a call gets made',
+    today:'Get everyone in a room; someone scribbles the actions and owners.',
+    pain:'Decisions get lost; the follow-up slips.',
     assumptions:['you need everyone physically in a room to decide','someone must be accountable for a consequential call','the decision can only be made once a month','people won’t engage unless it’s a scheduled meeting'] },
 ];
 const AI_ON = !!process.env.ANTHROPIC_API_KEY;
@@ -114,7 +126,7 @@ app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'trap', 'join.html
 app.get('/present', (_req, res) => res.sendFile(path.join(__dirname, 'trap', 'present.html')));
 app.get('/api/info', (_req, res) => res.json({ ip: lanIp(), port: PORT, code: CODE }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, ai: AI_ON, code: CODE }));
-app.get('/api/steps', (_req, res) => res.json({ ai: AI_ON, steps: STEPS.map(s=>({ id:s.id, title:s.title, blurb:s.blurb })) }));
+app.get('/api/steps', (_req, res) => res.json({ ai: AI_ON, steps: STEPS.map(s=>({ id:s.id, title:s.title, blurb:s.blurb, today:s.today, pain:s.pain })) }));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -127,9 +139,7 @@ function pushCount(){ toPresenters({ type:'count', count: pcount() }); }
 function liveTimer(){ if(!session.timer) return null; const rem = session.timer.endsAt - Date.now(); return rem>0 ? { endsAt: session.timer.endsAt, durationMs: session.timer.durationMs } : null; }
 function leaderboard(){
   const racers=[];
-  wss.clients.forEach(c=>{ if(c.readyState===1 && c.role==='participant' && c.steed){
-    racers.push({ id:c.pid, name:c.name||c.steed.name, steed:c.steed, score:c.score||0 });
-  }});
+  players.forEach(p=>{ racers.push({ id:p.pid, name:p.name||p.steed.name, steed:p.steed, score:p.score||0 }); });
   racers.sort((a,b)=> b.score-a.score || a.id.localeCompare(b.id));
   return racers;
 }
@@ -155,9 +165,16 @@ wss.on('connection', (ws) => {
 
     if(m.type === 'join'){
       ws.role = 'participant';
-      ws.name = String(m.name || '').slice(0, 40);
-      if(!ws.steed){ ws.steed = nextSteed(); ws.pid = crypto.randomBytes(4).toString('hex'); ws.score = 0; ws.found = {}; ws.foundNorm = new Set(); }
-      send(ws, { type:'you', pid: ws.pid, steed: ws.steed, name: ws.name, score: ws.score });
+      let token = String(m.token||'').slice(0,64);
+      let p = token && players.get(token);
+      if(!p){
+        token = crypto.randomBytes(9).toString('hex');
+        p = { token, pid: crypto.randomBytes(4).toString('hex'), steed: nextSteed(), name:'', score:0, found:{}, foundNorm:new Set() };
+        players.set(token, p);
+      }
+      if(m.name) p.name = String(m.name).slice(0,40);
+      ws.player = p; ws.token = token;
+      send(ws, { type:'you', token: p.token, pid: p.pid, steed: p.steed, name: p.name, score: p.score, found: p.found });
       send(ws, { type:'prompt', activePrompt: session.activePrompt });
       send(ws, { type:'timer', timer: liveTimer() });
       pushCount(); pushBoard();
@@ -204,7 +221,7 @@ wss.on('connection', (ws) => {
 
     // participant submits an assumption → validate → score → advance the horse
     if(m.type === 'assume'){
-      if(ws.role !== 'participant' || !ws.steed) return;
+      const p = ws.player; if(ws.role !== 'participant' || !p) return;
       const now = Date.now();
       if(ws._last && now - ws._last < 500){ send(ws, { type:'assumeResult', accept:false, note:'one sec…' }); return; }
       ws._last = now;
@@ -213,32 +230,41 @@ wss.on('connection', (ws) => {
       const step = STEPS.find(s=>s.id===String(m.step||'').slice(0,20));
       const text = String(m.text||'').trim().slice(0, MAX_FOUND_LEN);
       if(!step || !text) return;
-      ws.found[step.id] = ws.found[step.id] || [];
-      if(ws.found[step.id].length >= MAX_PER_STEP){ send(ws, { type:'assumeResult', step:step.id, accept:false, note:'You’ve mined this step out — try another step.' }); return; }
+      p.found[step.id] = p.found[step.id] || [];
+      if(p.found[step.id].length >= MAX_PER_STEP){ send(ws, { type:'assumeResult', step:step.id, accept:false, note:'You’ve mined this step out — try another step.' }); return; }
       let res;
-      try{ res = await validateAssumption(step, text, ws.foundNorm); }
+      try{ res = await validateAssumption(step, text, p.foundNorm); }
       catch(e){ res = { accept:true, note:'Logged — keep hunting!' }; }
       if(res.accept){
-        ws.found[step.id].push(text); ws.foundNorm.add(norm(text)); ws.score = (ws.score||0)+1;
-        send(ws, { type:'assumeResult', step:step.id, accept:true, note:res.note, score:ws.score, text });
+        p.found[step.id].push(text); p.foundNorm.add(norm(text)); p.score = (p.score||0)+1;
+        send(ws, { type:'assumeResult', step:step.id, accept:true, note:res.note, score:p.score, text });
         pushBoard();
       } else {
-        send(ws, { type:'assumeResult', step:step.id, accept:false, note:res.note, score:ws.score });
+        send(ws, { type:'assumeResult', step:step.id, accept:false, note:res.note, score:p.score });
       }
+      return;
+    }
+
+    // phone asks for its standing at the buzzer (done screen)
+    if(m.type === 'rank'){
+      const p = ws.player; if(ws.role !== 'participant' || !p) return;
+      const board = leaderboard();
+      const idx = board.findIndex(r=>r.id===p.pid);
+      send(ws, { type:'rank', rank: idx>=0?idx+1:board.length, total: board.length, score: p.score });
       return;
     }
 
     if(m.type === 'reset'){
       if(ws.role !== 'presenter') return;
       session.answers = {}; session.timer = null;
-      wss.clients.forEach(c=>{ if(c.role==='participant'){ c.score=0; c.found={}; c.foundNorm=new Set(); } });
+      players.forEach(p=>{ p.score=0; p.found={}; p.foundNorm=new Set(); });
       toPresenters({ type:'cleared' });
       toAll({ type:'timer', timer:null });
       pushBoard();
       return;
     }
   });
-  ws.on('close', () => { if(ws.role==='participant'){ pushCount(); pushBoard(); } });
+  ws.on('close', () => { if(ws.role==='participant') pushCount(); });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
