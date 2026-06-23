@@ -1060,6 +1060,10 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
    This is the cue that actually answers "is it hearing me?" — it reacts to your voice, not a canned animation. */
 .orblvl{position:absolute; inset:20%; border-radius:50%; border:3px solid color-mix(in srgb,var(--red-pen) 64%, transparent); opacity:0; z-index:2; pointer-events:none; transform:scale(1); transition:transform .07s linear, opacity .25s ease; box-shadow:0 0 0 0 color-mix(in srgb,var(--red-pen) 30%, transparent)}
 .voiceorb.listening .orblvl{opacity:1; transform:scale(calc(1 + var(--level,0) * 0.55))}
+.voiceorb.speaking .orblvl{opacity:1; border-color:color-mix(in srgb,var(--moment-blue,#3b6fe2) 60%, transparent); transform:scale(calc(1 + var(--level,0) * 0.5))}   /* pulses with the Coach's voice */
+.voiceorb.thinking .orblvl{opacity:.85; border-style:dashed; border-color:color-mix(in srgb,var(--ink) 32%, transparent); animation:spin360 1.25s linear infinite}   /* indeterminate "working" spinner — marks the send→reply gap */
+.voiceorb.thinking .orbface{opacity:.82}
+@keyframes spin360{from{transform:scale(1.12) rotate(0deg)} to{transform:scale(1.12) rotate(360deg)}}
 /* the turn-ender, co-located with the orb so "how do I finish?" is answered where you're looking */
 .orbsend{position:absolute; left:50%; top:calc(50% + 92px); transform:translate(-50%,4px) scale(.96); z-index:5; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; font-family:Inter,sans-serif; font-size:13px; font-weight:600; color:var(--card); background:var(--red-pen); border-radius:999px; padding:5px 12px; box-shadow:var(--shadow-float); opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s var(--ease-pop)}
 .orbsend .glyph{width:13px; height:13px}
@@ -1070,7 +1074,7 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 .voiceorb.blocked .orbmic{background:var(--pain,#e23b3b)}
 .vbtn.pulse,.modeopt.pulse{animation:typepulse 1.1s ease-in-out 4; box-shadow:0 0 0 2px var(--highlighter)}
 @keyframes typepulse{0%,100%{box-shadow:0 0 0 2px var(--highlighter)} 50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--highlighter) 60%, transparent)}}
-@media (prefers-reduced-motion:reduce){ .orblvl{transition:none} .voiceorb.listening .orblvl{transform:scale(1.12)} .vbtn.pulse,.modeopt.pulse{animation:none} }
+@media (prefers-reduced-motion:reduce){ .orblvl{transition:none} .voiceorb.listening .orblvl,.voiceorb.speaking .orblvl{transform:scale(1.12)} .voiceorb.thinking .orblvl{animation:none; transform:scale(1.12)} .vbtn.pulse,.modeopt.pulse{animation:none} }
 .voicestatus{font-family:Fraunces,serif; font-size:21px; font-variation-settings:"opsz" 32; color:var(--ink); min-height:26px}
 .voicestage .voicestatus{font-family:Caveat,cursive; font-size:25px; font-weight:600; color:var(--red-pen)}   /* warm, handwritten state */
 .voicecaption{max-width:540px; min-height:22px; font-size:14.5px; line-height:1.55; color:var(--muted-strong)}
@@ -1716,13 +1720,13 @@ function render(){
   if (st==='lobby') app.append(topbar(), viewRoot=asMain(viewLobby(),'Lobby — your stable'));
   else if (st==='surface') app.append(topbar(), viewRoot=asMain(viewSurface(),'Surface — map your workflow'));
   else if (st==='rebuild') app.append(topbar(), viewRoot=asMain(viewRebuild(),'Rebuild — make it AI-native'));
-  else if (st==='share') app.append(topbar(), viewRoot=asMain(viewShare(),'Share — the double reveal'));
+  else if (st==='share') app.append(topbar(), viewRoot=asMain(viewShare(),(myTeam()&&myTeam().selfRebuild)?'Share — your before & after':'Share — the double reveal'));
   else if (st==='closed') app.append(topbar(), viewRoot=asMain(viewClosed(),'Workshop closed — your race card'));
   else app.append(topbar(), viewRoot=asMain(viewLobby(),'Lobby — your stable'));
   // D1: one-shot phase cross-fade on the new view root when the phase changed
   if (viewRoot && st!==lastPhaseRendered){ if(!REDUCED) viewRoot.classList.add('phasein');
     // B3: announce the phase change (guard suppresses spam on first paint / reload)
-    if(lastPhaseRendered!==null) announce({surface:'Surface phase — map your workflow', rebuild:'Rebuild phase — you hold another team’s workflow', share:'Share phase — the double reveal', closed:'Workshop closed', lobby:'Back in the lobby'}[st]||''); }
+    if(lastPhaseRendered!==null){ const soloA=!!(myTeam()&&myTeam().selfRebuild); announce({surface:'Surface phase — map your workflow', rebuild:soloA?'Rebuild phase — rebuild your own workflow':'Rebuild phase — you hold another team’s workflow', share:soloA?'Share phase — your before & after':'Share phase — the double reveal', closed:'Workshop closed', lobby:'Back in the lobby'}[st]||''); } }
   lastPhaseRendered = st;
 }
 let lastPhaseRendered = null;
@@ -3017,7 +3021,7 @@ function catchUpCard(phase){
   const card=el('div',{class:'modalcard'});
   card.append(el('h3',{html:'You’re in — quick saddle-up '+glyph('g-horse')}));
   const rows= phase==='rebuild'
-    ? [['g-pin','This map is another team’s workflow, torn down','locked cards are law · gold cards are maybes · red are worries (hover any for the why)'],
+    ? [['g-pin',(myTeam()&&myTeam().selfRebuild)?'Your own workflow, torn down to rebuild':'This map is another team’s workflow, torn down','locked cards are law · gold cards are maybes · red are worries (hover any for the why)'],
        ['g-bolt','The goal: rebuild it AI-native','drop Agent blocks where AI should act, land every person, log your guesses'],
        ['g-bulb','The Coach','tap the red face, bottom-right — it knows their world']]
     : [['g-pin','This is your team’s living map','everyone edits together, in real time'],
@@ -3456,10 +3460,12 @@ const VC = {
   _startMeter(){
     if(this._reduceMotion()){ return; }
     cancelAnimationFrame(this._raf);
-    const buf=new Uint8Array(this.analyser? this.analyser.fftSize : 256);
+    const buf=new Uint8Array(256);
     const tick=()=>{
-      if(!this.recording || !this.analyser){ this._raf=0; return; }
-      this.analyser.getByteTimeDomainData(buf);
+      // mic while you talk, the Coach's OUTPUT while it speaks — the orb is alive with whoever's making sound
+      const an = this.recording ? this.analyser : (this.phase==='speaking' ? this.playAnalyser : null);
+      if(!an){ this._raf=0; this._level=0; document.querySelectorAll('[data-testid=voice-orb]').forEach(o=>o.style.setProperty('--level','0')); return; }
+      an.getByteTimeDomainData(buf);
       let sum=0; for(let i=0;i<buf.length;i++){ const d=(buf[i]-128)/128; sum+=d*d; }
       const rms=Math.sqrt(sum/buf.length);                       // 0..~1
       this._level=this._level*0.6 + Math.min(1, rms*2.6)*0.4;    // smooth, with headroom so normal speech fills the ring
@@ -3529,7 +3535,7 @@ const VC = {
       else if(m.event==='speech-start'){ this._seal(); this.coachText=''; this.setPhase('listening'); }   // VAD: you started talking (also interrupts the Coach) → close the prior turn
       else if(m.event==='speech-stop'){ this.setPhase('thinking'); }                          // VAD: you paused → reply incoming
       else if(m.event==='turn-done'){ this._seal(); if(this.recording) return; this.setPhase(this.active && ui.voiceTurn!=='ptt' ? 'listening' : 'idle'); }   // hands-free: back to listening · PTT: idle until the next tap — but NEVER flip to idle while the mic is live (kept the label honest with recording)
-    } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); }
+    } else if(m.type==='voice:audio-out'){ this.setPhase('speaking'); this._play(m.audio); if(!this._raf) this._startMeter(); }   // drive the orb from the Coach's OUTPUT level while it speaks
     else if(m.type==='voice:coach-text'){ this._append('coach', m.delta||''); this._render(); }
     else if(m.type==='voice:you-text'){ if(m.delta!=null) this._append('you', m.delta); else this._finishYou(m.text||''); this._render(); }
   },
@@ -3540,7 +3546,8 @@ const VC = {
       const i16=new Int16Array(b64ToBuf(b64)); const f=new Float32Array(i16.length);
       for(let k=0;k<i16.length;k++) f[k]=i16[k]/0x8000;
       const buf=this.playCtx.createBuffer(1,f.length,24000); buf.getChannelData(0).set(f);
-      const s=this.playCtx.createBufferSource(); s.buffer=buf; s.connect(this.playCtx.destination);
+      if(!this.playAnalyser){ this.playAnalyser=this.playCtx.createAnalyser(); this.playAnalyser.fftSize=256; this.playAnalyser.connect(this.playCtx.destination); }   // tap the OUTPUT for the speaking ring
+      const s=this.playCtx.createBufferSource(); s.buffer=buf; s.connect(this.playAnalyser);
       const now=this.playCtx.currentTime; this.nextPlay=Math.max(this.nextPlay, now); s.start(this.nextPlay); this.nextPlay+=buf.duration;
     }catch(e){}
   },
@@ -4106,6 +4113,7 @@ function openChallenge(b){
 //==================================================================
 function viewShare(){
   const t = myTeam();
+  const solo = !!(t && t.selfRebuild);   // SOLO self-rebuild: no second team, so "double reveal" / "by <other>" framing is wrong
   const wrap=el('div',{class:'share stage'});
   // "now presenting" awareness — members know what's on the projector
   if(state.presentingPairId){
@@ -4119,7 +4127,7 @@ function viewShare(){
           : 'Now on the big screen: <b>'+esc(po?po.name:'?')+' → '+esc(pt.name)+'</b> <span class="meta">follow along — your own card’s below</span>')}));
     }
   }
-  wrap.append(el('h2',{class:'sharehead'},'Share-out — the double reveal'));
+  wrap.append(el('h2',{class:'sharehead'}, solo ? 'Share-out — your before & after' : 'Share-out — the double reveal'));
   const rebuilder = state.teams.find(x=>x.receivedFromTeamId===t.id);
   wrap.append(el('p',{class:'sharesub', style:'margin:4px 0 16px'}, el('span',{}, 'See your original next to its rebuild. Then '), el('b',{}, 'keep scrolling'), el('span',{}, ' for the reckoning, your one commitment, and your keepsake race card '), el('span',{html: glyph('i-down','glyph'), 'aria-hidden':'true'})));
   // staged reveal: a gentle cascade, but CAPPED so the lower sections (reckoning, commitment,
@@ -4128,11 +4136,11 @@ function viewShare(){
 
   const ba=el('div',{class:'beforeafter'});
   const before=el('div',{class:'ba-card ghosted'});
-  before.append(el('div',{class:'ttl'}, 'What it was — '+t.name+'’s real process'));
+  before.append(el('div',{class:'ttl'}, solo ? 'What it was — your real process' : 'What it was — '+t.name+'’s real process'));
   const bm=el('div',{class:'ba-mini'}); before.append(bm); ba.append(before);
   setTimeout(()=>renderMini(bm, t.canvas, 'surface'),0);
   const after=el('div',{class:'ba-card bright'});
-  after.append(el('div',{class:'ttl'}, el('span',{class:'hl'}, 'What it became'+(rebuilder?' — by '+rebuilder.name:''))));
+  after.append(el('div',{class:'ttl'}, el('span',{class:'hl'}, solo ? 'What it became — your AI-native rebuild' : 'What it became'+(rebuilder?' — by '+rebuilder.name:''))));
   const am=el('div',{class:'ba-mini'}); after.append(am); ba.append(after);
   if(rebuilder&&rebuilder.redesign) setTimeout(()=>renderMini(am, rebuilder.redesign.canvas, 'rebuild'),0);
   else am.append(el('div',{class:'emptyhint'}, el('div',{class:'meta'},'no rebuild captured')));
@@ -4819,7 +4827,7 @@ function consoleLobby(){
   teams.forEach(t=> tl.append(el('span',{class:'pill', html: glyph('g-horse')+' '+esc(t.name)+' · '+t.members.length})) );
   if(!teams.length) tl.append(el('div',{class:'meta'},'no teams yet — waiting for people to join…'));
   card.append(tl);
-  card.append(el('p',{class:'meta', style:'margin-top:16px'}, teams.length>=2?'Ready when you are.':teams.length===1?'1 team in — you can start, but you’ll need 2+ to swap later.':'Start unlocks once a team joins.'));
+  card.append(el('p',{class:'meta', style:'margin-top:16px'}, teams.length>=2?'Ready when you are.':teams.length===1?'1 team in — start now for a solo rebuild, or add a 2nd team for the surprise swap.':'Start unlocks once a team joins.'));
   wrap.append(card);
   return wrap;
 }
@@ -4885,7 +4893,7 @@ function viewConsole(){
   const head=el('div',{class:'stage-head'});
   head.append(el('h2',{}, ({surface:'Surface · mapping',rebuild:'Rebuild · the swap is live',share:'Share · reveal & present',closed:'Closed'})[state.state]||'Console'));
   const sum=el('div',{class:'stage-sum'});
-  const chip=(n,l)=>sum.append(el('span',{}, el('b',{}, String(n)), l));
+  const chip=(n,l)=>sum.append(el('span',{}, el('b',{}, String(n)), ' '+(n===1&&/^(teams|pairs)$/.test(l)?l.slice(0,-1):l)));   // "1 team" not "1teams"
   if(state.state==='share'||state.state==='closed'){ chip(teams.length,'teams'); chip(teams.filter(t=>t.receivedFromTeamId).length,'pairs'); chip(openReck,'reckonings open'); }
   else { chip(teams.length,'teams'); chip(ready,'redesign-ready'); if(state.state==='surface') chip(capturing,'still capturing'); chip(orphans,'parked'); }
   head.append(sum); stage.append(head);
