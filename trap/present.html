@@ -526,7 +526,10 @@ b,strong{font-weight:600}
     }catch(e){ box.innerHTML='<div style="font:600 14px Inter;color:#21314f;text-align:center">'+url+'</div>'; }
   }
   fetch('/api/info').then(r=>r.json()).then(d=>{
-    const url='http://'+d.ip+':'+d.port;
+    // public host (Render etc.) → participants join at THIS origin; only fall back to the
+    // LAN ip:port when the presenter is on localhost (so the projector never shows "localhost").
+    const h=location.hostname, local=(h==='localhost'||h==='127.0.0.1'||h==='0.0.0.0'||h==='::1');
+    const url=local ? ('http://'+d.ip+':'+d.port) : location.origin;
     document.getElementById('jurl').textContent=url;
     document.getElementById('jcode').textContent='code '+d.code;
     const jb=document.getElementById('joinbig'); if(jb) jb.innerHTML=url+' &nbsp;·&nbsp; <b>'+d.code+'</b>';
