@@ -2579,7 +2579,14 @@ function makeCanvas(opts){
     if (editable && activeTool==='select'){
       const sb=(c.blocks||[]).find(b=>b.id===sel && !b.locked && b.type!=='text');
       if(sb){
-        const insp=el('div',{class:'inspector', 'data-testid':'inspector', style:`left:${sb.x}px; top:${sb.y+sb.h+8}px`});
+        // Place the inspector BESIDE the node, never on top of it or the flow below it (it used to sit
+        // directly under the card, covering the next step). Bias right (maps flow down-and-right so the
+        // right gutter is usually clearest); flip left only for nodes in the right ~28% of the map.
+        const IW=256, GAP=14, bl=c.blocks||[];
+        const minX=Math.min(...bl.map(b=>b.x)), maxX=Math.max(...bl.map(b=>b.x+(b.w||120)));
+        const placeLeft = bl.length>1 && (sb.x+sb.w) > (minX + (maxX-minX)*0.72);
+        const ix = placeLeft ? (sb.x - IW - GAP) : (sb.x + sb.w + GAP);
+        const insp=el('div',{class:'inspector', 'data-testid':'inspector', style:`left:${ix}px; top:${sb.y}px`});
         insp.addEventListener('pointerdown',e=>e.stopPropagation());
         const Q={intent:'what decision does this drive?', persona:'why does this role exist?', phase:'why does this stage exist at all?', moment:'why does this moment matter?', agent:'why an agent here, not a human?'}[sb.type]||'why does this exist?';
         insp.append(el('div',{class:'ihead', html: glyph('g-bulb')+'<span>the back of the card</span>'}));
