@@ -72,10 +72,10 @@ b,strong{font-weight:600}
 /* task */
 .taskhead{display:flex; align-items:baseline; justify-content:space-between; gap:14px}
 .tasknum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--muted-soft)}
-.queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--gold-deep)} .queued b{font-variant-numeric:tabular-nums}
+.queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--muted-strong)} .queued b{font-variant-numeric:tabular-nums; color:var(--gold-deep)}
 .taskbody{display:grid; grid-template-columns:.85fr 1.15fr; gap:clamp(22px,3vw,52px); align-items:start; margin-top:8px}
 @media (max-width:880px){ .taskbody{grid-template-columns:1fr} }
-.tlabel{font-family:Caveat,cursive; font-size:clamp(16px,1.6vw,21px); color:var(--muted-soft); margin-bottom:2px}
+.tlabel{font-family:Caveat,cursive; font-size:clamp(16px,1.6vw,21px); color:var(--muted-strong); margin-bottom:2px}
 .tlabel.pain{color:var(--red); margin-top:12px}
 .taskbody p{font-size:clamp(14px,1.4vw,18px); color:var(--muted-strong); line-height:1.5}
 .asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(18px,1.9vw,25px); color:var(--ink); margin-bottom:10px}
@@ -107,7 +107,7 @@ b,strong{font-weight:600}
 .tag{font-size:11.5px; font-weight:700; letter-spacing:.05em; padding:5px 11px; border-radius:999px; white-space:nowrap}
 .tag.dead{color:var(--red); background:color-mix(in srgb,var(--red) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent)}
 .tag.real{color:var(--ok); background:color-mix(in srgb,var(--ok) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--ok) 45%,transparent)}
-.scarrow.alive{border-color:color-mix(in srgb,var(--ok) 45%,transparent); background:color-mix(in srgb,var(--ok) 6%,var(--card))}
+.scarrow.alive{border-color:color-mix(in srgb,var(--ok) 55%,transparent); border-left:5px solid var(--ok); background:color-mix(in srgb,var(--ok) 15%,var(--card))}
 .barline{margin-top:10px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,25px)} .barline .r{color:var(--red)}
 .reflex{margin-top:13px; background:color-mix(in srgb,var(--gold) 8%,var(--card)); border:1.4px solid color-mix(in srgb,var(--gold) 35%,transparent); border-radius:13px; padding:13px 18px; font-size:clamp(13.5px,1.35vw,17px); color:var(--muted-strong); line-height:1.5; max-width:76ch} .reflex b{color:var(--gold-deep)}
 
@@ -313,11 +313,11 @@ b,strong{font-weight:600}
     <div class="pipe">
       <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">build the deck</div></div>
       <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">draft the questions</div></div>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">the question loop</div></div>
       <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">take the minutes</div></div>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">roll it up</div></div>
       <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">consolidate &amp; pass up</div></div>
+      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">the decision</div></div>
     </div>
     <div class="triumph">Four tools. Every step automated.</div>
     <p class="punch" style="margin-top:14px">Looks like a win, doesn't it?</p>
@@ -357,7 +357,7 @@ b,strong{font-weight:600}
       <div class="head"><div class="eyebrow">on your phones now</div><h2 class="title sm">Assumption Race: surface every hidden <span class="hl">assumption.</span></h2></div>
       <div class="rtimer" id="rtimer"><span class="rt-num" id="rtnum">4:00</span><span class="rt-lab">on the clock</span></div>
     </div>
-    <p class="lede">Every step quietly assumes something is true. On your phone, name as many buried assumptions as you can before the buzzer — each one, your horse gallops on. <b>Most found wins.</b></p>
+    <p class="lede">Same four steps — <b>new question.</b> Earlier you asked "what would I build?" Now ask what each step secretly <b>assumes is true.</b> On your phone, name as many buried assumptions as you can before the buzzer — each one, your horse gallops on. <b>Most found wins.</b></p>
     <div class="racecourse">
       <div class="track" id="track"><div class="trackempty" id="trackempty">horses line up as the room joins…</div></div>
     </div>
