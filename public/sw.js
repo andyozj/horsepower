@@ -2,7 +2,7 @@
 // is never served stale — the old stale-while-revalidate served the previous index.html on the first reload
 // after every deploy, which kept hiding fresh UI fixes from returning users.
 // Secure-context only (https/localhost); on http-LAN it never registers (see the guard in index.html).
-const V = 'hp-shell-v3';
+const V = 'hp-shell-v4';
 const SHELL = ['/', '/fonts/fraunces-latin-var.woff2', '/fonts/inter-latin-var.woff2',
                '/fonts/caveat-latin-var.woff2', '/manifest.json'];
 
@@ -20,7 +20,10 @@ self.addEventListener('fetch', e => {
   // network-only for /api (coach, info, health) and cross-origin; WebSocket upgrades never hit 'fetch'.
   // Rule #8: never let the cache impersonate the server — a stale coach reply is worse than a failure.
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
-  if (e.request.mode === 'navigate') {
+  // Only the SPA's own routes (extensionless: '/', '/whatever') get the shell rewrite. A navigation to a
+  // REAL file (e.g. /horsepower-5slides.html) must be served as itself, not shadowed by the app shell —
+  // the old code rewrote EVERY navigation to '/', which hid any static page hosted on this origin.
+  if (e.request.mode === 'navigate' && !/\.[a-z0-9]+$/i.test(u.pathname)) {
     // NETWORK-FIRST: always try the live shell; fall back to cache only when offline. Online users always
     // get the deployed index.html (no more stale UI after a deploy); offline still gets an instant reload.
     e.respondWith(
