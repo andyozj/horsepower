@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horsepower — in 5 slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4efe2; --card:#fffaf0; --ink:#21314f; --muted:#566079; --muted-strong:#454f68; --muted-soft:#7b8298;
+  --line:#cfc4a6; --line-soft:#ded3b6;
+  --red:#e23b3b; --gold:#b8860b; --gold-deep:#a96f12; --hl:#ffd24a;
+  --ok:#2e7d52; --lock:#7c3aed; --blue:#3b6fe2;
+  --t:.55s cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%}
+body{
+  font-family:Inter,system-ui,sans-serif; color:var(--ink); background:var(--paper);
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1.1px, transparent 1.1px);
+  background-size:26px 26px;
+}
+h1,h2,h3{font-family:Fraunces,serif; font-optical-sizing:auto; font-weight:600; letter-spacing:-.02em; line-height:1.03}
+b,strong{font-weight:600}
+
+.deck{position:relative; width:100vw; height:100vh}
+.slide{
+  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(34px,6.5vw,128px); gap:clamp(14px,1.6vw,26px);
+  opacity:0; transform:translateY(22px) scale(.992);
+  transition:opacity var(--t), transform var(--t); pointer-events:none; visibility:hidden;
+}
+.slide.active{opacity:1; transform:none; pointer-events:auto; visibility:visible}
+.slide.past{transform:translateY(-22px) scale(.992)}
+.nojs .slide#s1{opacity:1; visibility:visible; transform:none}
+.nojs .hint{content:""}
+
+.eyebrow{font-family:Caveat,cursive; font-size:clamp(21px,2.4vw,31px); color:var(--red); font-weight:700; transform:rotate(-1.4deg); display:inline-block}
+.hl{background:linear-gradient(transparent 56%, var(--hl) 56%, var(--hl) 93%, transparent 93%); padding:0 .12em; -webkit-box-decoration-break:clone; box-decoration-break:clone}
+.lede{font-size:clamp(16px,1.5vw,21px); color:var(--muted-strong,#4a5468); line-height:1.55; max-width:60ch}
+.muted{color:var(--muted-soft)}
+
+/* slide 1 */
+#s1{align-items:flex-start; justify-content:center}
+.wordmark{font-family:Fraunces,serif; font-weight:900; font-size:clamp(64px,13vw,184px); line-height:.92; font-variation-settings:"opsz" 144,"WONK" 1; letter-spacing:-.03em}
+.tagline{font-size:clamp(24px,3.4vw,46px); font-family:Fraunces,serif; font-weight:600; letter-spacing:-.02em; margin-top:.1em}
+.s1sub{margin-top:.7em; font-size:clamp(16px,1.6vw,22px); color:var(--muted-strong,#4a5468); max-width:54ch; line-height:1.55}
+.ponies{position:absolute; right:clamp(28px,6vw,120px); bottom:clamp(28px,6vw,90px); font-family:Caveat,cursive; font-size:clamp(18px,1.8vw,24px); color:color-mix(in srgb,var(--red) 70%,var(--paper)); transform:rotate(-3deg); text-align:right; line-height:1.3}
+
+/* generic heading block */
+.head .eyebrow{margin-bottom:.25em}
+.slide h2.title{font-size:clamp(30px,4.4vw,62px); max-width:20ch}
+.slide h2.title.sm{font-size:clamp(26px,3.4vw,48px)}
+
+/* the arc (slide 2) */
+.arc{display:flex; align-items:center; gap:clamp(8px,1vw,16px); flex-wrap:wrap; margin-top:6px}
+.arcnode{display:flex; flex-direction:column; gap:3px; background:var(--card); border:1.6px solid var(--ink); border-radius:14px; padding:12px 18px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.arcnode .k{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.8vw,23px)}
+.arcnode .s{font-size:12.5px; color:var(--muted-soft)}
+.arcnode.swap{border-style:dashed; border-color:var(--red); background:color-mix(in srgb,var(--red) 7%,var(--card))}
+.arcnode.swap .k{color:var(--red)}
+.arcarrow{font-family:Caveat,cursive; font-size:28px; color:var(--muted-soft); transform:translateY(-2px)}
+.cast{display:flex; gap:clamp(12px,1.6vw,26px); flex-wrap:wrap; margin-top:14px}
+.castcard{flex:1 1 220px; min-width:200px; background:var(--card); border:1.5px solid var(--line); border-left:5px solid var(--ink); border-radius:12px; padding:14px 16px}
+.castcard.coach{border-left-color:var(--red)}
+.castcard.farrier{border-left-color:var(--gold-deep)}
+.castcard .ct{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.6vw,20px); margin-bottom:3px}
+.castcard .cs{font-size:13.5px; color:var(--muted-soft); line-height:1.5}
+
+/* two-column stage slides */
+.cols{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(26px,4vw,72px); align-items:start; margin-top:8px}
+@media (max-width:900px){ .cols{grid-template-columns:1fr} }
+.chain{display:flex; flex-direction:column; gap:9px; margin-top:6px}
+.chainrow{display:flex; align-items:baseline; gap:11px}
+.chainrow .step{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.7vw,22px)}
+.chainrow .gloss{font-size:14px; color:var(--muted-soft)}
+.chaindash{color:var(--line); font-size:18px; line-height:1}
+.whyline{margin-top:12px; font-family:Caveat,cursive; font-size:clamp(20px,2.1vw,28px); color:var(--gold-deep); transform:rotate(-.8deg)}
+.goal{margin-top:14px; font-size:14.5px; color:var(--muted-strong,#4a5468)}
+.goal b{color:var(--ink)}
+
+/* the Coach "watches for" card */
+.watch{background:var(--card); border:1.6px solid var(--red); border-radius:16px; padding:clamp(16px,1.8vw,24px); box-shadow:4px 6px 0 -2px color-mix(in srgb,var(--red) 16%,transparent)}
+.watch h3{font-family:Caveat,cursive; font-weight:700; font-size:clamp(20px,2.1vw,27px); color:var(--red); margin-bottom:10px; letter-spacing:0}
+.watch ul{list-style:none; display:flex; flex-direction:column; gap:11px}
+.watch li{display:flex; gap:10px; font-size:clamp(14px,1.4vw,16.5px); line-height:1.42}
+.watch li .fg{flex:none; width:19px; height:19px; margin-top:1px; color:var(--red)}
+.watch li b{color:var(--ink)}
+
+/* lock chips for rebuild */
+.locks{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.lockchip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--lock); background:color-mix(in srgb,var(--lock) 9%,var(--card)); border:1.4px solid color-mix(in srgb,var(--lock) 45%,transparent); border-radius:999px; padding:4px 11px}
+.lockchip svg{width:13px; height:13px}
+
+/* shape meter strip */
+.meter{display:flex; gap:7px; margin-top:13px}
+.mseg{flex:1; text-align:center; font-size:11.5px; font-weight:700; letter-spacing:.04em; padding:6px 4px; border-radius:8px; border:1.4px solid var(--line)}
+.mseg.bad{color:var(--red); border-color:color-mix(in srgb,var(--red) 50%,transparent); background:color-mix(in srgb,var(--red) 7%,transparent)}
+.mseg.mid{color:var(--gold-deep); border-color:color-mix(in srgb,var(--gold) 45%,transparent); background:color-mix(in srgb,var(--gold) 9%,transparent)}
+.mseg.good{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 45%,transparent); background:color-mix(in srgb,var(--ok) 8%,transparent)}
+
+/* slide 5 — the coach */
+.coachgrid{display:grid; grid-template-columns:1fr 1fr; gap:clamp(16px,2vw,30px); margin-top:10px}
+@media (max-width:900px){ .coachgrid{grid-template-columns:1fr} }
+.cprin{background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:15px 18px}
+.cprin .h{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); margin-bottom:4px; display:flex; align-items:center; gap:9px}
+.cprin .h .dot{width:11px; height:11px; border-radius:50%; flex:none}
+.cprin p{font-size:14px; color:var(--muted-soft); line-height:1.5}
+.kicker{margin-top:18px; font-family:Caveat,cursive; font-size:clamp(22px,2.6vw,34px); color:var(--red); transform:rotate(-1deg)}
+
+/* chrome */
+.brandtag{position:fixed; top:26px; left:clamp(34px,6.5vw,128px); font-family:Fraunces,serif; font-weight:600; font-size:17px; font-variation-settings:"opsz" 36,"WONK" 1; color:var(--ink); display:flex; align-items:center; gap:8px; z-index:10}
+.brandtag .horse{width:22px; height:22px}
+.foot{position:fixed; bottom:24px; left:clamp(34px,6.5vw,128px); right:clamp(34px,6.5vw,128px); display:flex; align-items:center; justify-content:space-between; z-index:10}
+.dots{display:flex; gap:9px}
+.dots button{width:9px; height:9px; border-radius:50%; border:1.5px solid var(--line); background:transparent; cursor:pointer; padding:0; transition:background .2s,border-color .2s}
+.dots button.on{background:var(--red); border-color:var(--red)}
+.count{font-family:Fraunces,serif; font-weight:600; font-size:14px; color:var(--muted-soft); font-variant-numeric:tabular-nums}
+.hint{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); font-family:Caveat,cursive; font-size:16px; color:var(--muted-soft); z-index:10}
+.nojs .deckchrome{display:none}
+
+@media (prefers-reduced-motion:reduce){ .slide{transition:opacity .2s} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-horse" viewBox="0 0 24 24"><path d="M5 20c-1-5 1-8 4-9 1-2 0-4 2-5 1 3 3 3 5 4 2 1 3 3 3 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.4" cy="9.3" r=".9" fill="currentColor"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4m0 1h11l-2 3 2 3H6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+</defs></svg>
+
+<div class="brandtag deckchrome"><svg class="horse"><use href="#i-horse"/></svg> Horsepower</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 — WHAT IT IS -->
+  <section class="slide" id="s1">
+    <div class="eyebrow">an AI-native workflow studio</div>
+    <div class="wordmark">Horse<span class="hl">power</span></div>
+    <div class="tagline">Redesign — don’t retrofit.</div>
+    <p class="s1sub">A live, facilitated workshop where a team maps one of their real business workflows, then <b>rebuilds it AI-native</b> — agents doing the real work, people in new roles. <b>Not an engine bolted onto a horse.</b></p>
+    <div class="ponies">90 minutes ·<br>a workflow worth<br>showing your boss</div>
+  </section>
+
+  <!-- 2 — WHAT IT'S ABOUT -->
+  <section class="slide" id="s2">
+    <div class="head">
+      <div class="eyebrow">what it’s about</div>
+      <h2 class="title">Most “AI transformation” just bolts a bot onto <span class="hl">the old shape.</span></h2>
+    </div>
+    <p class="lede">Horsepower forces a genuine redesign. A team documents how a workflow <b>really</b> runs, the map is torn down to its intent, and they rebuild the <b>how</b> from scratch — AI-first. A run through the arc:</p>
+    <div class="arc">
+      <div class="arcnode"><span class="k">Surface</span><span class="s">map it as-is</span></div>
+      <span class="arcarrow">→</span>
+      <div class="arcnode swap"><span class="k">the swap 🤫</span><span class="s">a surprise teardown</span></div>
+      <span class="arcarrow">→</span>
+      <div class="arcnode"><span class="k">Rebuild</span><span class="s">make it AI-native</span></div>
+      <span class="arcarrow">→</span>
+      <div class="arcnode"><span class="k">Share</span><span class="s">before · after · the myths</span></div>
+    </div>
+    <div class="cast">
+      <div class="castcard"><div class="ct">One living map</div><div class="cs">Everyone on their own device, editing one shared, AI-readable map in real time.</div></div>
+      <div class="castcard coach"><div class="ct">The Coach</div><div class="cs">An LLM that interviews, draws the map, and pushes on the <b>why</b> — never the answer.</div></div>
+      <div class="castcard farrier"><div class="ct">The Farrier</div><div class="cs">A human facilitator running the room, the clock, and the reveal.</div></div>
+    </div>
+  </section>
+
+  <!-- 3 — STAGE 1: SURFACE -->
+  <section class="slide" id="s3">
+    <div class="head">
+      <div class="eyebrow">stage 1 · Surface</div>
+      <h2 class="title sm">Map it exactly as it runs <span class="hl">today.</span></h2>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="chain">
+          <div class="chainrow"><span class="step">Trigger</span><span class="gloss">what kicks it off</span></div>
+          <div class="chaindash">↓</div>
+          <div class="chainrow"><span class="step">Inputs</span><span class="gloss">what it needs</span></div>
+          <div class="chaindash">↓</div>
+          <div class="chainrow"><span class="step">Personas</span><span class="gloss">who operates · is accountable · served · informed</span></div>
+          <div class="chaindash">↓</div>
+          <div class="chainrow"><span class="step">Phases</span><span class="gloss">the steps — flag the moments that hurt</span></div>
+          <div class="chaindash">↓</div>
+          <div class="chainrow"><span class="step">Intent</span><span class="gloss">the decision the work drives</span></div>
+          <div class="chaindash">↓</div>
+          <div class="chainrow"><span class="step">Outcome</span><span class="gloss">what’s true at the end</span></div>
+        </div>
+        <div class="whyline">…and the WHY behind every one — that’s the gold.</div>
+        <div class="goal">Goal: <b>map it so a newcomer could run it.</b></div>
+      </div>
+      <div class="watch">
+        <h3>The Coach watches for…</h3>
+        <ul>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>A <b>person folded into a step</b> — every named person becomes their own persona, never a faceless “sign-off”.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>The <b>served party left implicit</b> — who is this ultimately for?</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>An <b>intent that’s an artifact</b> (“a report”) instead of a real <b>decision</b>.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>A <b>missing WHY</b> on a load-bearing step or role.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>“That’s just how it’s done” — <b>habit dressed as a constraint.</b></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 — STAGE 2: REBUILD -->
+  <section class="slide" id="s4">
+    <div class="head">
+      <div class="eyebrow">stage 2 · Rebuild</div>
+      <h2 class="title sm">Tear it down. Rebuild it <span class="hl">AI-native.</span></h2>
+    </div>
+    <div class="cols">
+      <div>
+        <p class="lede">The original <b>how</b> is stripped away. The team gets an abstract brief — the need, the areas of concern, candidate constraints, and the people inventory — and rebuilds the workflow with <b>Agent blocks doing the real work.</b></p>
+        <div class="locks">
+          <span class="lockchip"><svg><use href="#i-lock"/></svg> intent</span>
+          <span class="lockchip"><svg><use href="#i-lock"/></svg> outcome</span>
+          <span class="lockchip"><svg><use href="#i-lock"/></svg> accountable &amp; served people</span>
+        </div>
+        <div class="goal" style="margin-top:10px"><b>Locked</b> — the why and the who don’t move; only the <b>how</b> gets reinvented.</div>
+        <div class="meter">
+          <div class="mseg bad">RETROFIT</div>
+          <div class="mseg mid">PARTIAL</div>
+          <div class="mseg good">REDESIGNED</div>
+        </div>
+        <div class="goal" style="margin-top:7px">A live <b>shape meter</b> tells the team if the work actually changed shape.</div>
+      </div>
+      <div class="watch">
+        <h3>The Coach watches for…</h3>
+        <ul>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span><b>Retrofit</b> — AI bolted onto the old steps, the work unchanged in shape.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>“<b>Freed up for higher-value work</b>” hand-waves — every person must land: stays, transforms, or removed-and-justified.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>A “rule” that’s really <b>habit</b> — is the constraint real, or just assumed?</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span><b>Convergence back to the original</b> — process clichés creeping in.</span></li>
+          <li><svg class="fg"><use href="#i-flag"/></svg><span>A vague keep — it makes the team <b>state the claim out loud</b> so the debrief can judge it.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 — THE COACH -->
+  <section class="slide" id="s5">
+    <div class="head">
+      <div class="eyebrow">the through-line</div>
+      <h2 class="title">The Coach <span class="hl">provokes.</span> It never decides.</h2>
+    </div>
+    <p class="lede">It has no domain truth — it can’t tell you the right answer. Its whole job is to turn a silent fake-keep into a <b>stated claim the team owns</b>, and to make retrofit visible while there’s still time to fix it.</p>
+    <div class="coachgrid">
+      <div class="cprin"><div class="h"><span class="dot" style="background:var(--red)"></span>Pushes on the WHY</div><p>Make the team feel heard, then push. It challenges experts — it doesn’t catch them out.</p></div>
+      <div class="cprin"><div class="h"><span class="dot" style="background:var(--blue)"></span>Builds as you talk</div><p>Voice-first or typed — it interviews you and draws the map live, person by person.</p></div>
+      <div class="cprin"><div class="h"><span class="dot" style="background:var(--gold)"></span>Provokes, never rules</div><p>It surfaces the question; the humans make every call. The debrief — not the AI — is the judge.</p></div>
+      <div class="cprin"><div class="h"><span class="dot" style="background:var(--ok)"></span>Never stalls the room</div><p>Every gate is rule-based and works offline. If the AI is down, the workshop still runs.</p></div>
+    </div>
+    <div class="kicker">Saddle up. →</div>
+  </section>
+
+</div>
+
+<div class="foot deckchrome">
+  <div class="dots" id="dots"></div>
+  <div class="count" id="count">1 / 5</div>
+</div>
+<div class="hint deckchrome" id="hint">← → or space to move</div>
+
+<script>
+  document.documentElement.classList.remove('nojs');
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const count=document.getElementById('count');
+  const hint=document.getElementById('hint');
+  let i=0;
+  slides.forEach((_,n)=>{ const b=document.createElement('button'); b.setAttribute('aria-label','Slide '+(n+1)); b.onclick=()=>go(n); dotsWrap.append(b); });
+  const dots=[...dotsWrap.children];
+  function go(n){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{ s.classList.toggle('active',k===n); s.classList.toggle('past',k<n); });
+    dots.forEach((d,k)=>d.classList.toggle('on',k===n));
+    count.textContent=(n+1)+' / '+slides.length;
+    i=n; if(hint && n>0) hint.style.opacity='0';
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(i+1); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
+    else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
+  });
+  // click right/left half of the screen to advance/back (not on the dots)
+  document.getElementById('deck').addEventListener('click',e=>{ go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
+  go(0);
+</script>
+</body>
+</html>
