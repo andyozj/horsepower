@@ -1056,6 +1056,21 @@ input::placeholder, textarea::placeholder{color:#6a6a6c; opacity:1} /* darker pl
 @keyframes halobreathe{0%,100%{transform:scale(.95); opacity:.78} 50%{transform:scale(1.08); opacity:1}}
 @keyframes ringout{0%{transform:scale(.7); opacity:.55} 100%{transform:scale(1.3); opacity:0}}
 @keyframes facebob{0%,100%{transform:scale(1)} 50%{transform:scale(1.05)}}
+/* the LIVE mic-level ring: scale is driven by --level (real input amplitude), set per-frame by VC._startMeter.
+   This is the cue that actually answers "is it hearing me?" — it reacts to your voice, not a canned animation. */
+.orblvl{position:absolute; inset:20%; border-radius:50%; border:3px solid color-mix(in srgb,var(--red-pen) 64%, transparent); opacity:0; z-index:2; pointer-events:none; transform:scale(1); transition:transform .07s linear, opacity .25s ease; box-shadow:0 0 0 0 color-mix(in srgb,var(--red-pen) 30%, transparent)}
+.voiceorb.listening .orblvl{opacity:1; transform:scale(calc(1 + var(--level,0) * 0.55))}
+/* the turn-ender, co-located with the orb so "how do I finish?" is answered where you're looking */
+.orbsend{position:absolute; left:50%; top:calc(50% + 92px); transform:translate(-50%,4px) scale(.96); z-index:5; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; font-family:Inter,sans-serif; font-size:13px; font-weight:600; color:var(--card); background:var(--red-pen); border-radius:999px; padding:5px 12px; box-shadow:var(--shadow-float); opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s var(--ease-pop)}
+.orbsend .glyph{width:13px; height:13px}
+.voiceorb.listening .orbsend{opacity:1; transform:translate(-50%,0) scale(1)}
+.voiceorb.blobform .orbsend{display:none}   /* the corner blob has its own status pill — no room for the orb pill */
+/* mic denied → the orb itself reads as blocked, not idle */
+.voiceorb.blocked .orbface{box-shadow:0 12px 36px -10px rgba(226,59,59,.5), inset 0 0 0 3px var(--card); filter:grayscale(.3)}
+.voiceorb.blocked .orbmic{background:var(--pain,#e23b3b)}
+.vbtn.pulse,.modeopt.pulse{animation:typepulse 1.1s ease-in-out 4; box-shadow:0 0 0 2px var(--highlighter)}
+@keyframes typepulse{0%,100%{box-shadow:0 0 0 2px var(--highlighter)} 50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--highlighter) 60%, transparent)}}
+@media (prefers-reduced-motion:reduce){ .orblvl{transition:none} .voiceorb.listening .orblvl{transform:scale(1.12)} .vbtn.pulse,.modeopt.pulse{animation:none} }
 .voicestatus{font-family:Fraunces,serif; font-size:21px; font-variation-settings:"opsz" 32; color:var(--ink); min-height:26px}
 .voicestage .voicestatus{font-family:Caveat,cursive; font-size:25px; font-weight:600; color:var(--red-pen)}   /* warm, handwritten state */
 .voicecaption{max-width:540px; min-height:22px; font-size:14.5px; line-height:1.55; color:var(--muted-strong)}
@@ -3045,7 +3060,7 @@ function voiceCoachBlob(t, opts){
   // no mic badge: the "Tap to talk" label says the action, and the halo/ring turn red while listening
   // (consistent with the big voiceStage orb). Minimized = a single clean avatar circle, tap to re-open.
   const orb=el('button',{class:'voiceorb blobform '+VC.phase, 'data-testid':'voice-orb', 'data-variant':'blobform', 'aria-label': (launch||min)?'Open the Coach':'Talk to the Coach — tap to talk or pause', onclick:()=> (launch||min) ? open() : VC.toggle()});
-  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}));
+  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orblvl'}), el('span',{class:'orbring'}), el('span',{class:'orbface', html: coachAvatar(58)}));
   row.append(orb);
   blob.append(row);
   if(!min && opts.rebuild){
@@ -3064,7 +3079,7 @@ function voiceCoachBlob(t, opts){
     // Talk and Type are two equal modes of the SAME Coach — a segmented toggle, not a big orb + tiny link.
     const tog=el('div',{class:'modetoggle','data-testid':'mode-toggle'});
     tog.append(el('button',{class:'modeopt active','aria-pressed':'true', title:'Talk to the Coach', onclick:()=>VC.toggle(), html: glyph('g-mic')+'Talk'}));
-    tog.append(el('button',{class:'modeopt','data-testid':'switch-type', title:'Type to the Coach', onclick:()=>{ VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+    tog.append(el('button',{class:'modeopt','data-testid':'switch-type', title:'Type to the Coach', onclick:()=>{ VC.micBlocked=false; VC.hangup(); ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
     blob.append(tog);
   }
   return blob;
@@ -3415,6 +3430,7 @@ function b64ToBuf(b64){ const s=atob(b64); const b=new Uint8Array(s.length); for
 const VC = {
   active:false, recording:false, ready:false, phase:'idle',   // idle|connecting|listening|thinking|speaking
   _armed:false, _arming:false, _cancelStart:false,            // mic graph is acquired ONCE and kept warm; recording just gates which frames we send
+  micBlocked:false, analyser:null, _raf:0, _level:0,          // micBlocked = getUserMedia denied (drives the visible recovery); analyser drives the live "I hear you" level ring
   captureCtx:null, playCtx:null, src:null, proc:null, sink:null, stream:null, nextPlay:0, coachText:'', youText:'',
   transcript:[],   // [{role:'you'|'coach', text, done}] — the readable, scrollable conversation log
   // transcript helpers: a "live" entry is the in-progress turn we keep appending streamed deltas to.
@@ -3434,7 +3450,26 @@ const VC = {
   // the new session's 'ready' re-arms us. Without this, the old session's teardown reset active=false after
   // the new one opened, so the first Rebuild turn hit a cold handshake.
   restart(p){ this.phaseFor=p; this.restarting=true; this.ready=false; this.setPhase('connecting'); try{ wsSend({type:'voice:start', turn: ui.voiceTurn}); }catch(_){} clearTimeout(this._restartT); this._restartT=setTimeout(()=>{ this.restarting=false; }, 4000); },
-  pause(){ this.recording=false; this.setPhase('idle'); this._render(); },   // stop SENDING but keep the mic+session warm (instant resume)
+  pause(){ this.recording=false; this._stopMeter(); this.setPhase('idle'); this._render(); },   // stop SENDING but keep the mic+session warm (instant resume)
+  // Drive the orb's level ring from the REAL mic amplitude — the one cue that answers "is it hearing me?".
+  // Skipped under reduced-motion (a static ring stands in). Runs only while recording.
+  _startMeter(){
+    if(this._reduceMotion()){ return; }
+    cancelAnimationFrame(this._raf);
+    const buf=new Uint8Array(this.analyser? this.analyser.fftSize : 256);
+    const tick=()=>{
+      if(!this.recording || !this.analyser){ this._raf=0; return; }
+      this.analyser.getByteTimeDomainData(buf);
+      let sum=0; for(let i=0;i<buf.length;i++){ const d=(buf[i]-128)/128; sum+=d*d; }
+      const rms=Math.sqrt(sum/buf.length);                       // 0..~1
+      this._level=this._level*0.6 + Math.min(1, rms*2.6)*0.4;    // smooth, with headroom so normal speech fills the ring
+      document.querySelectorAll('[data-testid=voice-orb]').forEach(o=>o.style.setProperty('--level', this._level.toFixed(3)));
+      this._raf=requestAnimationFrame(tick);
+    };
+    this._raf=requestAnimationFrame(tick);
+  },
+  _stopMeter(){ cancelAnimationFrame(this._raf); this._raf=0; this._level=0; document.querySelectorAll('[data-testid=voice-orb]').forEach(o=>o.style.setProperty('--level','0')); },
+  _reduceMotion(){ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_){ return false; } },
   // Acquire the mic + audio graph ONCE and keep it hot for the whole session. Idempotent. The processor is
   // always running but only ships frames while `recording` — so a press is instant (no getUserMedia delay,
   // no clipped first word) and there's no per-turn teardown/rebuild race. Returns true once the graph is live.
@@ -3443,13 +3478,15 @@ const VC = {
     if(this._arming) return false;                 // already warming from a prior press — don't double-acquire
     this._arming=true;
     try{ this.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
-    catch(e){ this._arming=false; toast('Mic blocked — tap “Type” to write instead.'); return false; }
+    catch(e){ this._arming=false; this.micBlocked=true; return false; }   // denied → flagged; the visible recovery is painted by _render (toast alone is too easy to miss)
+    this.micBlocked=false;
     try{
       this.captureCtx=this.captureCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
       if(this.captureCtx.state==='suspended') await this.captureCtx.resume();
       this.playCtx=this.playCtx || new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});  // create under the user gesture
       if(this.playCtx.state==='suspended') this.playCtx.resume();
       this.src=this.captureCtx.createMediaStreamSource(this.stream);
+      this.analyser=this.captureCtx.createAnalyser(); this.analyser.fftSize=256; this.analyser.smoothingTimeConstant=0.6; this.src.connect(this.analyser);   // taps the mic for the live level ring (no audio routed onward from here)
       this.proc=this.captureCtx.createScriptProcessor(4096,1,1);
       this.proc.onaudioprocess=e=>{ if(!this.recording) return; const f=e.inputBuffer.getChannelData(0); const i16=new Int16Array(f.length);
         for(let k=0;k<f.length;k++){ let s=Math.max(-1,Math.min(1,f[k])); i16[k]= s<0 ? s*0x8000 : s*0x7fff; }
@@ -3461,7 +3498,7 @@ const VC = {
   },
   async toggle(){                                   // PTT: tap to talk, tap again to SEND. hands-free: tap to talk, tap to pause (VAD replies on its own).
     if(this.recording){                             // release → SEND (ptt) or PAUSE (hands-free) — instant, mic stays warm
-      if(ui.voiceTurn==='ptt'){ this.recording=false; try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
+      if(ui.voiceTurn==='ptt'){ this.recording=false; this._stopMeter(); try{ wsSend({type:'voice:commit'}); }catch(_){} this.setPhase('thinking'); this._render(); }
       else { this.pause(); }
       return;
     }
@@ -3470,12 +3507,12 @@ const VC = {
     this.ensureSession();
     this._cancelStart=false;
     const ok=await this._arm();                      // instant after the first turn; the one-time getUserMedia delay is here
-    if(!ok){ this.hangup(); return; }
+    if(!ok){ if(this.micBlocked){ this.setPhase('idle'); this._render(); } else { this.hangup(); } return; }   // mic denied → stay on the orb in a VISIBLE blocked state pointing at Type; other failures → hang up
     if(this._cancelStart){ this._cancelStart=false; return; }   // released before the mic warmed (a too-quick tap) → start NOTHING, so we never commit an empty turn
-    this.recording=true; this.coachText=''; this.setPhase('listening');   // now sending frames; just talk
+    this.recording=true; this.coachText=''; this.setPhase('listening'); this._startMeter();   // now sending frames; just talk
     if(typeof render==='function') render();                              // drop into the corner blob → map fills the screen
   },
-  _stopCapture(){ this.recording=false; this._armed=false; this._arming=false; try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); }catch(_){} try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
+  _stopCapture(){ this.recording=false; this._armed=false; this._arming=false; this._stopMeter(); try{ this.proc.disconnect(); this.src.disconnect(); this.sink.disconnect(); this.analyser&&this.analyser.disconnect(); }catch(_){} this.analyser=null; try{ this.stream.getTracks().forEach(t=>t.stop()); }catch(_){} },
   sendText(text){ text=(text||'').trim(); if(!text) return false; this.ensureSession(); this._seal(); this._finishYou(text); this.coachText=''; wsSend({type:'voice:text', text}); this.setPhase('thinking'); this._render(); return true; },
   hangup(){ if(this.recording) this._stopCapture(); clearTimeout(this._connT); this.active=false; this.ready=false; this.setPhase('idle'); try{ wsSend({type:'voice:stop'}); }catch(_){} if(typeof render==='function') render(); },
   onEvent(m){
@@ -3509,9 +3546,12 @@ const VC = {
   },
   _render(){
     const LB={ idle:'Press space or tap to talk', connecting:'Connecting…', listening:'Listening — press space or tap to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
-    const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(orb.dataset.variant?' '+orb.dataset.variant:'');
+    const blocked = this.micBlocked && this.phase==='idle';   // mic denied → a loud, recoverable state, not a silent return to idle
+    const orb=document.querySelector('[data-testid=voice-orb]'); if(orb) orb.className='voiceorb '+this.phase+(blocked?' blocked':'')+(orb.dataset.variant?' '+orb.dataset.variant:'');
+    if(this.phase!=='listening') document.querySelectorAll('[data-testid=voice-orb]').forEach(o=>o.style.setProperty('--level','0'));
     document.querySelectorAll('[data-testid=voice-blob]').forEach(b=>{ b.dataset.phase=this.phase; });   // lets the pill show a clear listening/thinking/speaking state
-    document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=LB[this.phase]||''; });
+    document.querySelectorAll('[data-testid=voice-status]').forEach(lbl=>{ lbl.textContent=blocked?'Mic blocked — tap Type to write':(LB[this.phase]||''); });
+    document.querySelectorAll('[data-testid=switch-type]').forEach(b=>b.classList.toggle('pulse', blocked));   // point at the working escape hatch
     document.querySelectorAll('[data-testid=voice-caption]').forEach(cap=>this._paint(cap));
     const dk=document.querySelector('[data-testid=voice-dock]');   // keep the Stage-2 dock mic live too
     if(dk){ const rec=this.phase==='listening'; dk.classList.toggle('recording',rec); dk.innerHTML=''; dk.append(elFrag(glyph('g-mic')+(rec?'Send':(this.phase==='thinking'||this.phase==='speaking'?'…':'Talk')))); }
@@ -3549,18 +3589,18 @@ function voiceStage(t){
   setTimeout(()=>{ if(window.VC) VC._render(); },0);   // repaint any prior transcript
   stage.append(el('div',{class:'vshead'}, el('b',{}, 'Talk me through your ', el('span',{class:'hl'},'workflow')), el('div',{class:'meta'}, 'Press space — or tap the orb — to start talking. Press again to send.')));
   const orb=el('button',{class:'voiceorb '+VC.phase, 'data-testid':'voice-orb', 'aria-label':'Tap to talk to the Coach', onclick:()=>VC.toggle()});
-  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}));   // no mic badge on the big orb — the waveform + status + the tappable orb say it all
+  orb.append(el('span',{class:'orbhalo'}), el('span',{class:'orblvl'}), el('span',{class:'orbring'}), el('span',{class:'orbring r2'}), el('span',{class:'orbface', html: coachAvatar(150)}), el('span',{class:'orbsend', html: glyph('g-check')+'Tap to send'}));   // orblvl = live mic-level ring (the "I hear you" cue); orbsend = the turn-ender, co-located with the orb
   stage.append(el('div',{class:'orbwrap'}, orb));
   const wave=el('div',{class:'vwave','aria-hidden':'true'}); for(let i=0;i<9;i++) wave.append(el('span',{class:'bar', style:'animation-delay:'+(i*0.08).toFixed(2)+'s'}));
   stage.append(wave);   // a listening waveform under the orb — comes alive only while the Coach is hearing you
-  const LB={ idle:'Hold space or tap to talk', connecting:'Connecting…', listening:'Listening — release, or tap, to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
-  stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Tap to start talking'));
+  const LB={ idle:'Press space or tap to talk', connecting:'Connecting…', listening:'Listening — press space or tap to send', thinking:'Thinking…', speaking:'Coach is speaking…' };
+  stage.append(el('div',{class:'voicestatus', 'data-testid':'voice-status'}, LB[VC.phase]||'Press space or tap to talk'));
   const cap=el('div',{class:'voicecaption', 'data-testid':'voice-caption'});
   const panel=el('div',{class:'vpanel glass'}, cap);   // a light glass transcription panel (not a chatbox)
   panel.classList.toggle('empty', !VC.transcript.length);   // hide the frame until there's something to show
   stage.append(panel);
   const bar=el('div',{class:'voicebar'});
-  bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
+  bar.append(el('button',{class:'vbtn', 'data-testid':'switch-type', onclick:()=>{ if(window.VC)VC.micBlocked=false; ui.voiceMode='type'; render(); }, html: glyph('g-keys')+'Type'}));
   bar.append(ivSkipBtn(t));
   stage.append(bar);
   return stage;
