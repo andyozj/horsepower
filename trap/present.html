@@ -617,8 +617,8 @@ b,strong{font-weight:600}
   /* per-slide answer countdown — 60s on the asks, 90s on the redesign; never force-advances */
   let stEnd=0, stInt=null, slideTimerFor=null;
   function stTick(){ const el=document.getElementById('slidetimer'); if(!el) return; const num=el.querySelector('.st-num'); const rem=stEnd-Date.now(); if(num) num.textContent=fmt(rem); el.classList.toggle('low', rem>0 && rem<=10000); if(rem<=0){ if(num) num.textContent='time'; el.classList.remove('low'); el.classList.add('done'); clearInterval(stInt); stInt=null; } }
-  function startSlideTimer(secs){ stopSlideTimer(true); stEnd=Date.now()+secs*1000; const el=document.getElementById('slidetimer'); if(el){ el.classList.add('on'); el.classList.remove('done','low'); } stTick(); stInt=setInterval(stTick,250); }
-  function stopSlideTimer(keepKey){ if(stInt){ clearInterval(stInt); stInt=null; } stEnd=0; const el=document.getElementById('slidetimer'); if(el) el.classList.remove('on','low','done'); if(!keepKey) slideTimerFor=null; }
+  function startSlideTimer(secs){ stopSlideTimer(true); stEnd=Date.now()+secs*1000; const el=document.getElementById('slidetimer'); if(el){ el.classList.add('on'); el.classList.remove('done','low'); } stTick(); stInt=setInterval(stTick,250); wsSend({type:'timer', action:'start', durationMs:secs*1000}); }   // also broadcast to phones
+  function stopSlideTimer(keepKey){ if(stInt){ clearInterval(stInt); stInt=null; } stEnd=0; const el=document.getElementById('slidetimer'); if(el) el.classList.remove('on','low','done'); if(!keepKey){ slideTimerFor=null; wsSend({type:'timer', action:'stop'}); } }
   function maybeSlideTimer(){
     const s=slides[i]; const secs=+(s.dataset.time||0); const hasFrag=s.hasAttribute('data-fragments');
     const armed = secs>0 && (!hasFrag || fragStep>=1);   // plain slide: on enter · fragmented (redesign): after the first reveal

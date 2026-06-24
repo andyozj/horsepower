@@ -109,6 +109,20 @@ textarea{min-height:58px; resize:none; line-height:1.4}
 .askcard .ctx-l.pain{color:var(--red)}
 .found .f .tick{white-space:nowrap}
 .found .fmore{font-size:12px; color:var(--muted-strong); padding-left:2px; margin-top:1px}
+/* refreshed answer screen: anchor higher, identity header, single blurb, countdown */
+#livecard{margin-top:14px; margin-bottom:auto}
+.me-head{display:none; align-items:center; gap:11px; margin-bottom:14px}
+.me-head.on{display:flex}
+.me-head .mh-av{width:46px; height:46px; flex:0 0 auto; border-radius:50%; background:#fff; border:2.5px solid var(--line); overflow:hidden; display:flex; align-items:center; justify-content:center}
+.me-head .mh-av img{width:100%; height:100%; object-fit:contain}
+.me-head .mh-l{font-family:Caveat,cursive; font-size:15px; color:var(--muted)}
+.me-head .mh-n{font-family:Fraunces,serif; font-weight:600; font-size:17px; color:var(--ink); line-height:1.1}
+.askcard .blurb{font-size:14.5px; color:var(--muted-strong); line-height:1.5}
+.askcard .cost{color:var(--red); font-weight:600}
+.answertimer{display:none; align-items:center; gap:7px; margin-bottom:11px; font-family:Fraunces,serif; font-weight:600; font-size:19px; font-variant-numeric:tabular-nums; color:var(--gold-deep)}
+.answertimer.on{display:flex}
+.answertimer.low{color:var(--red); animation:atpulse 1s ease-in-out infinite}
+@keyframes atpulse{0%,100%{opacity:1}50%{opacity:.5}}
 </style>
 </head>
 <body>
@@ -131,8 +145,10 @@ textarea{min-height:58px; resize:none; line-height:1.4}
   <div class="card" id="livecard" style="display:none">
     <div id="waiting" class="waiting"><div class="big">Hang tight.</div><div>Waiting for the next question <span class="dotpulse"></span></div></div>
     <div id="promptarea" style="display:none">
+      <div class="me-head" id="mehead"></div>
       <label id="plabel">…</label>
       <div class="askcard" id="buildctx" style="display:none"></div>
+      <div class="answertimer" id="answertimer"></div>
       <textarea id="answer" placeholder="Type your answer…"></textarea>
       <button class="btn" id="sendbtn">Send</button>
       <div class="sent" id="sent">Sent ✓ — add another if you like.</div>
@@ -238,8 +254,8 @@ textarea{min-height:58px; resize:none; line-height:1.4}
       $('plabel').textContent=prompt.label||'What would you build?';
       $('answer').setAttribute('placeholder', prompt.mode==='open'? 'Describe the redesign…' : 'Type the tool you’d build…');
       $('mine').innerHTML=''; $('sent').classList.remove('show');
-      renderBuildCtx(prompt.id);
-    } else { const bc=$('buildctx'); if(bc) bc.style.display='none'; }
+      renderBuildCtx(prompt.id); renderMeHead();
+    } else { const bc=$('buildctx'); if(bc) bc.style.display='none'; const h=$('mehead'); if(h) h.className='me-head'; }
   }
   $('sendbtn').onclick=()=>{ const t=$('answer').value.trim(); if(!t||!active) return; ws.send(JSON.stringify({type:'submit', promptId:active.id, text:t, tag:null})); const m=document.createElement('div'); m.className='m'; m.textContent=t; $('mine').appendChild(m); $('answer').value=''; $('sent').classList.add('show'); };
   function lsGet(k){ try{return localStorage.getItem(k)||'';}catch(e){return '';} }
@@ -275,9 +291,21 @@ textarea{min-height:58px; resize:none; line-height:1.4}
       const sid=String(pid||'').replace(/^t-/,''); const s=STEPS.find(x=>x.id===sid);
       if(s && (s.today||s.pain)){
         bc.style.display='block';
-        bc.innerHTML='<div class="ctx"><span class="ctx-l">Today</span>'+esc(s.today||s.blurb)+'</div>'+(s.pain?('<div class="ctx"><span class="ctx-l pain">The pain</span>'+esc(s.pain)+'</div>'):'');
+        const today=String(s.today||s.blurb||'').replace(/[.\s]+$/,'');
+        const pain=String(s.pain||'');
+        const cost = pain ? (' — <span class="cost">'+esc(pain.charAt(0).toLowerCase()+pain.slice(1))+'</span>') : '';
+        bc.innerHTML='<div class="blurb">'+esc(today)+cost+'</div>';
       } else bc.style.display='none';
     });
+  }
+  /* identity header on the answer screen — your steed + name */
+  function renderMeHead(){
+    const h=$('mehead'); if(!h) return;
+    if(!me || !me.steed){ h.className='me-head'; h.innerHTML=''; return; }
+    const nm = me.name && me.name!==me.steed.name ? (me.name+' · '+me.steed.name) : me.steed.name;
+    h.className='me-head on';
+    h.innerHTML='<span class="mh-av" style="border-color:'+(me.steed.hex||'var(--line)')+'"><img src="/img/steed-'+me.steed.color+'.png" alt="" onerror="this.style.display=\'none\'"></span>'+
+      '<span><span class="mh-l">you\'re riding</span><br><span class="mh-n">'+esc(nm)+'</span></span>';
   }
 
   /* ---- the race ---- */
@@ -363,12 +391,14 @@ textarea{min-height:58px; resize:none; line-height:1.4}
   /* ---- timer ---- */
   let tEnd=0, tInt=null;
   function fmt(ms){ ms=Math.max(0,ms); const s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-  function tTick(){ const el=$('gtimer'); const rem=tEnd-Date.now(); el.textContent=fmt(rem);
-    el.classList.toggle('low', rem>0 && rem<=30000);
-    if(rem<=0){ el.textContent='time!'; el.classList.remove('low'); el.classList.add('done'); clearInterval(tInt); tInt=null; raceLive=false; raceDone=true; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'rank'})); syncRaceState(); } }
+  function answerTick(){ const at=$('answertimer'); if(!at) return; if(tEnd<=0){ at.className='answertimer'; at.textContent=''; return; } const rem=tEnd-Date.now(); at.className='answertimer on'+(rem>0&&rem<=10000?' low':''); at.textContent = rem>0 ? ('⏱ '+fmt(rem)+' left') : '⏱ time'; }
+  function tTick(){ const el=$('gtimer'); const rem=tEnd-Date.now(); if(el) el.textContent=fmt(rem);
+    if(el) el.classList.toggle('low', rem>0 && rem<=30000);
+    answerTick();
+    if(rem<=0){ if(el){ el.textContent='time!'; el.classList.remove('low'); el.classList.add('done'); } clearInterval(tInt); tInt=null; if(gameInit){ raceLive=false; raceDone=true; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'rank'})); syncRaceState(); } } }
   function setTimer(t){ clearInterval(tInt); tInt=null; const el=$('gtimer');
     if(t && t.endsAt){ tEnd=t.endsAt; raceLive=true; raceDone=false; if(el) el.classList.remove('done'); tTick(); tInt=setInterval(tTick,250); }
-    else { tEnd=0; raceLive=false; if(el){ el.textContent='—'; el.classList.remove('low','done'); } }
+    else { tEnd=0; raceLive=false; if(el){ el.textContent='—'; el.classList.remove('low','done'); } answerTick(); }
     if(gameInit) syncRaceState();
   }
 
@@ -377,7 +407,7 @@ textarea{min-height:58px; resize:none; line-height:1.4}
     me={pid:m.pid, steed:m.steed, name:m.name, score:m.score||0};
     lsSet('trap_token', m.token||'');
     if(m.found){ for(const k in m.found){ if(Array.isArray(m.found[k])) found[k]=m.found[k].slice(); } }
-    renderMe();
+    renderMe(); renderMeHead();
     if(gameInit){ renderChips(); renderStep(); }
   }
   function connect(){
