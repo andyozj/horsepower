@@ -186,6 +186,8 @@ b,strong{font-weight:600}
 .vpanel.bad{background:color-mix(in srgb,var(--red) 7%,var(--card)); border-color:color-mix(in srgb,var(--red) 40%,transparent)}
 .vpanel.good{background:color-mix(in srgb,var(--ok) 8%,var(--card)); border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
 .vpanel h3{font-size:clamp(18px,2vw,26px); margin-bottom:4px}
+/* versus panels are always light cards — keep their heading dark even on a dark slide */
+.dark .vpanel h3{color:var(--ink)}
 .vpanel .vlab{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); margin-bottom:10px}
 .vpanel.bad .vlab{color:var(--red)} .vpanel.good .vlab{color:var(--ok)}
 .vpanel p{font-size:clamp(14px,1.4vw,17.5px); color:var(--muted-strong); line-height:1.5} .vpanel.bad p{opacity:.82}
@@ -330,6 +332,133 @@ b,strong{font-weight:600}
 @media (prefers-reduced-motion:reduce){ .slidetimer.low{animation:none} }
 @media (prefers-reduced-motion:reduce){ .slide{transition:opacity .2s; transform:none!important} .livetag .ld{animation:none} }
 
+/* ===== ported PPTX narrative slides (1–16 + the recap) ===== */
+.pptrow{display:grid; grid-template-columns:1.08fr .92fr; gap:clamp(22px,3.6vw,64px); align-items:center; margin-top:4px}
+.pptrow.artleft{grid-template-columns:.92fr 1.08fr}
+.pptrow.artleft .pptfig{order:-1}
+@media (max-width:900px){ .pptrow,.pptrow.artleft{grid-template-columns:1fr; gap:18px} .pptrow.artleft .pptfig{order:0} }
+.pptcol{display:flex; flex-direction:column; gap:clamp(10px,1.3vw,18px); min-width:0}
+.pptfig{display:flex; justify-content:center; align-items:center; min-width:0}
+.pptfig img{max-width:100%; max-height:48vh; height:auto; width:auto; object-fit:contain; mix-blend-mode:multiply}
+/* on dark slides the white-ground art sits in a deliberate cream plate (multiply would crush it into the navy) */
+.dark .pptfig img{mix-blend-mode:normal; background:var(--card); border-radius:18px; padding:clamp(8px,1vw,16px); border:1.6px solid var(--d-line); box-shadow:0 16px 44px -22px rgba(0,0,0,.6)}
+/* story slides: one whimsical illustration carrying the beat, big and centered */
+.story{align-items:center; justify-content:center}
+.storywrap{display:flex; flex-direction:column; align-items:center; gap:clamp(12px,1.8vw,22px); max-width:1100px; width:100%}
+.storywrap .eyebrow{align-self:center}
+.story .pptfig img{max-height:74vh; mix-blend-mode:normal; border-radius:14px; box-shadow:0 14px 38px -24px rgba(33,49,79,.42)}
+.story .storywrap{max-width:1180px}
+.storycap{font-family:Caveat,cursive; font-size:clamp(20px,2.3vw,32px); color:var(--muted-strong); text-align:center; max-width:30ch; line-height:1.25}
+/* stat callouts (slide 2 — 42% / 95%) */
+.stats{display:flex; flex-wrap:wrap; gap:clamp(12px,1.6vw,22px); margin-top:6px}
+.stat{flex:1 1 200px; background:var(--card); border:1.6px solid var(--line); border-left:5px solid var(--red); border-radius:13px; padding:14px 18px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.stat .snum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(34px,4.4vw,58px); line-height:1; letter-spacing:-.02em; color:var(--red)}
+.stat .sbody{font-size:clamp(13px,1.3vw,16px); color:var(--muted-strong); line-height:1.4; margin-top:5px}
+.stat .ssrc{font-size:11.5px; color:var(--muted-soft); margin-top:4px; font-style:italic}
+.dark .stat{background:var(--ink-soft); border-color:var(--d-line); box-shadow:none}
+.dark .stat .sbody{color:var(--d-muted)}
+/* quote cards (slide 11 — McKinsey / BCG) */
+.qcards{display:grid; grid-template-columns:1fr 1fr; gap:clamp(14px,1.8vw,26px); margin-top:4px}
+@media (max-width:880px){ .qcards{grid-template-columns:1fr} }
+.qcard{background:var(--ink-soft); border:1.5px solid var(--d-line); border-radius:15px; padding:clamp(15px,1.8vw,24px); display:flex; flex-direction:column; gap:10px}
+.light .qcard{background:var(--card); border-color:var(--line); box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 10%,transparent)}
+.qcard .qtext{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,22px); line-height:1.3; color:var(--d-text)}
+.light .qcard .qtext{color:var(--ink)}
+.qcard .qtext b{color:var(--hl)} .light .qcard .qtext b{color:var(--gold-deep)}
+.qcard .qsrc{font-family:Caveat,cursive; font-size:clamp(15px,1.5vw,19px); color:var(--gold)} .light .qcard .qsrc{color:var(--gold-deep)}
+.qcard .qlogo{height:clamp(20px,2vw,28px); width:auto; align-self:flex-start; object-fit:contain; opacity:.9; mix-blend-mode:multiply}
+.dark .qcard .qlogo{filter:invert(1) brightness(1.8); mix-blend-mode:screen; opacity:.8}
+.qlead{font-size:clamp(12.5px,1.2vw,15px); color:var(--muted-strong); line-height:1.4}
+/* verbatim bullet lists inside versus panels */
+.vbul{margin:8px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:7px}
+.vbul li{font-size:clamp(13.5px,1.4vw,17px); color:var(--muted-strong); line-height:1.4}
+
+/* ===== faithful "PPT skin" — clean sans, white ground, green accent (matches the source deck) ===== */
+.pslide{--pg:#1f8a3e; --pg-soft:#cfe0d2; --pink:#e7ded0; --pink-edge:#d8cdba; --ptitle:#21314f; --psubc:#566079;
+  color:var(--ptitle); font-family:Inter,system-ui,sans-serif;
+  /* vertically centered + content held in a centered 1300px column (never spreads to the far edges) */
+  padding:clamp(28px,3.6vh,58px) max(60px, calc((100% - 1300px) / 2));
+  justify-content:center; align-items:stretch; gap:clamp(12px,1.7vh,22px)}
+.pspacer{display:none}
+.pslide .peyebrow{font-family:Caveat,cursive; font-weight:700; font-size:clamp(17px,1.7vw,23px); letter-spacing:.01em; color:var(--pg)}
+.pslide .ptitle{font-family:Fraunces,serif; font-optical-sizing:auto; font-weight:600; font-size:clamp(28px,4.2vw,58px); line-height:1.04; letter-spacing:-.022em; color:var(--ptitle); max-width:18ch}
+.pslide .ptitle.sm{font-size:clamp(24px,3.1vw,42px); max-width:24ch}
+.pslide .psub{font-size:clamp(15px,1.5vw,21px); color:var(--psubc); line-height:1.4}
+.pslide .ptophead{display:flex; justify-content:space-between; align-items:center; gap:clamp(24px,3vw,56px)}
+.pslide .ptophead .pcol{min-width:0}
+.pfig{display:flex; align-items:center; justify-content:center; min-width:0}
+.pfig img{max-width:100%; height:auto; object-fit:contain}
+.pspacer{margin-top:auto}
+/* green/grey pill + card system */
+.prow{display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(11px,1.3vw,20px)}
+.prow.two{grid-template-columns:1fr 1fr}
+.ppill{font-family:Fraunces,serif; border-radius:10px; padding:clamp(11px,1.4vw,18px) clamp(15px,1.5vw,22px); font-weight:700; font-size:clamp(14px,1.45vw,19px); line-height:1.2}
+.ppill.soft{background:var(--pg-soft); color:#1c3a27}
+.ppill.solid{background:var(--pg); color:#fff}
+.parrowrow{display:flex; justify-content:center; align-items:center; color:#9aa39c; font-size:22px; line-height:1; margin:-2px 0}
+.pcard{border-radius:12px; padding:clamp(14px,1.6vw,22px); display:flex; flex-direction:column; gap:6px}
+.pcard.solid{background:var(--pg); color:#fff}
+.pcard.soft{background:var(--pg-soft); color:#1c3a27}
+.pcard.grey{background:var(--pink); color:#33392f}
+.pcard .ph{font-family:Fraunces,serif; font-weight:600; font-size:clamp(15px,1.5vw,20px)}
+.pcard .pp{font-size:clamp(13px,1.32vw,16px); line-height:1.42; font-weight:400}
+.pcard.solid .pp{color:#eaf5ec}
+.pstat{display:flex; flex-direction:column; gap:2px}
+.pstat .pn{font-family:Fraunces,serif; font-weight:600; font-size:clamp(32px,4.2vw,56px); line-height:1; color:var(--pg); letter-spacing:-.02em}
+.pstat .pb{font-size:clamp(13px,1.3vw,16px); color:var(--psubc); line-height:1.4}
+.pbul{margin:6px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:6px}
+.pbul li{font-size:clamp(13.5px,1.4vw,17.5px); color:#33392f; line-height:1.4}
+.pslide .pnote{font-size:clamp(12.5px,1.25vw,15.5px); color:var(--psubc)}
+.pcard.solid .pn,.pcard.solid .ph2,.pcard.solid .plead{color:#fff}
+.pcard.solid .pb,.pcard.solid .pp,.pcard.solid .pbody,.pcard.solid .pbul li{color:#eaf5ec}
+.pcard.grey .plead{color:var(--pg)} .pcard.grey .pbody{color:#33392f}
+.pcard .ph2{font-family:Fraunces,serif; font-weight:600; font-size:clamp(15px,1.5vw,20px); margin-bottom:2px}
+.pcard .pbul{margin:4px 0 0; padding-left:18px; display:flex; flex-direction:column; gap:5px}
+.pcard .pbul li{font-size:clamp(12.5px,1.25vw,15.5px); line-height:1.38}
+.pcard .plead{font-family:Fraunces,serif; font-weight:600; font-size:clamp(14.5px,1.45vw,18px)}
+.pcard .pbody{font-size:clamp(12.5px,1.25vw,15.5px); line-height:1.42; margin-top:1px}
+/* quote cards (slide 11) */
+.qpcard{background:var(--card); border:1.4px solid var(--line); border-radius:12px; padding:clamp(13px,1.5vw,19px); box-shadow:0 6px 18px -12px rgba(33,49,79,.4); display:flex; flex-direction:column; gap:7px}
+.qpcard p{font-family:Fraunces,serif; font-size:clamp(13.5px,1.4vw,17.5px); line-height:1.4; color:var(--ptitle); font-weight:500}
+.qpcard .qplogo{height:clamp(26px,3vw,40px); width:auto; align-self:flex-end; object-fit:contain; mix-blend-mode:multiply}
+/* paired image+card rows (slide 13) */
+.prowimg{display:grid; grid-template-columns:clamp(78px,8vw,116px) 1fr; gap:clamp(12px,1.4vw,20px); align-items:center}
+.prowimg .pfig img{max-height:17vh}
+.pitalic{font-family:Fraunces,serif; font-style:italic; font-size:clamp(15px,1.7vw,23px); line-height:1.32; color:var(--ptitle); text-align:center}
+.pitalic b{font-weight:700}
+/* three-T columns (slide 14) */
+.pcol3{display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(14px,1.9vw,30px); align-items:start}
+.tcol{display:flex; flex-direction:column; gap:0}
+.tcol .pfig{align-items:flex-end; margin-bottom:-4px}
+.tcol .pfig img{max-height:17vh}
+.tcol .tbody{margin-top:9px}
+.theader{background:var(--pg); color:#fff; font-family:Fraunces,serif; font-weight:600; text-align:center; border-radius:9px; padding:8px 12px; font-size:clamp(15px,1.5vw,20px)}
+.tbody{background:var(--pink); border-radius:9px; padding:clamp(11px,1.3vw,16px); font-size:clamp(11.5px,1.18vw,14.5px); line-height:1.42; color:#33392f}
+.tbody b{color:#1c3a27; font-weight:700}
+/* expense grid (slide 16): image | claim | verdict, two rows */
+.expgrid{display:grid; grid-template-columns:clamp(76px,7.5vw,112px) 1.25fr 1fr; gap:clamp(10px,1.3vw,18px); align-items:stretch}
+.expgrid .pcard{justify-content:center}
+.expgrid .pfig{align-self:center}
+.expgrid + .expgrid{margin-top:clamp(10px,1.3vw,18px)}
+.expgrid .pfig img{max-height:15vh}
+/* recap (PPT 17 — three takeaways) */
+.recap{display:flex; flex-direction:column; gap:clamp(11px,1.4vw,18px); margin-top:4px}
+.rtake{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start; background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:13px 18px; box-shadow:3px 4px 0 -1px color-mix(in srgb,var(--ink) 10%,transparent)}
+.rtake .rn{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.6vw,34px); color:var(--gold-deep); line-height:1}
+.rtake .rt{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--ink); line-height:1.15}
+.rtake .rb{font-size:clamp(13px,1.32vw,16px); color:var(--muted-strong); line-height:1.45; margin-top:3px}
+.rtake .rb b{color:var(--ink)}
+
+/* closing slide — the three takeaways, made to land */
+.closetakes{display:flex; flex-direction:column}
+.ctake{display:grid; grid-template-columns:auto 1fr; gap:clamp(16px,1.9vw,30px); align-items:baseline; padding:clamp(11px,1.7vh,19px) 0}
+.ctake + .ctake{border-top:1.5px solid color-mix(in srgb,var(--pg) 26%,transparent)}
+.cnumwrap{display:flex; flex-direction:column; align-items:center; line-height:1; min-width:clamp(40px,4vw,64px)}
+.ctake .cnum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(34px,4vw,60px); color:var(--pg); line-height:.82}
+.ctake .ckick{font-family:Caveat,cursive; font-weight:700; font-size:clamp(13px,1.35vw,18px); color:var(--gold-deep); margin-top:3px; white-space:nowrap}
+.ctake .chead{font-family:Fraunces,serif; font-weight:600; font-size:clamp(18px,2.05vw,28px); color:var(--ptitle); line-height:1.12}
+.ctake .cbody{font-size:clamp(12.5px,1.28vw,15.5px); color:var(--psubc); line-height:1.46; margin-top:5px}
+
 /* ===== speaker view (private notes window, opened with S) ===== */
 .speaker{position:fixed; inset:0; z-index:9999; background:var(--ink); color:var(--d-text); display:flex; flex-direction:column; gap:14px; padding:clamp(15px,2.2vw,28px); font-family:Inter,system-ui,sans-serif}
 .s-top{display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap}
@@ -360,7 +489,7 @@ b,strong{font-weight:600}
 .s-frag{font-family:Caveat,cursive; font-size:20px; color:var(--d-muted); white-space:nowrap}
 .sbeat{font-size:clamp(15px,1.5vw,19px); font-weight:600; color:var(--d-muted); line-height:1.35}
 /* script body dim, bold bright — emphasis by brightness, no colour accent */
-.ssay{font-size:clamp(16.5px,1.75vw,22px); line-height:1.62; color:var(--d-muted); margin:4px 0}
+.ssay{font-size:clamp(13px,1.25vw,16px); line-height:1.5; color:var(--d-muted); margin:3px 0}
 .ssay b{color:var(--d-text); font-weight:700}
 .snotes{margin:6px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:9px}
 .snotes li{font-size:clamp(15px,1.55vw,19px); line-height:1.45; color:var(--d-muted)}
@@ -401,6 +530,180 @@ b,strong{font-weight:600}
 <div class="brandtag deckchrome" id="brand"><svg class="horse" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5.2 13.4 L6.8 13 C8.2 12.7 9.4 13.2 10.2 14.3 C10.8 15.6 10.7 17.6 10.6 19.6 L18 19.6 C18.7 15.4 18.3 9.6 15.4 5.6 L14.6 3.2 L13.4 5 L12.6 3.4 L11.2 5.2 C8.6 6.8 6 9.6 4.9 11.6 C4.6 12.4 4.8 13.2 5.2 13.4 Z"/></svg> GenAI&nbsp;Lab <span class="bt-tag">· stop putting engines on horses</span></div>
 
 <div class="deck" id="deck">
+
+  <!-- ===== PPT NARRATIVE 1–16 (ported from "Stop Putting Engines On Horses") ===== -->
+
+  <!-- P1 — TITLE -->
+  <section class="slide pslide" data-mark style="justify-content:center">
+    <div class="peyebrow">GENAI LAB</div>
+    <div class="ptophead" style="flex:0 0 auto">
+      <div class="pcol">
+        <h2 class="ptitle" style="font-size:clamp(34px,6vw,82px); max-width:12ch">Stop Putting Engines On Horses</h2>
+        <p class="psub" style="margin-top:16px">A retrospective into retrofitting</p>
+      </div>
+      <div class="pfig" style="flex:0 0 50%; max-width:50%; overflow:visible"><img src="/img/ppt/s1.png" alt="" style="max-height:74vh; width:100%; object-fit:contain; transform:scale(1.32) translateX(-14%); transform-origin:center" onerror="this.style.opacity=.001"></div>
+    </div>
+  </section>
+
+  <!-- P2 — REFLECTION -->
+  <section class="slide pslide">
+    <div class="peyebrow">REFLECTION</div>
+    <div class="ptophead" style="align-items:flex-start">
+      <div class="pcol" style="display:flex; flex-direction:column; gap:18px">
+        <h2 class="ptitle sm">Are our projects carrying a shelf-life we can’t see?</h2>
+        <div class="pfig" style="max-width:64%; justify-content:flex-start"><img src="/img/ppt/s3.png" alt="" onerror="this.style.opacity=.001"></div>
+      </div>
+      <div class="pcol" style="flex:0 0 46%; max-width:46%; display:flex; flex-direction:column; gap:13px">
+        <div class="pcard solid"><div class="pstat"><div class="pn">42%</div><div class="pp">of companies abandoned most AI initiatives in 2025 (S&amp;P).</div></div></div>
+        <div class="pcard solid"><div class="pstat"><div class="pn">95%</div><div class="pp">of AI pilots return zero measurable ROI (MIT).</div></div></div>
+        <p class="pnote" style="font-style:italic">Not because the tech is weak. Because nothing actually changed — so no one used it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- P3–P7 — STORY (full-scene image only, no on-screen text) -->
+  <section class="slide light story"><div class="storywrap"><div class="pptfig"><img src="/img/ppt/s4.png" alt="" onerror="this.style.opacity=.001"></div></div></section>
+  <section class="slide light story"><div class="storywrap"><div class="pptfig"><img src="/img/ppt/s5.png" alt="" onerror="this.style.opacity=.001"></div></div></section>
+  <section class="slide light story"><div class="storywrap"><div class="pptfig"><img src="/img/ppt/s6.png" alt="" onerror="this.style.opacity=.001"></div></div></section>
+  <section class="slide light story"><div class="storywrap"><div class="pptfig"><img src="/img/ppt/s7.png" alt="" onerror="this.style.opacity=.001"></div></div></section>
+  <section class="slide light story"><div class="storywrap"><div class="pptfig"><img src="/img/ppt/s8.png" alt="" onerror="this.style.opacity=.001"></div></div></section>
+
+  <!-- P8 — REFLECTION -->
+  <section class="slide pslide">
+    <div class="peyebrow">REFLECTION</div>
+    <div class="ptophead">
+      <h2 class="ptitle sm">Why was the transition from horses to cars even possible?</h2>
+      <div class="pfig" style="flex:0 0 38%; max-width:38%"><img src="/img/ppt/s3.png" alt="" onerror="this.style.opacity=.001"></div>
+    </div>
+  </section>
+
+  <!-- P9 — the car needed an ecosystem -->
+  <section class="slide pslide">
+    <div class="peyebrow">AI ERA</div>
+    <div class="ptophead">
+      <div class="pfig" style="flex:0 0 30%; max-width:30%; justify-content:flex-start"><img src="/img/ppt/s9.png" alt="" onerror="this.style.opacity=.001"></div>
+      <h2 class="ptitle" style="text-align:right; flex:1">The car, on its own, wouldn’t have worked.</h2>
+    </div>
+    <p class="psub">The invention only mattered because the ecosystem showed up around it.</p>
+    <div class="pspacer"></div>
+    <div class="prow">
+      <div class="pcard soft"><div class="ph2">Roads</div><div class="pbody">Somewhere to go, smoothly.</div></div>
+      <div class="pcard soft"><div class="ph2">Fuel</div><div class="pbody">Petrol stations powering the cars.</div></div>
+      <div class="pcard soft"><div class="ph2">Refineries</div><div class="pbody">The supply chain behind it all.</div></div>
+    </div>
+  </section>
+
+  <!-- P10 — the AI infrastructure has arrived -->
+  <section class="slide pslide" data-mark>
+    <div class="peyebrow">AI ERA</div>
+    <div class="ptophead">
+      <div class="pcol">
+        <h2 class="ptitle">The roads are paved for the AI era.</h2>
+        <p class="psub" style="margin-top:16px">The infrastructure is ready and primed.</p>
+      </div>
+      <div class="pfig" style="flex:0 0 40%; max-width:40%"><img src="/img/ppt/s10.png" alt="" onerror="this.style.opacity=.001"></div>
+    </div>
+    <div class="pspacer"></div>
+    <div class="prow"><div class="ppill soft">Roads</div><div class="ppill soft">Fuel</div><div class="ppill soft">Refineries</div></div>
+    <div class="parrowrow">↓</div>
+    <div class="prow"><div class="ppill solid">Models</div><div class="ppill solid">Tooling</div><div class="ppill solid">Access</div></div>
+  </section>
+
+  <!-- P11 — redesign is the strongest driver -->
+  <section class="slide pslide" data-mark>
+    <div class="peyebrow">AI ERA</div>
+    <div class="ptophead" style="align-items:center">
+      <div class="pcol">
+        <div class="pfig" style="max-width:58%; justify-content:flex-start"><img src="/img/ppt/s13.png" alt="" onerror="this.style.opacity=.001"></div>
+        <h2 class="ptitle sm" style="margin-top:14px">We’re primed to build the car, but at a business-level, is HEINEKEN still breeding faster horses?</h2>
+      </div>
+      <div class="pcol" style="flex:0 0 44%; max-width:44%; display:flex; flex-direction:column; gap:15px">
+        <div class="qpcard"><p>“<b>Redesigning workflows</b> (not model or data) is a key success factor to AI value.”</p><img class="qplogo" src="/img/ppt/s11.png" alt="McKinsey &amp; Company" onerror="this.style.display='none'"></div>
+        <div class="qpcard"><p>“Winners invest <b>~70% in people and process</b>, and ~10% into algorithms.”</p><img class="qplogo" src="/img/ppt/s12.png" alt="BCG" onerror="this.style.display='none'"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P12 — why is this happening? -->
+  <section class="slide pslide" data-mark>
+    <div class="ptophead">
+      <div class="pcol"><div class="peyebrow">QUESTION</div><h2 class="ptitle" style="margin-top:10px">Why is this happening?</h2></div>
+      <div class="pfig" style="flex:0 0 34%; max-width:34%"><img src="/img/ppt/s14.png" alt="" onerror="this.style.opacity=.001"></div>
+    </div>
+  </section>
+
+  <!-- P13 — it's not the employees -->
+  <section class="slide pslide">
+    <div class="peyebrow">WHY IS THIS HAPPENING?</div>
+    <h2 class="ptitle sm">It’s not the employees; it’s the bottlenecks above them.</h2>
+    <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:clamp(18px,2.4vw,40px); align-items:center; max-width:1180px; margin-top:6px">
+      <div style="display:flex; flex-direction:column; gap:clamp(12px,1.6vw,20px)">
+        <div class="prowimg">
+          <div class="pfig"><img src="/img/ppt/s15-0.png" alt="" onerror="this.style.opacity=.001"></div>
+          <div class="pcard solid"><div class="ph2">Employees</div><ul class="pbul"><li>Already using AI — and leading the change</li><li>3× more ready than leaders assume</li><li>They reject useless change, not change itself</li></ul></div>
+        </div>
+        <div class="prowimg">
+          <div class="pfig"><img src="/img/ppt/s15-1.png" alt="" onerror="this.style.opacity=.001"></div>
+          <div class="pcard solid"><div class="ph2">Leaders</div><ul class="pbul"><li>Choose the safe, bounded bet</li><li>Redesign = risk, commitment, politics</li><li>The real brake on transformation</li></ul></div>
+        </div>
+      </div>
+      <p class="pitalic">So, we don’t pitch harder…<br><b>We strive to become a trusted advisor, not just a tech builder.</b></p>
+    </div>
+    <p class="pnote">Sources: McKinsey &amp; Harvard Business Review</p>
+  </section>
+
+  <!-- P14 — the three T's -->
+  <section class="slide pslide">
+    <div class="peyebrow">THE THREE T’S</div>
+    <h2 class="ptitle sm">The three things blocking us are the three things we give back</h2>
+    <div class="pcol3" style="margin-top:6px">
+      <div class="tcol">
+        <div class="pfig"><img src="/img/ppt/s16-0.png" alt="" onerror="this.style.opacity=.001"></div>
+        <div class="theader">Trust</div>
+        <div class="tbody">Leaders have to trust us. In return, we give them <b>confidence in the redesigned process.</b> We do that by demonstrating our understanding of their processes and how intents are addressed.</div>
+      </div>
+      <div class="tcol">
+        <div class="pfig"><img src="/img/ppt/s16-1.png" alt="" onerror="this.style.opacity=.001"></div>
+        <div class="theader">Time</div>
+        <div class="tbody">They have to give us their time to show us how work really happens. In return, we prove how our recommendations will <b>give time back</b> to their business.</div>
+      </div>
+      <div class="tcol">
+        <div class="pfig"><img src="/img/ppt/s16-2.png" alt="" onerror="this.style.opacity=.001"></div>
+        <div class="theader">Turf</div>
+        <div class="tbody">To leaders, redesign may mean that roles getting redrawn. To address this, we <b>hand back a business process that is cleaner and simpler</b> for their teams work and a clear path for <b>retraining their people to drive the new car.</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P15 — retrofit vs redesign -->
+  <section class="slide pslide">
+    <div class="peyebrow">RETROFIT VS. REDESIGN</div>
+    <h2 class="ptitle sm">How do we spot the difference?</h2>
+    <div class="pspacer"></div>
+    <div class="prow two" style="align-items:end"><div class="pfig"><img src="/img/ppt/s17-0.png" alt="" style="max-height:26vh" onerror="this.style.opacity=.001"></div><div class="pfig"><img src="/img/ppt/s17-1.png" alt="" style="max-height:23vh" onerror="this.style.opacity=.001"></div></div>
+    <div class="prow two" style="margin-top:12px">
+      <div class="pcard solid"><div class="ph2">Retrofit</div><ul class="pbul"><li><b>Find a step where AI</b> can help.</li><li>“How can I improve this?”</li><li>Process can live without the solution.</li></ul></div>
+      <div class="pcard solid"><div class="ph2">Redesign</div><ul class="pbul"><li>Question if the workflow should exist.</li><li>“How would I design this today?”</li><li>AI-native: it <b>collapses without AI.</b></li></ul></div>
+    </div>
+    <div class="pspacer"></div>
+  </section>
+
+  <!-- P16 — switch the AI off -->
+  <section class="slide pslide">
+    <div class="peyebrow">RETROFIT VS. REDESIGN</div>
+    <h2 class="ptitle sm">Switch the AI off. Does it still run?</h2>
+    <p class="psub">Example: Expense Report</p>
+    <div class="expgrid" style="margin-top:clamp(14px,2.4vh,30px)">
+      <div class="pfig"><img src="/img/ppt/s18-0.png" alt="" onerror="this.style.opacity=.001"></div>
+      <div class="pcard solid"><div class="ph2">Having AI</div><div class="pbody">You file an expense report, AI just reads the receipts, and drafts the summary for approval.</div></div>
+      <div class="pcard grey"><div class="plead">Switch it off…</div><div class="pbody">Still runs, just slower. That’s a horse!</div></div>
+    </div>
+    <div class="expgrid">
+      <div class="pfig"><img src="/img/ppt/s18-1.png" alt="" onerror="this.style.opacity=.001"></div>
+      <div class="pcard solid"><div class="ph2">AI - Native</div><div class="pbody">You tap your card, context is known, spend clears itself. Manager reviews the exceptions.</div></div>
+      <div class="pcard grey"><div class="plead">Switch it off…</div><div class="pbody">Nothing runs. That’s a car!</div></div>
+    </div>
+  </section>
 
   <!-- ===== INTERLUDE 1 — THE RETROFIT ===== -->
 
@@ -572,11 +875,34 @@ b,strong{font-weight:600}
     </div>
   </section>
 
+  <!-- ===== PPT 17 — CLOSING RECAP (three takeaways) ===== -->
+  <section class="slide pslide" data-mark>
+    <div class="peyebrow">CLOSING</div>
+    <h2 class="ptitle sm">Wrapping things up</h2>
+    <div class="ptophead" style="align-items:center; margin-top:6px">
+      <div class="closetakes">
+        <div class="ctake">
+          <div class="cnumwrap"><span class="cnum">1</span><span class="ckick">the why</span></div>
+          <div><div class="chead">A faster horse is still a horse.</div><div class="cbody">Bolting AI onto an existing process makes it marginally faster, but it doesn't transform anything. Real value comes from redesigning the process around what AI makes possible, not decorating the one you already have.</div></div>
+        </div>
+        <div class="ctake">
+          <div class="cnumwrap"><span class="cnum">2</span><span class="ckick">the how</span></div>
+          <div><div class="chead">Trust is the bottleneck, not the tech.</div><div class="cbody">The reason redesign doesn't happen isn't capability; it's that leaders won't bet on it until they trust us. We earn that through the Three T’s — Trust, Time, and Turf.</div></div>
+        </div>
+        <div class="ctake">
+          <div class="cnumwrap"><span class="cnum">3</span><span class="ckick">the what</span></div>
+          <div><div class="chead">We redesign ourselves before anyone lets us redesign them.</div><div class="cbody">If we can't do it to ourselves, no one will dare let us do it for them. The next move is real: find one workflow, name its owner, and start redesigning.</div></div>
+        </div>
+      </div>
+      <div class="pfig" style="flex:0 0 22%; max-width:22%"><img src="/img/ppt/s19.png" alt="" onerror="this.style.opacity=.001"></div>
+    </div>
+  </section>
+
 </div>
 
 <div class="foot deckchrome">
   <div class="dots" id="dots"></div>
-  <div class="count" id="count">1 / 18</div>
+  <div class="count" id="count">1 / 27</div>
 </div>
 
 <script src="qrcode.min.js"></script>
@@ -587,6 +913,24 @@ b,strong{font-weight:600}
   const chan=('BroadcastChannel' in window) ? new BroadcastChannel('trap-deck') : null;
   /* per-slide facilitator notes — shown ONLY in the speaker window, never on the projected deck */
   const NOTES=[
+    /* ===== PPT 1–16 — VERBATIM speaker notes (do not reword) ===== */
+    {t:`Title`, say:``},
+    {t:`Reflection`, say:`Take a quick <b>reflection on what we're each working on right no</b>w: the products, the capabilities, the day-to-day workflows. And ask yourself one rhetorical question<b>: </b><b>are some of these carrying a shelf-life we can't see?</b><br><br>There are two flavours of expiry here. One is just <b>reality</b> — <b>we're doing things the traditional way, and the traditional way is dying</b>. That's nobody's fault.<br><br>The <b>other is the one to worry about, </b>which is an <b>expiry date we built in ourselves</b>.<br><br>Example: Here's a small one. <b>Web design </b>— people traditionally <b>live in Figma</b>. But if I can now prototype something I can see, click, and iterate faster than the old Figma flow — is building our entire workflow around Figma even still relevant?<br><br>Or take <b>AI meeting summaries</b>. Useful — if you're drowning in meetings. But part of working better, especially with our <b>new PACE model</b>, is cutting the redundant meetings and keeping the ones that resolve real dilemmas. So if we build a whole tool around meeting transcription and summarisation, what happens when the meetings shrink? People don’t see the need and the tool goes redundant.<br><br>And this is the pattern across the industry. A <b>huge share of corporate AI projects quietly fails </b>— <b>not because the tech is weak, but because nobody actually uses them</b>. And they don't get used for a simple reason because <b>when you bolt an AI step onto an existing process, you’re still </b><b>adding</b><b> a step </b>to that person’s existing process. So they quietly go back to the old way.<br><br>So before we talk about building anything, let's be honest about what we might be building.`},
+    {t:`Horses`, say:`To put things into perspective, let’s use <b>Transportation as an example</b>.<br><br>For <b>centuries, humans rode horses</b>.<br><br>Eventually, we <b>needed to go faster</b>…`},
+    {t:`Breeding a faster horse`, say:`So… we <b>bred them, fed them better, optimised their diet</b>.<br><br>When we wanted to <b>go further, we wanted more comfort </b>for the longer journeys, so we…`},
+    {t:`Fancier carriages`, say:`…we <b>built bigger, fancier carriages</b>.<br><br>But after <b>every improvement, the job (or intent) stayed exactly the same — get us from point A to point B.</b><br><br>… Eventually, <b>demand grew</b>. We needed to go even further and even faster. <b>So what did we do? </b>`},
+    {t:`Engine on a horse?`, say:`Did we <b>strap an engine to a horse?</b>`},
+    {t:`We built the car`, say:`No. <b>We built the car</b>. And the <b>car didn't just go faster — it redefined transportation itself.</b><br><br>But… here’s the part we need to ask ourselves.`},
+    {t:`Why was it possible?`, say:`<b>Why was that leap even possible? </b><br><br><b>Would the car have been useful on its own?</b><br><br>[Pause]`},
+    {t:`The ecosystem`, say:`The car on its <b>own would have been useless</b>.<br><br>It <b>needed the infrastructure around it </b>— roads to drive on, petrol stations to refuel, and refineries to produce fuel.<br><br>That’s an essential reason the invention was ready for the world, because the ecosystem around it showed up too.`},
+    {t:`The AI roads are paved`, say:`And that is <b>exactly where we are with AI right now</b>.<br><br>The <b>infrastructure has arrived </b>— the models, the tooling, the access.<br><br>The roads are paved for AI transformation.`},
+    {t:`Still breeding horses?`, say:`So here’s a question…<br><br><b>If the industry is primed for transformation, why are HEINEKEN's business processes still running the same way they always have? </b><br><br>Why are we still bolting a chatbot onto the same step in the business process or building a summary tool to prop up some insights in the same workflow?<br><br><b>Why are we fitting AI into a processes that were built for a time before AI? </b>Keeping the same processes, handoffs, and approvals in place.<br><br>That's the exact <b>idea behind the engine on the horse. </b><br><br><b>Because, even though we’re primed to build the car — we’re still breeding horses at a business-level, when we should be relooking at redesigning entire processes.</b>`},
+    {t:`Why is this happening?`, say:`So it got Andy and I thinking…<br><br><b>Why is this happening? </b>`},
+    {t:`Employees, not leaders`, say:`Now… if you <b>assume it's because employees resist change — that's not true.</b><br><br>Most people <b>are already using AI</b>; they're leading the change. Research shows <b>employees are about three times more receptive to AI than their leaders.</b><br><br>The <b>real bottleneck isn't the tech, </b>and it isn't the workforce. <b>It's the leaders</b>. And not because they're behind — because <b>redesign carries real risk</b>.<br><br>A <b>full process redesign is risky, it's political, it’s long, and it can mean losing or moving their people</b>. So they often choose the safer, faster bets of maintaining the same processes and bolting solutions to make it more efficient…<br><br>…<br><br>For us to help drive change in Heineken, we need to rethink how we show up as a Lab. Meaning: we need to <b>be seen as more than just a tech builder</b>, and start <b>showing up as a trusted transformation advisor. </b><br><br>And I know <b>that's not easy to accomplish</b>, because who are we to tell leaders with decades of experience how to run their business?`},
+    {t:`The three T’s`, say:`<b>So to earn our “rights”</b>, we believe that there are three things we need to address. We call them the <b>three T's — Trust, Time, and Turf. </b><br><br>These three things that are blocking us from earning the “right” are the the exact things we hand back to the business.<br><br>…<br><br><b>Trust: </b>For leaders to trust us, we need to <b>give them confidence in the redesign we're proposing </b>— by demonstrating that we <b>genuinely understand their business</b>, their <b>process</b>, their <b>stakeholders</b>, and their <b>respective intent</b> across the whole cycle.<br><br><b>Time: </b>We show them the <b>redesign hands time back </b>— and prove <b>our recommendations deliver better value</b>, measured in time saved.<br><br><b>Turf: </b>To leaders, <b>redesign may mean that roles getting redrawn </b>— and that's the part that stalls things. So here's what we hand back: a <b>business process that's cleaner and simpler for their teams to work </b>in, and a <b>clear path for retraining their people to “drive the new car”</b>.<br><br>Think about it -- When the tractor arrived, the people who'd worked the land didn't disappear — they learned to drive it. Same land, same job to be done – just with a new machine and a new role. We don't remove people. We retrain them to drive the car.`},
+    {t:`Retrofit vs. redesign`, say:`So what's the actual <b>difference between retrofitting vs. redesigning? </b><br><br>With <b>retrofitting</b>, the first question is always <b>'how can I improve this current process with AI?</b>' But… if we <b>take away the AI, the process still lives on. </b><br><br><b>Redesigning</b> is what we call <b>AI-native</b> — the <b>new redesigned process essentially </b><b>collapses</b><b> without the AI</b>.<br><br>So the question to ask isn't 'how do I improve this' — it's <b>'how would I design this process if I were designing it today?</b>'`},
+    {t:`Switch the AI off`, say:`Quick example using <b>Expense Reporting</b><br><br>When you have AI -- you file a report, upload a receipt, AI reads the file, it extracts the amount and drafts the summary for your managers approval. Sounds great – but, <b>switch the AI off, and the system still runs, just slower. That’s a horse.</b><br><br>On the other hand, if you had an <b>AI-native process </b>-- you tap your card, the system already knows the spend and the budget, it auto-approves certain categories, and it only routes to your manager if it's above a threshold or a flagged category. <b>Switch the AI off and the whole thing breaks. That's AI-native.</b><br><br>To go deeper on this — and to make it real with the kind of requests we actually get — I'll hand over to Andy.`},
+    /* ===== the interactive interlude (original notes) ===== */
     {t:`Join — scan in`, beat:`Hold here while people scan in.`,
       say:`"Everyone grab your phone — <b>scan the QR code</b> on screen, or open that short link. Give it a few seconds… once you're in, you'll see a prompt. We're going to <b>play a quick game</b> together — just your phone, no laptops."`,
       n:[`Watch "joined" (below) — wait until most of the room is in before you start.`, `Don't hint at any trap.`]},
@@ -616,7 +960,9 @@ b,strong{font-weight:600}
       n:[`CLICK once to strike the old run — only the intent survives. Then let redesigns land on phones.`]},
     {t:`Close — no engines on horses`, beat:`Land it.`,
       say:`"That's the trap. <b>Redesign — don't retrofit.</b> Don't bolt an engine onto a horse and call it transformation. <b>No engines on horses.</b> … <b>Stop the animal abuse.</b> And here's the redesign, built — the video's right here on the slide. Let's watch."`,
-      n:[`The video is on this slide — click it to play the demo (with sound). Then hand back to the main deck.`]},
+      n:[`The video is on this slide — click it to play the demo (with sound). Then hand to the recap.`]},
+    /* ===== PPT 17 — VERBATIM closing note ===== */
+    {t:`Closing`, say:`Three things to take with you.<br><br><b>One — the faster horse is still a horse.</b> (The Why.) Putting AI into an existing process makes it faster, but it doesn't transform anything. Real value comes from redesigning the process around what AI makes possible — not retrofitting AI onto the process you already have.<br><br><b>Two — the bottleneck isn't tech, it's trust.</b> (The How.) Redesign doesn't stall because we lack the capability. It stalls because leaders won't bet on it until they trust us. We earn that trust through the Three T's — Trust, Time, Turf — the same three things blocking us, and the same three things we hand back to the business.<br><br><b>Three — we redesign ourselves before anyone lets us redesign them.</b> (The What.) We just ran our own redesign, on our own messy processes. That wasn't a warm-up — it was the proof of concept. If we can't do it to ourselves, no one will dare let us do it for them.<br><br>And on that note — let me hand over to Nick."`},
   ];
   if(SPEAKER){ return buildSpeaker(); }
   if(qp.get('view')==='thumb'){ return buildThumb(); }
@@ -907,7 +1253,8 @@ b,strong{font-weight:600}
       $('.s-count').textContent=(cur+1)+' / '+total;
       const sf=$('.s-frag'); if(fragN>0){ sf.textContent='reveal '+frag+' / '+fragN; sf.style.visibility='visible'; } else { sf.style.visibility='hidden'; }
       $('.s-next-lbl').textContent = nx ? ('Up next — '+nx.t) : 'Up next';
-      const room=$('.s-room'); if(room) room.style.display = cur===0 ? '' : 'none';   // the room/paddock only matters on the join slide
+      const JOIN_IDX=NOTES.findIndex(o=>o&&o.t==='Join — scan in');   // join slide moved behind the ported PPT narrative
+      const room=$('.s-room'); if(room) room.style.display = cur===(JOIN_IDX<0?0:JOIN_IDX) ? '' : 'none';   // the room/paddock only matters on the join slide
       pushThumbs(); fitThumbs();
     }
     function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join('');
