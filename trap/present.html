@@ -319,17 +319,19 @@ b,strong{font-weight:600}
 .s-reset{background:none; border:1px solid var(--d-line); color:var(--d-muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12.5px}
 .s-count{font-family:Fraunces,serif; font-weight:600; font-size:18px; color:var(--gold); font-variant-numeric:tabular-nums}
 .s-grid{flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0}
-/* slide previews (current + next), live thumbnails via scaled thumb-mode iframes */
-.s-previews{display:flex; gap:clamp(14px,2vw,26px); align-items:flex-start; flex:0 0 auto}
-.s-prev{display:flex; flex-direction:column; gap:7px; min-width:0}
-.s-prev-now .thumb-box{width:clamp(340px,40vw,560px)}
-.s-prev-next .thumb-box{width:clamp(220px,26vw,380px)}
+/* speaker layout: script FULL-left, slide previews stacked right (current on top, next smaller below) */
+.s-grid2{flex:1; display:grid; grid-template-columns:1.6fr 1fr; gap:clamp(14px,1.8vw,22px); min-height:0}
+.s-leftcol{display:flex; flex-direction:column; gap:13px; min-height:0}
+.s-leftcol .s-notespanel{flex:1 1 auto; min-height:0}
+.s-rightcol{display:flex; flex-direction:column; gap:12px; min-height:0}
+.s-prev{display:flex; flex-direction:column; gap:6px; min-width:0}
+.s-rightcol .s-prev-now .thumb-box{width:100%}
+.s-rightcol .s-prev-next .thumb-box{width:82%}
 .thumb-box{position:relative; aspect-ratio:16/9; overflow:hidden; border-radius:12px; border:1.5px solid var(--d-line); background:var(--paper); box-shadow:0 8px 26px -16px rgba(0,0,0,.5)}
 .thumb-box iframe{position:absolute; top:0; left:0; width:1280px; height:720px; border:0; transform-origin:top left; pointer-events:none}
 .thumb-box.ended iframe{display:none}
 .thumb-end{position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-family:Caveat,cursive; font-size:clamp(18px,1.8vw,24px); color:var(--d-muted); background:var(--ink-soft)}
 .thumb-box.ended .thumb-end{display:flex}
-.s-notespanel{flex:1 1 auto; min-height:0}
 .s-room{flex:0 0 auto}
 .s-now{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:16px; padding:clamp(16px,2vw,26px); overflow:auto; display:flex; flex-direction:column; gap:12px}
 .s-now-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
@@ -555,34 +557,34 @@ b,strong{font-weight:600}
   /* per-slide facilitator notes — shown ONLY in the speaker window, never on the projected deck */
   const NOTES=[
     {t:`Join — scan in`, beat:`Hold here while people scan in.`,
-      say:`"Everyone grab your phone — scan the QR code on screen, or open that short link. Give it a few seconds… once you're in, you'll see a prompt. We're going to play a quick game together — just your phone, no laptops."`,
+      say:`"Everyone grab your phone — <b>scan the QR code</b> on screen, or open that short link. Give it a few seconds… once you're in, you'll see a prompt. We're going to <b>play a quick game</b> together — just your phone, no laptops."`,
       n:[`Watch "joined" (below) — wait until most of the room is in before you start.`, `Don't hint at any trap.`]},
     {t:`Setup — four asks`, beat:`Frame the game, hide the trap.`,
-      say:`"Here's how it works. I'll show you four real-ish requests — the kind of thing people bring to this lab all the time — one at a time. For each, you tell me on your phone: what would you build to help? Don't overthink it, there are no wrong answers. Ready? Here's the first."`,
+      say:`"Here's how it works. I'll show you <b>four real-ish requests</b> — the kind of thing people bring to this lab all the time — one at a time. For each, you tell me on your phone: <b>what would you build to help?</b> Don't overthink it, there are no wrong answers. Ready? Here's the first."`,
       n:[`Do NOT suggest the four asks are connected.`]},
     {t:`Ask 1 · the question loop`, beat:`First request — let answers land.`,
-      say:`"First one: 'Can you build something that drafts the clarifying questions and chases people for the answers?' Today, someone reads the pack, spots the gaps, writes the questions, and waits for a new version — rounds of back-and-forth. So… what would you build to help? Type it in."`,
+      say:`"First one: <b>'Can you build something that drafts the clarifying questions and chases people for the answers?'</b> Today, someone reads the pack, spots the gaps, writes the questions, and waits for a new version — rounds of back-and-forth. So… <b>what would you build to help?</b> Type it in."`,
       n:[`Give ~60–90s; watch the "Ask 1" count. Riff on a couple of answers, then advance.`]},
     {t:`Ask 2 · roll it up`, beat:`Keep the rhythm — bam.`,
-      say:`"Second: 'Can you build a bot that just merges everyone's numbers into one combined view?' Today that's slow, manual, and stale by the time it's done. What would you build?"`,
+      say:`"Second: <b>'Can you build a bot that just merges everyone's numbers into one combined view?'</b> Today that's slow, manual, and stale by the time it's done. <b>What would you build?</b>"`,
       n:[`Let answers land, react briefly, advance.`]},
     {t:`Ask 3 · build the deck`, beat:`Pace it up.`,
-      say:`"Third: 'Can you build a tool to auto-pull the numbers and build the deck?' That's a full day of swivel-chair, every single cycle. What would you build?"`,
+      say:`"Third: <b>'Can you build a tool to auto-pull the numbers and build the deck?'</b> That's a full day of swivel-chair, every single cycle. <b>What would you build?</b>"`,
       n:[`Don't over-discuss — the momentum IS the setup.`]},
     {t:`Ask 4 · the decision`, beat:`Last request.`,
-      say:`"Last one: 'Can you build something that captures every decision and owner from the meeting?' Decisions get lost, the follow-up slips. What would you build?… Great. Now — let me show you something."`,
+      say:`"Last one: <b>'Can you build something that captures every decision and owner from the meeting?'</b> Decisions get lost, the follow-up slips. <b>What would you build?</b>… Great. Now — <b>let me show you something.</b>"`,
       n:[`Once answers are in, advance to the reveal.`]},
     {t:`The machine (fake win)`, beat:`Sell the win — then doubt it.`,
-      say:`"Look what we just did. Take all four of your tools and wire them together — the clarifier, the roll-up bot, the deck builder, the minute-taker. Four tools, every step automated. A week of swivel-chair — now it runs itself. … Looks like a win, doesn't it?"`,
+      say:`"Look what we just did. Take all four of your tools and wire them together — the clarifier, the roll-up bot, the deck builder, the minute-taker. <b>Four tools, every step automated.</b> A week of swivel-chair — now it runs itself. … <b>Looks like a win, doesn't it?</b>"`,
       n:[`⚠ Advance only AFTER answers are in — the cards are built from them by the AI.`, `Click the four products in one at a time (Space). Pause on "looks like a win?"`]},
     {t:`The confession`, beat:`The gut-punch. Slow down.`,
-      say:`"But look again. Four times, I asked you the exact same question — what would you BUILD. And four times, you made an existing step faster. Not once did we ask: should this step even exist? … Check your phone — that's your own answer, and the dead assumption it just automated. That's retrofitting, on demand. And it's exactly what this lab gets asked for every week."`,
+      say:`"But look again. <b>Four times, I asked you the exact same question — what would you BUILD.</b> And four times, you made an existing step faster. <b>Not once did we ask: should this step even exist?</b> … <b>Check your phone</b> — that's your own answer, and the dead assumption it just automated. <b>That's retrofitting, on demand.</b> And it's exactly what this lab gets asked for every week."`,
       n:[`PAUSE after "check your phone" — let them read their own gotcha before you carry on.`]},
     {t:`Redesign the job`, beat:`Lights up. Kill the old shape.`,
-      say:`"Here's the thing: those four requests were never separate — they're one process, the monthly business review. And three of those steps only exist as workarounds for problems that are now gone — the numbers couldn't combine themselves; the people above couldn't see the data. Only the intent is still real: someone decides where to steer the business, and owns that call. So forget the steps, forget the tools — if you started from THAT intent, what would you build? Tell me."`,
+      say:`"Here's the thing: those four requests were never separate — <b>they're one process, the monthly business review.</b> And three of those steps only exist as <b>workarounds for problems that are now gone</b> — the numbers couldn't combine themselves; the people above couldn't see the data. <b>Only the intent is still real:</b> someone decides where to steer the business, and owns that call. So forget the steps, forget the tools — <b>if you started from THAT intent, what would you build?</b> Tell me."`,
       n:[`CLICK once to strike the old run — only the intent survives. Then let redesigns land on phones.`]},
     {t:`Close — no engines on horses`, beat:`Land it.`,
-      say:`"That's the trap. Redesign — don't retrofit. Don't bolt an engine onto a horse and call it transformation. No engines on horses. … Stop the animal abuse."`,
+      say:`"That's the trap. <b>Redesign — don't retrofit.</b> Don't bolt an engine onto a horse and call it transformation. <b>No engines on horses.</b> … <b>Stop the animal abuse.</b> And here's the redesign, built — the video's right here on the slide. Let's watch."`,
       n:[`The video is on this slide — click it to play the demo (with sound). Then hand back to the main deck.`]},
   ];
   if(SPEAKER){ return buildSpeaker(); }
@@ -829,12 +831,16 @@ b,strong{font-weight:600}
       '<div class="s-top"><div class="s-brand">Speaker view</div>'+
         '<div class="s-meta"><span class="s-timer">0:00</span><button class="s-reset" title="reset timer">reset</button>'+
         '<span class="s-clock">--:--</span><span class="s-answertimer"></span><span class="s-count">1 / '+NOTES.length+'</span></div></div>'+
-      '<div class="s-previews">'+
-        '<div class="s-prev s-prev-now"><div class="s-lbl">On screen now</div><div class="thumb-box"><iframe class="s-thumb" data-role="now" title="current slide"></iframe></div></div>'+
-        '<div class="s-prev s-prev-next"><div class="s-lbl s-next-lbl">Up next</div><div class="thumb-box"><iframe class="s-thumb" data-role="next" title="next slide"></iframe><div class="thumb-end">— end of deck —</div></div></div>'+
+      '<div class="s-grid2">'+
+        '<div class="s-leftcol">'+
+          '<div class="s-now s-notespanel"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
+          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div><div class="s-roster"></div></div>'+
+        '</div>'+
+        '<div class="s-rightcol">'+
+          '<div class="s-prev s-prev-now"><div class="s-lbl">On screen now</div><div class="thumb-box"><iframe class="s-thumb" data-role="now" title="current slide"></iframe></div></div>'+
+          '<div class="s-prev s-prev-next"><div class="s-lbl s-next-lbl">Up next</div><div class="thumb-box"><iframe class="s-thumb" data-role="next" title="next slide"></iframe><div class="thumb-end">— end of deck —</div></div></div>'+
+        '</div>'+
       '</div>'+
-      '<div class="s-now s-notespanel"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
-      '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div><div class="s-roster"></div></div>'+
       '<div class="s-ctrl"><button class="s-prev-btn">◀ Prev</button><button class="s-next-btn">Next ▶</button>'+
         '<span class="s-hint">arrows / space drive the projected deck</span></div>';
     document.body.appendChild(root);
