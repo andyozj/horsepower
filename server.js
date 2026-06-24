@@ -1030,7 +1030,7 @@ SYSTEMS.recap = `You write a 3-4 sentence warm recap intro for a participant's t
 
 // A1: the AI-led interview — the Coach DRIVES, turning what the team says into map blocks as they speak.
 SYSTEMS.interview = `You are the Coach running a live interview to map a team's CURRENT workflow. You DRIVE: ask ONE sharp question at a time, dig into the WHY, and turn what they say into map blocks as you go.
-TONE: warm and human — a curious colleague, not a form to fill in. Open your reply with a brief, genuine reaction to what they just said (a few words — "ah, the 3pm scramble — got it" / "nice, that's clear") so it feels like a conversation, THEN ask your one sharp question. Keep it light: warmth is a quick beat, never flattery, filler, or a second question, and never softens the question itself. Sound like a real person — plain-spoken, a little dry. Still concise (<=2 sentences total).
+TONE: warm and human — a curious colleague, not a form to fill in. Open your reply with a brief, genuine reaction to what they just said (a few words — note the painful 3pm scramble, or that the handoff sounds clear) so it feels like a conversation, THEN ask your one sharp question. Keep it light: warmth is a quick beat, never flattery, filler, or a second question, and never softens the question itself. Sound like a real person — plain-spoken, a little dry. Still concise (<=2 sentences total). CRITICAL: the reply is a JSON string — NEVER put a double-quote (") character inside it (paraphrase, don't quote the user's words) and never a raw newline, or the JSON breaks.
 If they ask who you are, what this is, or what to do, answer in one short line (you're their Coach, mapping their workflow) with empty ops — never map such a question as workflow content. If a stray word or out-of-context "name" appears (voice can mishear), confirm it's a real person before adding a persona — don't invent people.
 You are given the CURRENT MAP (block ids + labels). Return ONLY JSON, no prose:
 {"reply":"<a brief warm reaction to what they just said + your next single question, <=2 sentences>","ops":[ <map edits> ],"done":false}
@@ -1380,7 +1380,32 @@ function extractBalancedJson(s) {
 function parseCoachJson(raw) {
   const s = extractBalancedJson(raw);
   if (!s) throw new Error('no balanced JSON object in coach reply (truncated/empty)');
-  return JSON.parse(s);
+  try { return JSON.parse(s); }
+  catch (e) {
+    // The model sometimes leaves an UNESCAPED " (or raw newline) inside the free-text "reply" → JSON.parse
+    // throws and the whole turn degrades, losing the ops. Salvage the structured ops (and a best-effort
+    // reply) so the MAP STILL BUILDS even when the prose breaks the JSON.
+    const salv = salvageCoachJson(s);
+    if (salv && (salv.ops.length || salv.reply)) { log('coach_salvaged', { ops: salv.ops.length }); return salv; }
+    throw e;
+  }
+}
+// Tolerant fallback: pull the ops array (structured → usually well-formed) and a best-effort reply out of a
+// coach object whose free-text reply has unescaped quotes/newlines. The reply already streamed to the user,
+// so the ops are what matter here.
+function salvageCoachJson(s) {
+  let ops = [];
+  const m = s.match(/"ops"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
+  if (m) { try { ops = JSON.parse(m[1]); } catch (_) { ops = []; } }
+  let reply = '';
+  const ri = s.indexOf('"reply"');
+  if (ri >= 0) {
+    const start = s.indexOf('"', ri + 7) + 1;                       // opening quote of the reply value
+    const cands = [s.indexOf('"ops"', ri), s.indexOf('"done"', ri)].filter(x => x > start);
+    const end = cands.length ? Math.min(...cands) : s.length;
+    reply = s.slice(start, end).replace(/"\s*,?\s*$/, '').replace(/\\n|\n/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
+  }
+  return { reply, ops, done: /"done"\s*:\s*true/.test(s) };
 }
 async function callAzure(system, chat, maxTokens) {
   const url = `${AZURE_ENDPOINT}/openai/deployments/${encodeURIComponent(AZURE_DEPLOYMENT)}/chat/completions?api-version=${encodeURIComponent(AZURE_API_VERSION)}`;
