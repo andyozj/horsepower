@@ -956,6 +956,7 @@ const BUILD = (() => {
 app.get('/api/health', (req, res) => {
   if (shuttingDown) return res.status(503).json({ ok: false, shuttingDown: true });
   res.json({ ok: true, build: BUILD, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
+             model: AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : (AI_PROVIDER ? ANTHROPIC_MODEL : null),
              db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
              voice: voiceCaps(),
              workshops: workshops.size, uptime: Math.round(process.uptime()) });
