@@ -988,6 +988,11 @@ const SECRECY = `HARD SECRECY RULE: never use the words swap, redesign, rebuild,
 // `rebuilding`/`transferring`/`handsover` name the surprise on a pre-reveal rail. Each stem now
 // allows (s|ing|ed) suffixes + tolerant [\s-]? separators inside multi-word/hyphenated terms.
 const BANNED_VOCAB = /\b(swap(s|ping|ped)?|hand[\s-]?s?[\s-]?over(s|ing)?|hand[\s-]?off(s)?|receiving[\s-]?team|another[\s-]?team|someone[\s-]?else|rotat(e|es|ing|ed|ion)|stranger(s)?|transfer(s|ring|red)?)\b/i;
+// The INTERVIEW describes the team's OWN current workflow, so normal process words — handoff, transfer,
+// "another team", "someone else", rotation — are legitimate and must NOT trip it (banning them degraded the
+// surface AI on basically every real workflow). Only the genuine swap-spoilers gate the interview reply. The
+// strict BANNED_VOCAB still guards the Farrier whisper / recap, where a real swap leak could originate.
+const INTERVIEW_BANNED = /\b(swap(s|ping|ped)?|receiving[\s-]?team)\b/i;
 
 const SYSTEMS = {
   surface: `You are the Coach inside Horsepower, a workshop tool. A team is documenting their CURRENT business workflow as: persona/owner, trigger, inputs, phases (each with "moments that matter"), intent, and outcome — PLUS the WHY behind every element.
@@ -1544,7 +1549,7 @@ app.post('/api/coach', async (req, res) => {
             if (tripped) return;
             const r = replySoFar(full); if (!r) return;
             const text = r.text.slice(0, lim);
-            if (BANNED_VOCAB.test(text)) { tripped = true; return; }   // a banned word is forming — stop, don't flush it (rule #2)
+            if (INTERVIEW_BANNED.test(text)) { tripped = true; return; }   // a genuine swap-spoiler is forming — stop, don't flush it (rule #2)
             // flush only up to the last WORD boundary (so a forming banned word is never shown mid-word)
             const end = r.closed ? text.length : Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'));
             if (end > emitted) { res.write(text.slice(emitted, end)); emitted = end; }
@@ -1552,7 +1557,7 @@ app.post('/api/coach', async (req, res) => {
           if (tripped) { log('vocab_trip', { kind: 'interview-stream' }); return fallback(); }
           const j = parseCoachJson(raw);
           const reply = String(j.reply || '').slice(0, lim);
-          if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview-stream' }); return fallback(); }
+          if (INTERVIEW_BANNED.test(reply)) { log('vocab_trip', { kind: 'interview-stream' }); return fallback(); }
           if (emitted < reply.length) res.write(reply.slice(emitted));   // flush the held trailing word
           applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
           team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
@@ -1575,7 +1580,7 @@ app.post('/api/coach', async (req, res) => {
         const raw = AI_PROVIDER === 'azure' ? await callAzure(SYSTEMS.interview, ic, 3000) : await callAnthropic(SYSTEMS.interview, ic, 3000);
         const j = parseCoachJson(raw);
         const reply = String(j.reply || '').slice(0, CONFIG.COACH_REPLY_MAX);
-        if (BANNED_VOCAB.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) }); }
+        if (INTERVIEW_BANNED.test(reply)) { log('vocab_trip', { kind: 'interview' }); return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) }); }
         applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
         team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
         broadcast(room);
