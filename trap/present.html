@@ -118,8 +118,10 @@ b,strong{font-weight:600}
 .product .pchk{position:absolute; top:-11px; right:-11px; width:26px; height:26px; border-radius:50%; background:var(--ok); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px rgba(0,0,0,.45)}
 .product .pchk svg{width:15px; height:15px; color:#fff}
 .product .ptool{font-family:Fraunces,serif; font-weight:600; font-size:clamp(15px,1.55vw,19px); color:var(--d-text); line-height:1.12}
-.product .pdesc{font-size:clamp(11.5px,1.05vw,13px); color:var(--d-muted); line-height:1.4}
-.product .pfor{margin-top:auto; font-family:Caveat,cursive; font-size:clamp(13px,1.2vw,16px); color:var(--gold)}
+.product .pdesc{font-size:clamp(11.5px,1.05vw,13px); color:var(--d-muted); line-height:1.4; transition:color .4s}
+.product .pdesc.fromroom{color:var(--d-text)}
+.product .pcount{display:none; font-family:Inter,sans-serif; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ok-bright); opacity:.9; margin-top:1px}
+.product .pfor{margin-top:auto; padding-top:6px; font-family:Caveat,cursive; font-size:clamp(13px,1.2vw,16px); color:var(--gold)}
 .pchain-arrow{align-self:center; color:var(--ok-bright); font-size:24px; line-height:1}
 @media (max-width:980px){ .achain{flex-wrap:wrap} .pchain-arrow{transform:rotate(90deg)} .product{width:clamp(150px,42vw,220px)} }
 
@@ -338,36 +340,40 @@ b,strong{font-weight:600}
   </section>
 
   <!-- ASSEMBLY (fake triumph) — the four pitched tools land one product at a time (presenter-paced fragments) -->
-  <section class="slide dark" data-fragments>
+  <section class="slide dark" data-fragments data-summarize>
     <div class="head"><div class="eyebrow">the result</div><h2 class="title sm">Wire your four answers together: the <span class="hl">Autonomous Reporting</span> machine.</h2></div>
     <div class="assembly">
-      <div class="product frag">
+      <div class="product frag" data-step="review">
         <div class="pchk"><svg><use href="#i-check"/></svg></div>
         <div class="ptool">The clarifier</div>
         <div class="pdesc">drafts the questions, chases the answers</div>
+        <div class="pcount"></div>
         <div class="pfor">for · the question loop</div>
       </div>
       <div class="achain frag"><span class="pchain-arrow">→</span>
-        <div class="product">
+        <div class="product" data-step="rollup">
           <div class="pchk"><svg><use href="#i-check"/></svg></div>
           <div class="ptool">The roll-up bot</div>
           <div class="pdesc">merges every team into one combined view</div>
+          <div class="pcount"></div>
           <div class="pfor">for · roll it up</div>
         </div>
       </div>
       <div class="achain frag"><span class="pchain-arrow">→</span>
-        <div class="product">
+        <div class="product" data-step="deck">
           <div class="pchk"><svg><use href="#i-check"/></svg></div>
           <div class="ptool">The deck builder</div>
           <div class="pdesc">auto-pulls the numbers, assembles the slides</div>
+          <div class="pcount"></div>
           <div class="pfor">for · build the deck</div>
         </div>
       </div>
       <div class="achain frag"><span class="pchain-arrow">→</span>
-        <div class="product">
+        <div class="product" data-step="meeting">
           <div class="pchk"><svg><use href="#i-check"/></svg></div>
           <div class="ptool">The minute-taker</div>
           <div class="pdesc">logs every decision and owner from the meeting</div>
+          <div class="pcount"></div>
           <div class="pfor">for · the decision</div>
         </div>
       </div>
@@ -433,6 +439,7 @@ b,strong{font-weight:600}
     const fr=fragEls(slides[n]);
     fragStep = fr.length ? (dir==='fwd' ? 0 : fr.length) : 0;   // step into forward = hidden; back/jump = fully revealed
     if(fr.length) applyFrags(slides[n],fragStep);
+    if(slides[n].hasAttribute('data-summarize')) wsSend({type:'summarize'});   // synthesize the room's ideas for the product cards
     syncPrompt();
   }
   function next(){ const fr=fragEls(slides[i]); if(fr.length && fragStep<fr.length){ fragStep++; applyFrags(slides[i],fragStep); return; } go(i+1,'fwd'); }
@@ -453,6 +460,17 @@ b,strong{font-weight:600}
   function addChip(pid,a){ const f=feedFor(pid); if(!f) return; const e=f.querySelector('.feedempty'); if(e) e.remove(); const c=document.createElement('div'); c.className='achip'+(a.tag?(' '+a.tag):''); if(a.name){ const w=document.createElement('span'); w.className='who'; w.textContent=a.name; c.appendChild(w); } c.appendChild(document.createTextNode(a.text)); f.appendChild(c); f.scrollTop=f.scrollHeight; }
   function renderFeed(pid){ const f=feedFor(pid); if(!f) return; f.innerHTML=''; const arr=answers[pid]||[]; if(!arr.length){ f.innerHTML='<div class="feedempty">answers from the room land here…</div>'; } else arr.forEach(a=>addChip(pid,a)); }
   function renderAll(){ document.querySelectorAll('.feed[data-prompt]').forEach(f=>renderFeed(f.dataset.prompt)); }
+  /* slide 7 — drop the room's synthesized tool idea into each product card */
+  function applySummaries(data){
+    const sm=(data&&data.summaries)||{}, counts=(data&&data.counts)||{};
+    document.querySelectorAll('.product[data-step]').forEach(p=>{
+      const sid=p.dataset.step, d=p.querySelector('.pdesc'), c=p.querySelector('.pcount');
+      if(d){ if(!('orig' in d.dataset)) d.dataset.orig=d.textContent;
+        if(sm[sid]){ d.textContent=sm[sid]; d.classList.add('fromroom'); }
+        else { d.textContent=d.dataset.orig; d.classList.remove('fromroom'); } }
+      if(c){ const n=counts[sid]||0; if(n){ c.textContent=n+' idea'+(n===1?'':'s')+' from the room'; c.style.display='block'; } else c.style.display='none'; }
+    });
+  }
   const ROUND_MS=240000; // 4-min timebox for the Dead-or-Alive round
   let curRound=null;
   function wsSend(o){ if(ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
@@ -580,6 +598,7 @@ b,strong{font-weight:600}
       else if(m.type==='voteSet'){ renderVoteRows(m.items); }
       else if(m.type==='voteTally'){ updateTally(m.tallies); }
       else if(m.type==='voteReveal'){ revealTruth(m.truth); }
+      else if(m.type==='summaries'){ applySummaries(m); }
       else if(m.type==='cleared'){ answers={}; renderAll(); renderBoard([]); const w=document.getElementById('winline'); if(w){w.classList.remove('show'); w.innerHTML='';} }
       else if(m.type==='denied'){ console.warn('Presenter denied — open the /present?host=… link from the server console.'); }
     };

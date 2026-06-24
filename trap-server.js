@@ -105,13 +105,13 @@ const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || process.env.AI_MODEL || 'claude-sonnet-4-6';
 const ANTHROPIC_URL = process.env.ANTHROPIC_BASE_URL || 'https://genai.heineken.com/models/anthropic/v1/messages';
 const ANTHROPIC_AUTH_HEADER = (process.env.ANTHROPIC_AUTH_HEADER || 'api-key').toLowerCase();
-async function callAI(system, user){
+async function callAI(system, user, maxTokens=160){
   const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
   try{
     const r = await fetch(ANTHROPIC_URL, {
       method:'POST', signal: ctrl.signal,
       headers:{ 'content-type':'application/json', [ANTHROPIC_AUTH_HEADER]:process.env.ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens:160, system, messages:[{role:'user',content:user}] })
+      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens:maxTokens, system, messages:[{role:'user',content:user}] })
     });
     if(!r.ok) throw new Error('AI '+r.status+': '+(await r.text()).slice(0,160));
     const j = await r.json();
@@ -144,6 +144,39 @@ Reply with ONLY compact JSON: {"accept":true|false,"note":"<≤12 word encouragi
     'Nice. Now find one that quietly assumes a human is needed.',
     'Logged. Next: what scarcity is this step working around?' ];
   return { accept:true, note: NUDGES[priorNorms.size % NUDGES.length] };
+}
+
+// ── slide 7 — synthesize the room's pitched tools into ONE short "idea" line per step ──
+// AI-synthesized when a key is present; degrades to a representative real pitch, then to the
+// deck's authored default (client-side). Cached per answer-count signature so the reveal is instant.
+let ideaCache = { sig:null, data:null };
+function answersSig(){ return STEPS.map(s=>(session.answers['t-'+s.id]||[]).length).join('/'); }
+async function summarizeIdeas(){
+  const sig = answersSig();
+  if(ideaCache.data && ideaCache.sig===sig) return ideaCache.data;
+  const perStep = STEPS.map(s=>({
+    id:s.id, title:s.title,
+    texts:(session.answers['t-'+s.id]||[]).map(a=>String(a.text||'').trim()).filter(Boolean)
+  }));
+  const counts={}; perStep.forEach(p=>counts[p.id]=p.texts.length);
+  const summaries={}; let usedAI=false;
+  const haveAny = perStep.some(p=>p.texts.length);
+  if(AI_ON && haveAny){
+    try{
+      const sys = `You synthesize a live room brainstorm into ONE short tool idea per workflow step.
+For each step you get its name and the raw tool ideas people typed. Capture the COMMON idea the room pitched for that step in a single crisp line — ≤11 words, plain concrete language, no trailing period, the kind of tool they'd actually build. If a step has no ideas, return an empty string for it.
+Reply with ONLY compact JSON using these exact keys: {"review":"…","rollup":"…","deck":"…","meeting":"…"}.`;
+      const user = perStep.map(p=>`STEP "${p.id}" — ${p.title}\n`+(p.texts.length?p.texts.slice(0,40).map(t=>'• '+t.slice(0,200)).join('\n'):'(no ideas yet)')).join('\n\n');
+      const raw = await callAI(sys, user, 500);
+      const mt = raw.match(/\{[\s\S]*\}/);
+      if(mt){ const j=JSON.parse(mt[0]); STEPS.forEach(s=>{ const v=j[s.id]; if(v && typeof v==='string' && v.trim()) summaries[s.id]=v.trim().slice(0,110); }); usedAI=Object.keys(summaries).length>0; }
+    }catch(e){ console.log('summarizeIdeas AI fell back:', e.message); }
+  }
+  // fallback: any step with ideas but no AI line → show a representative real pitch (the latest)
+  perStep.forEach(p=>{ if(!summaries[p.id] && p.texts.length){ summaries[p.id] = '“'+p.texts[p.texts.length-1].slice(0,90)+'”'; } });
+  const data = { summaries, counts, ai: usedAI };
+  ideaCache = { sig, data };
+  return data;
 }
 
 const app = express();
@@ -306,6 +339,14 @@ wss.on('connection', (ws) => {
       send(ws, { type:'voteAck', itemId, call });
       return;
     }
+    // slide 7 — presenter asks for the synthesized "ideas" of each step
+    if(m.type === 'summarize'){
+      if(ws.role !== 'presenter') return;
+      try{ const data = await summarizeIdeas(); send(ws, { type:'summaries', ...data }); }
+      catch(e){ send(ws, { type:'summaries', summaries:{}, counts:{}, ai:false }); }
+      return;
+    }
+
     // ①+④ facilitator reveals the truth
     if(m.type === 'reveal'){
       if(ws.role !== 'presenter') return;
@@ -319,7 +360,7 @@ wss.on('connection', (ws) => {
       if(ws.role !== 'presenter') return;
       players.clear();
       wss.clients.forEach(c=>{ if(c.role==='participant') c.player=null; });
-      session.answers = {}; session.timer = null; session.activePrompt = null;
+      session.answers = {}; session.timer = null; session.activePrompt = null; ideaCache = { sig:null, data:null };
       toAll({ type:'prompt', activePrompt: null });
       toAll({ type:'timer', timer: null });
       toPresenters({ type:'cleared' });
@@ -329,7 +370,7 @@ wss.on('connection', (ws) => {
 
     if(m.type === 'reset'){
       if(ws.role !== 'presenter') return;
-      session.answers = {}; session.timer = null;
+      session.answers = {}; session.timer = null; ideaCache = { sig:null, data:null };
       players.forEach(p=>{ p.score=0; p.found={}; p.foundNorm=new Set(); });
       toPresenters({ type:'cleared' });
       toAll({ type:'timer', timer:null });
