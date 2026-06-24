@@ -288,6 +288,37 @@ b,strong{font-weight:600}
 .count{font-family:Fraunces,serif; font-weight:600; font-size:13px; color:var(--muted-soft); font-variant-numeric:tabular-nums; transition:color var(--t)} .count.ondark{color:var(--d-muted)}
 .nojs .deckchrome{display:none}
 @media (prefers-reduced-motion:reduce){ .slide{transition:opacity .2s; transform:none!important} .livetag .ld{animation:none} }
+
+/* ===== speaker view (private notes window, opened with S) ===== */
+.speaker{position:fixed; inset:0; z-index:9999; background:var(--ink); color:var(--d-text); display:flex; flex-direction:column; gap:14px; padding:clamp(15px,2.2vw,28px); font-family:Inter,system-ui,sans-serif}
+.s-top{display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap}
+.s-brand{font-family:Caveat,cursive; font-size:22px; color:var(--gold)}
+.s-meta{display:flex; align-items:center; gap:14px}
+.s-timer{font-family:Fraunces,serif; font-weight:600; font-size:30px; font-variant-numeric:tabular-nums; color:var(--d-text)}
+.s-clock{color:var(--d-muted); font-size:15px; font-variant-numeric:tabular-nums}
+.s-reset{background:none; border:1px solid var(--d-line); color:var(--d-muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12.5px}
+.s-count{font-family:Fraunces,serif; font-weight:600; font-size:18px; color:var(--gold); font-variant-numeric:tabular-nums}
+.s-grid{flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0}
+.s-now{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:16px; padding:clamp(16px,2vw,26px); overflow:auto; display:flex; flex-direction:column; gap:12px}
+.s-now-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.s-now-title{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.5vw,34px); color:var(--d-text)}
+.s-frag{font-family:Caveat,cursive; font-size:20px; color:var(--gold); white-space:nowrap}
+.sbeat{font-size:clamp(17px,1.8vw,23px); font-weight:600; color:var(--d-text); line-height:1.4}
+.snotes{margin:4px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:10px}
+.snotes li{font-size:clamp(15px,1.55vw,19px); line-height:1.45; color:var(--d-muted)}
+.s-side{display:flex; flex-direction:column; gap:14px; min-height:0}
+.s-card{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:14px; padding:15px 18px}
+.s-room{flex:1; overflow:auto}
+.s-lbl{font-family:Caveat,cursive; font-size:17px; color:var(--gold); margin-bottom:6px}
+.s-next-title{font-family:Fraunces,serif; font-weight:600; font-size:20px; color:var(--d-text); margin-bottom:5px}
+.s-next-body .sbeat{font-size:15.5px; font-weight:500; color:var(--d-muted)}
+.s-roomstat{font-size:16px; color:var(--d-text)} .s-roomstat b{font-size:27px; font-family:Fraunces,serif; color:var(--ok-bright); margin-right:5px}
+.s-answers{display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:10px}
+.s-ans{font-size:13.5px; color:var(--d-muted)} .s-ans b{color:var(--gold); font-variant-numeric:tabular-nums; margin-right:3px}
+.s-ctrl{display:flex; align-items:center; justify-content:center; gap:14px}
+.s-ctrl button{font-family:Inter,sans-serif; font-weight:600; font-size:16px; padding:12px 26px; border-radius:12px; border:1px solid var(--d-line); background:var(--ink-soft); color:var(--d-text); cursor:pointer}
+.s-ctrl .s-next-btn{background:var(--gold); color:var(--ink); border-color:var(--gold)}
+.s-hint{font-family:Caveat,cursive; font-size:15px; color:var(--d-muted); margin-left:8px}
 </style>
 </head>
 <body>
@@ -484,6 +515,45 @@ b,strong{font-weight:600}
 
 <script src="qrcode.min.js"></script>
 <script>
+(function(){
+  const qp=new URLSearchParams(location.search);
+  const SPEAKER=qp.get('view')==='speaker';
+  const chan=('BroadcastChannel' in window) ? new BroadcastChannel('trap-deck') : null;
+  /* per-slide facilitator notes — shown ONLY in the speaker window, never on the projected deck */
+  const NOTES=[
+    {t:`Join — scan in`, beat:`Hold here while people scan in.`, n:[
+      `Watch "joined" (below) — wait until most of the room is in before you start.`,
+      `Say: "Grab your phone, scan the code — quick game." Keep it breezy; don't hint at any trap.`]},
+    {t:`Setup — four asks`, beat:`Frame the game, hide the trap.`, n:[
+      `"I'll show you real-ish requests the lab gets — one at a time. Your job: what would you build to help?"`,
+      `No wrong answers. Do NOT suggest the four asks are connected.`]},
+    {t:`Ask 1 · the question loop`, beat:`First request — let answers land.`, n:[
+      `Read it aloud. Give ~60–90s; watch the "Ask 1" count below.`,
+      `Riff on a couple of answers as they come in, then advance.`]},
+    {t:`Ask 2 · roll it up`, beat:`Keep the rhythm — bam.`, n:[
+      `Same drill: let answers land, react briefly, advance.`]},
+    {t:`Ask 3 · build the deck`, beat:`Pace it up.`, n:[
+      `Don't over-discuss — the momentum IS the setup. Advance once answers are in.`]},
+    {t:`Ask 4 · the decision`, beat:`Last request.`, n:[
+      `Fourth and final ask. Once answers are in, advance to the reveal.`]},
+    {t:`The machine (fake win)`, beat:`Sell the win — then doubt it.`, n:[
+      `⚠ Advance here only AFTER answers are in — the cards are built from them by the AI.`,
+      `Click the four products in one at a time (Space). Let it feel impressive.`,
+      `Land "a week of swivel-chair — now it runs itself." Pause on "Looks like a win?" — a beat of real pride.`]},
+    {t:`The confession`, beat:`The gut-punch. Slow down.`, n:[
+      `"Look what I asked every time — what would you BUILD. Never whether the step should exist."`,
+      `PAUSE — tell them to check their phones (each sees their own answer + the dead assumption it retrofitted).`,
+      `"That's retrofitting, on demand — and it's what this lab gets asked for every week."`]},
+    {t:`Redesign the job`, beat:`Lights up. Kill the old shape.`, n:[
+      `Show the four steps as ONE run. Then CLICK once — the old run strikes through; only "The decision" survives.`,
+      `"Three were workarounds for scarcities that are gone. One real job remains: someone owns the call."`,
+      `Open the floor: "Forget the steps — redesign the JOB." Let redesigns land on phones.`]},
+    {t:`Close — no engines on horses`, beat:`Land it.`, n:[
+      `"Redesign. Don't retrofit. No engines on horses." Beat. "Stop the animal abuse." (the laugh.)`,
+      `Hand back to the main deck.`]},
+  ];
+  if(SPEAKER){ return buildSpeaker(); }
+
   document.documentElement.classList.remove('nojs');
   const slides=[...document.querySelectorAll('.slide')];
   const dotsWrap=document.getElementById('dots');
@@ -518,21 +588,23 @@ b,strong{font-weight:600}
     if(fr.length) applyFrags(slides[n],fragStep);
     if(slides[n].hasAttribute('data-summarize')) wsSend({type:'summarize'});   // synthesize the room's ideas for the product cards
     syncPrompt();
+    bcState();
   }
-  function next(){ const fr=fragEls(slides[i]); if(fr.length && fragStep<fr.length){ fragStep++; applyFrags(slides[i],fragStep); return; } go(i+1,'fwd'); }
-  function prev(){ const fr=fragEls(slides[i]); if(fr.length && fragStep>0){ fragStep--; applyFrags(slides[i],fragStep); return; } go(i-1,'back'); }
+  function next(){ const fr=fragEls(slides[i]); if(fr.length && fragStep<fr.length){ fragStep++; applyFrags(slides[i],fragStep); bcState(); return; } go(i+1,'fwd'); }
+  function prev(){ const fr=fragEls(slides[i]); if(fr.length && fragStep>0){ fragStep--; applyFrags(slides[i],fragStep); bcState(); return; } go(i-1,'back'); }
   document.addEventListener('keydown',e=>{
     if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); next(); }
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); prev(); }
     else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
     else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
+    else if((e.key==='s'||e.key==='S') && !e.shiftKey){ e.preventDefault(); openSpeaker(); }
     else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
   document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
 
   /* ---- live wiring ---- */
   const params=new URLSearchParams(location.search); const hostKey=params.get('host')||'';
-  let ws, answers={};
+  let ws, answers={}, liveCount=0;
   function feedFor(pid){ return document.querySelector('.feed[data-prompt="'+pid+'"]'); }
   function addChip(pid,a){ const f=feedFor(pid); if(!f) return; const e=f.querySelector('.feedempty'); if(e) e.remove(); const c=document.createElement('div'); c.className='achip'+(a.tag?(' '+a.tag):''); if(a.name){ const w=document.createElement('span'); w.className='who'; w.textContent=a.name; c.appendChild(w); } c.appendChild(document.createTextNode(a.text)); f.appendChild(c); f.scrollTop=f.scrollHeight; }
   function renderFeed(pid){ const f=feedFor(pid); if(!f) return; f.innerHTML=''; const arr=answers[pid]||[]; if(!arr.length){ f.innerHTML='<div class="feedempty">answers from the room land here…</div>'; } else arr.forEach(a=>addChip(pid,a)); }
@@ -565,7 +637,7 @@ b,strong{font-weight:600}
       curRound=round;
     }
   }
-  function setCount(n){ const el=document.getElementById('jcount'); if(el) el.textContent=n; }
+  function setCount(n){ liveCount=n; const el=document.getElementById('jcount'); if(el) el.textContent=n; bcLive(); }
 
   /* round timer + cracked board */
   let timerEnd=0, timerInt=null;
@@ -668,7 +740,7 @@ b,strong{font-weight:600}
     ws.onopen=()=>{ ws.send(JSON.stringify({type:'present', hostKey})); };
     ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;}
       if(m.type==='state'){ answers=m.answers||{}; renderAll(); setCount(m.count||0); setTimer(m.timer); renderBoard(m.board); syncPrompt(); }
-      else if(m.type==='answer'){ (answers[m.promptId]=answers[m.promptId]||[]).push(m.answer); addChip(m.promptId,m.answer); }
+      else if(m.type==='answer'){ (answers[m.promptId]=answers[m.promptId]||[]).push(m.answer); addChip(m.promptId,m.answer); bcLive(); }
       else if(m.type==='count'){ setCount(m.count||0); }
       else if(m.type==='timer'){ setTimer(m.timer); }
       else if(m.type==='board'){ renderBoard(m.board); }
@@ -684,6 +756,64 @@ b,strong{font-weight:600}
   }
   connect();
   go(0);
+
+  /* ---- deck ⇄ speaker sync (same browser, BroadcastChannel) ---- */
+  function bcState(){ if(chan) chan.postMessage({k:'state', i, total:slides.length, frag:fragStep, fragN:(fragEls(slides[i])||[]).length}); }
+  function bcLive(){ if(!chan) return; const a={}; document.querySelectorAll('.feed[data-prompt]').forEach(f=>{ a[f.dataset.prompt]=(answers[f.dataset.prompt]||[]).length; }); chan.postMessage({k:'live', count:liveCount, answers:a}); }
+  function openSpeaker(){ const u=new URL(location.href); u.searchParams.set('view','speaker'); window.open(u.toString(),'trap-speaker','width=1040,height=760'); }
+  if(chan) chan.onmessage=ev=>{ const m=ev.data||{}; if(m.k==='cmd'){ if(m.cmd==='next') next(); else if(m.cmd==='prev') prev(); else if(m.cmd==='goto') go(m.n); } else if(m.k==='hello'){ bcState(); bcLive(); } };
+
+  function buildSpeaker(){
+    document.documentElement.classList.remove('nojs');
+    const deck=document.getElementById('deck'); if(deck) deck.style.display='none';
+    document.querySelectorAll('.joinbar,.brandtag,.foot,.hint').forEach(el=>{ el.style.display='none'; });
+    document.title='Speaker — GenAI Lab';
+    const root=document.createElement('div'); root.className='speaker';
+    root.innerHTML=
+      '<div class="s-top"><div class="s-brand">Speaker view</div>'+
+        '<div class="s-meta"><span class="s-timer">0:00</span><button class="s-reset" title="reset timer">reset</button>'+
+        '<span class="s-clock">--:--</span><span class="s-count">1 / '+NOTES.length+'</span></div></div>'+
+      '<div class="s-grid">'+
+        '<div class="s-now"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
+        '<div class="s-side">'+
+          '<div class="s-card s-next-wrap"><div class="s-lbl">Up next</div><div class="s-next-title"></div><div class="s-next-body"></div></div>'+
+          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="s-ctrl"><button class="s-prev-btn">◀ Prev</button><button class="s-next-btn">Next ▶</button>'+
+        '<span class="s-hint">arrows / space drive the projected deck</span></div>';
+    document.body.appendChild(root);
+    const $=s=>root.querySelector(s);
+    let cur=0, total=NOTES.length, frag=0, fragN=0;
+    function nh(o){ if(!o) return ''; return (o.beat?('<p class="sbeat">'+o.beat+'</p>'):'')+(o.n&&o.n.length?('<ul class="snotes">'+o.n.map(x=>'<li>'+x+'</li>').join('')+'</ul>'):''); }
+    function render(){
+      const o=NOTES[cur]||{}, nx=NOTES[cur+1];
+      $('.s-now-title').textContent=o.t||('Slide '+(cur+1));
+      $('.s-now-body').innerHTML=nh(o);
+      $('.s-count').textContent=(cur+1)+' / '+total;
+      const sf=$('.s-frag'); if(fragN>0){ sf.textContent='reveal '+frag+' / '+fragN; sf.style.visibility='visible'; } else { sf.style.visibility='hidden'; }
+      if(nx){ $('.s-next-title').textContent=nx.t; $('.s-next-body').innerHTML=nx.beat?('<p class="sbeat">'+nx.beat+'</p>'):''; $('.s-next-wrap').style.opacity='1'; }
+      else { $('.s-next-title').textContent='— end of deck —'; $('.s-next-body').innerHTML=''; $('.s-next-wrap').style.opacity='.55'; }
+    }
+    function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join(''); }
+    function send(cmd,n){ if(chan) chan.postMessage({k:'cmd',cmd,n}); }
+    $('.s-next-btn').onclick=()=>send('next');
+    $('.s-prev-btn').onclick=()=>send('prev');
+    document.addEventListener('keydown',e=>{
+      if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); send('next'); }
+      else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); send('prev'); }
+      else if(e.key==='Home'){ send('goto',0); } else if(e.key==='End'){ send('goto',total-1); }
+    });
+    if(chan){ chan.onmessage=ev=>{ const m=ev.data||{}; if(m.k==='state'){ cur=m.i; total=m.total||total; frag=m.frag||0; fragN=m.fragN||0; render(); } else if(m.k==='live'){ renderLive(m); } }; chan.postMessage({k:'hello'}); }
+    function p2(x){ return String(x).padStart(2,'0'); }
+    function fmtt(ms){ ms=Math.max(0,ms); const s=Math.round(ms/1000); return Math.floor(s/60)+':'+p2(s%60); }
+    let t0=Date.now();
+    function tick(){ $('.s-timer').textContent=fmtt(Date.now()-t0); const d=new Date(); $('.s-clock').textContent=p2(d.getHours())+':'+p2(d.getMinutes()); }
+    setInterval(tick,1000); tick();
+    $('.s-reset').onclick=()=>{ t0=Date.now(); tick(); };
+    render();
+  }
+})();
 </script>
 </body>
 </html>
