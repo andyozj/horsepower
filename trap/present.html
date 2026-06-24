@@ -319,6 +319,18 @@ b,strong{font-weight:600}
 .s-reset{background:none; border:1px solid var(--d-line); color:var(--d-muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12.5px}
 .s-count{font-family:Fraunces,serif; font-weight:600; font-size:18px; color:var(--gold); font-variant-numeric:tabular-nums}
 .s-grid{flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0}
+/* slide previews (current + next), live thumbnails via scaled thumb-mode iframes */
+.s-previews{display:flex; gap:clamp(14px,2vw,26px); align-items:flex-start; flex:0 0 auto}
+.s-prev{display:flex; flex-direction:column; gap:7px; min-width:0}
+.s-prev-now .thumb-box{width:clamp(340px,40vw,560px)}
+.s-prev-next .thumb-box{width:clamp(220px,26vw,380px)}
+.thumb-box{position:relative; aspect-ratio:16/9; overflow:hidden; border-radius:12px; border:1.5px solid var(--d-line); background:var(--paper); box-shadow:0 8px 26px -16px rgba(0,0,0,.5)}
+.thumb-box iframe{position:absolute; top:0; left:0; width:1280px; height:720px; border:0; transform-origin:top left; pointer-events:none}
+.thumb-box.ended iframe{display:none}
+.thumb-end{position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-family:Caveat,cursive; font-size:clamp(18px,1.8vw,24px); color:var(--d-muted); background:var(--ink-soft)}
+.thumb-box.ended .thumb-end{display:flex}
+.s-notespanel{flex:1 1 auto; min-height:0}
+.s-room{flex:0 0 auto}
 .s-now{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:16px; padding:clamp(16px,2vw,26px); overflow:auto; display:flex; flex-direction:column; gap:12px}
 .s-now-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
 .s-now-title{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.5vw,34px); color:var(--d-text)}
@@ -574,6 +586,7 @@ b,strong{font-weight:600}
       n:[`The video is on this slide — click it to play the demo (with sound). Then hand back to the main deck.`]},
   ];
   if(SPEAKER){ return buildSpeaker(); }
+  if(qp.get('view')==='thumb'){ return buildThumb(); }
 
   document.documentElement.classList.remove('nojs');
   const slides=[...document.querySelectorAll('.slide')];
@@ -816,18 +829,29 @@ b,strong{font-weight:600}
       '<div class="s-top"><div class="s-brand">Speaker view</div>'+
         '<div class="s-meta"><span class="s-timer">0:00</span><button class="s-reset" title="reset timer">reset</button>'+
         '<span class="s-clock">--:--</span><span class="s-answertimer"></span><span class="s-count">1 / '+NOTES.length+'</span></div></div>'+
-      '<div class="s-grid">'+
-        '<div class="s-now"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
-        '<div class="s-side">'+
-          '<div class="s-card s-next-wrap"><div class="s-lbl">Up next</div><div class="s-next-title"></div><div class="s-next-body"></div></div>'+
-          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div><div class="s-roster"></div></div>'+
-        '</div>'+
+      '<div class="s-previews">'+
+        '<div class="s-prev s-prev-now"><div class="s-lbl">On screen now</div><div class="thumb-box"><iframe class="s-thumb" data-role="now" title="current slide"></iframe></div></div>'+
+        '<div class="s-prev s-prev-next"><div class="s-lbl s-next-lbl">Up next</div><div class="thumb-box"><iframe class="s-thumb" data-role="next" title="next slide"></iframe><div class="thumb-end">— end of deck —</div></div></div>'+
       '</div>'+
+      '<div class="s-now s-notespanel"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
+      '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div><div class="s-roster"></div></div>'+
       '<div class="s-ctrl"><button class="s-prev-btn">◀ Prev</button><button class="s-next-btn">Next ▶</button>'+
         '<span class="s-hint">arrows / space drive the projected deck</span></div>';
     document.body.appendChild(root);
     const $=s=>root.querySelector(s);
     let cur=0, total=NOTES.length, frag=0, fragN=0, spkSt=0;
+    /* live slide-preview thumbnails (current + next) via two scaled thumb-mode iframes */
+    const nowFrame=$('.s-thumb[data-role="now"]'), nextFrame=$('.s-thumb[data-role="next"]');
+    const thumbSrc=location.pathname+'?view=thumb';
+    [nowFrame,nextFrame].forEach(f=>{ if(f){ f.addEventListener('load',()=>{ pushThumbs(); fitThumbs(); }); f.src=thumbSrc; } });
+    function pushThumbs(){
+      if(nowFrame && nowFrame.contentWindow) nowFrame.contentWindow.postMessage({thumb:cur, frag:frag}, '*');
+      const nb=$('.s-prev-next .thumb-box');
+      if(cur+1<total){ if(nb) nb.classList.remove('ended'); if(nextFrame && nextFrame.contentWindow) nextFrame.contentWindow.postMessage({thumb:cur+1, frag:0}, '*'); }
+      else if(nb){ nb.classList.add('ended'); }
+    }
+    function fitThumbs(){ root.querySelectorAll('.thumb-box').forEach(box=>{ const f=box.querySelector('iframe'); if(f) f.style.transform='scale('+(box.clientWidth/1280)+')'; }); }
+    window.addEventListener('resize', fitThumbs); requestAnimationFrame(fitThumbs);
     function nh(o){ if(!o) return ''; return (o.beat?('<p class="sbeat">'+o.beat+'</p>'):'')+(o.say?('<div class="ssay">'+o.say+'</div>'):'')+(o.n&&o.n.length?('<ul class="snotes">'+o.n.map(x=>'<li>'+x+'</li>').join('')+'</ul>'):''); }
     function render(){
       const o=NOTES[cur]||{}, nx=NOTES[cur+1];
@@ -835,9 +859,9 @@ b,strong{font-weight:600}
       $('.s-now-body').innerHTML=nh(o);
       $('.s-count').textContent=(cur+1)+' / '+total;
       const sf=$('.s-frag'); if(fragN>0){ sf.textContent='reveal '+frag+' / '+fragN; sf.style.visibility='visible'; } else { sf.style.visibility='hidden'; }
-      if(nx){ $('.s-next-title').textContent=nx.t; $('.s-next-body').innerHTML=nx.beat?('<p class="sbeat">'+nx.beat+'</p>'):''; $('.s-next-wrap').style.opacity='1'; }
-      else { $('.s-next-title').textContent='— end of deck —'; $('.s-next-body').innerHTML=''; $('.s-next-wrap').style.opacity='.55'; }
+      $('.s-next-lbl').textContent = nx ? ('Up next — '+nx.t) : 'Up next';
       const room=$('.s-room'); if(room) room.style.display = cur===0 ? '' : 'none';   // the room/paddock only matters on the join slide
+      pushThumbs(); fitThumbs();
     }
     function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join('');
       const ros=m.roster||[], rr=$('.s-roster'); if(rr){ rr.innerHTML=ros.map(p=>'<span class="s-rider"><span class="s-rav" style="border-color:'+(p.hex||'#3a4c6e')+'"><img src="/img/steed-'+(p.color||'navy')+'.png" alt="" onerror="this.style.display=\'none\'"></span>'+esc(p.name||'rider')+'</span>').join(''); } }
@@ -858,6 +882,26 @@ b,strong{font-weight:600}
     setInterval(tick,1000); tick();
     $('.s-reset').onclick=()=>{ t0=Date.now(); tick(); };
     render();
+  }
+
+  /* thumbnail mode — renders ONE slide statically (for the speaker previews); driven by postMessage */
+  function buildThumb(){
+    document.documentElement.classList.remove('nojs');
+    document.querySelectorAll('.joinbar,.brandtag,.foot,.hint,.slidetimer').forEach(el=>{ if(el) el.remove(); });
+    document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden';
+    const slideEls=[...document.querySelectorAll('.slide')];
+    function showThumb(n, frag){
+      n=Math.max(0,Math.min(slideEls.length-1,n));
+      slideEls.forEach((s,k)=>{ s.classList.toggle('active',k===n); s.classList.remove('past'); });
+      const s=slideEls[n]; if(!s) return;
+      const fr=[...s.querySelectorAll('.frag')];
+      const upTo=(frag==null)?fr.length:Math.max(0,Math.min(fr.length,frag));
+      fr.forEach((el,k)=>el.classList.toggle('shown', k<upTo));
+      const asm=s.querySelector('.assembly'); if(asm) asm.classList.toggle('powered', upTo>=4);
+      const rs=s.querySelector('.runstrip'); if(rs) rs.classList.toggle('killed', upTo>=1);
+    }
+    showThumb(parseInt(qp.get('n')||'0',10)||0, null);
+    window.addEventListener('message', e=>{ const m=e.data||{}; if(m && m.thumb!=null) showThumb(m.thumb, m.frag); });
   }
 })();
 </script>
