@@ -242,15 +242,18 @@ b,strong{font-weight:600}
 /* slide 10 — the close: the verdict + the cautionary blueprint */
 .close{align-items:center; justify-content:center}
 .closewrap{display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:center; gap:clamp(24px,4vw,68px); max-width:1280px; width:100%}
-.closetext{flex:0 1 380px; min-width:280px; display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:clamp(8px,1.2vw,15px)}
+.closetext{flex:0 1 440px; min-width:290px; display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:clamp(9px,1.3vw,16px)}
 .close .seg{color:var(--gold-deep)}
-.closeline{font-family:Fraunces,serif; font-weight:600; font-size:clamp(36px,4.8vw,72px); line-height:.99; letter-spacing:-.03em; color:var(--ink)}
-.mantra{font-family:Fraunces,serif; font-weight:600; font-style:italic; font-size:clamp(21px,2.7vw,38px); letter-spacing:-.01em; color:var(--gold-deep)}
-.close .cue{font-family:Caveat,cursive; font-size:clamp(19px,2vw,26px); color:var(--red)}
-.closeart-wrap{flex:1 1 640px; min-width:300px; display:flex; justify-content:center}
+.closeline{font-family:Fraunces,serif; font-weight:600; font-size:clamp(40px,5.6vw,86px); line-height:.99; letter-spacing:-.03em; color:var(--ink)}
+.mantra{font-family:Fraunces,serif; font-weight:600; font-style:italic; font-size:clamp(22px,3vw,42px); letter-spacing:-.01em; color:var(--gold-deep)}
+.close .cue{font-family:Caveat,cursive; font-size:clamp(20px,2.1vw,28px); color:var(--red)}
+.closeart-wrap{flex:0 1 600px; min-width:300px; display:flex; justify-content:center}
 .closeart{width:100%; max-width:640px; height:auto; display:block}
-.closevid{width:100%; max-width:820px; aspect-ratio:16/9; height:auto; display:block; object-fit:contain; background:var(--paper); border:1.5px solid var(--line); border-radius:14px; box-shadow:0 16px 46px -22px rgba(33,49,79,.42)}
 .jokesvg{width:clamp(116px,13vw,168px); height:auto; display:block}
+/* slide 11 — the product demo, its own slide */
+.demo{align-items:center; justify-content:center; gap:clamp(14px,2vw,26px)}
+.demo .head{text-align:center; display:flex; flex-direction:column; align-items:center}
+.demovid{width:min(1120px,86vw); aspect-ratio:16/9; height:auto; display:block; object-fit:cover; background:#0d1626; border:1.5px solid var(--line); border-radius:16px; box-shadow:0 22px 60px -26px rgba(33,49,79,.55); margin-top:6px}
 @media (prefers-reduced-motion:reduce){ .assembly.powered > .product,.assembly.powered > .achain .product{animation:none} }
 
 /* join bar + chrome */
@@ -334,8 +337,8 @@ b,strong{font-weight:600}
 .s-next-title{font-family:Fraunces,serif; font-weight:600; font-size:20px; color:var(--d-text); margin-bottom:5px}
 .s-next-body .sbeat{font-size:15.5px; font-weight:500; color:var(--d-muted)}
 .s-roomstat{font-size:16px; color:var(--d-text)} .s-roomstat b{font-size:27px; font-family:Fraunces,serif; color:var(--ok-bright); margin-right:5px}
-.s-answertimer{display:none; margin-top:9px; font-family:Fraunces,serif; font-weight:600; font-size:18px; font-variant-numeric:tabular-nums; color:var(--gold)}
-.s-answertimer.on{display:block} .s-answertimer.low{color:var(--red-bright)}
+.s-answertimer{display:none; font-family:Fraunces,serif; font-weight:600; font-size:20px; font-variant-numeric:tabular-nums; color:var(--gold)}
+.s-answertimer.on{display:inline-block} .s-answertimer.low{color:var(--red-bright)}
 .s-roster{display:flex; flex-wrap:wrap; gap:8px 13px; margin-top:13px}
 .s-rider{display:inline-flex; align-items:center; gap:7px; font-size:13.5px; color:var(--d-text)}
 .s-rav{width:27px; height:27px; border-radius:50%; background:#fff; border:2px solid var(--d-line); overflow:hidden; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto}
@@ -520,11 +523,27 @@ b,strong{font-weight:600}
         <div class="cue">Stop the animal abuse.</div>
       </div>
       <div class="closeart-wrap">
-        <video class="closevid" controls playsinline preload="metadata" poster="/img/engine-horse.png">
-          <source src="/img/close.mp4" type="video/mp4">
-        </video>
+        <img class="closeart" src="/img/engine-horse.png" alt="a blueprint of an engine bolted onto a horse fitted with casters" onerror="this.style.display='none';var f=document.getElementById('closefallback');if(f)f.style.display='block'">
+        <svg id="closefallback" class="jokesvg" viewBox="0 0 220 200" aria-hidden="true" style="display:none">
+          <path transform="translate(40,78) scale(4.6)" d="M5.2 13.4 L6.8 13 C8.2 12.7 9.4 13.2 10.2 14.3 C10.8 15.6 10.7 17.6 10.6 19.6 L18 19.6 C18.7 15.4 18.3 9.6 15.4 5.6 L14.6 3.2 L13.4 5 L12.6 3.4 L11.2 5.2 C8.6 6.8 6 9.6 4.9 11.6 C4.6 12.4 4.8 13.2 5.2 13.4 Z" fill="var(--ink)"/>
+          <g transform="translate(104,66)">
+            <rect x="0" y="0" width="50" height="32" rx="6" fill="var(--gold)" stroke="var(--gold-deep)" stroke-width="3"/>
+            <circle cx="14" cy="16" r="4.2" fill="var(--gold-deep)"/><circle cx="36" cy="16" r="4.2" fill="var(--gold-deep)"/>
+            <path d="M25 0 V-9 M17 -9 h16" stroke="var(--gold-deep)" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </g>
+          <circle cx="110" cy="100" r="90" fill="none" stroke="var(--red)" stroke-width="10"/>
+          <path d="M46 164 L174 36" stroke="var(--red)" stroke-width="10" stroke-linecap="round"/>
+        </svg>
       </div>
     </div>
+  </section>
+
+  <!-- DEMO — the product demo, its own slide -->
+  <section class="slide demo" data-title="Demo — Horsepower">
+    <div class="head"><div class="eyebrow">the tool we built</div><h2 class="title sm">Horsepower — <span class="hl">see it run.</span></h2></div>
+    <video class="demovid" controls playsinline preload="metadata" poster="/img/close-poster.jpg">
+      <source src="/img/close.mp4" type="video/mp4">
+    </video>
   </section>
 
 </div>
@@ -571,7 +590,10 @@ b,strong{font-weight:600}
       n:[`CLICK once to strike the old run — only the intent survives. Then let redesigns land on phones.`]},
     {t:`Close — no engines on horses`, beat:`Land it.`,
       say:`"That's the trap. Redesign — don't retrofit. Don't bolt an engine onto a horse and call it transformation. No engines on horses. … Stop the animal abuse."`,
-      n:[`Hand back to the main deck.`]},
+      n:[`Beat, then move to the demo.`]},
+    {t:`Demo — Horsepower`, beat:`Show the tool.`,
+      say:`"And here's what that looks like, built — Horsepower. Let's watch."`,
+      n:[`Click the video to play (with sound). Native controls to pause / seek. Then hand back to the main deck.`]},
   ];
   if(SPEAKER){ return buildSpeaker(); }
 
@@ -635,7 +657,7 @@ b,strong{font-weight:600}
     else if((e.key==='s'||e.key==='S') && !e.shiftKey){ e.preventDefault(); openSpeaker(); }
     else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
-  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed,.closevid')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
+  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed,.demovid')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
 
   /* ---- live wiring ---- */
   const params=new URLSearchParams(location.search); const hostKey=params.get('host')||'';
@@ -815,12 +837,12 @@ b,strong{font-weight:600}
     root.innerHTML=
       '<div class="s-top"><div class="s-brand">Speaker view</div>'+
         '<div class="s-meta"><span class="s-timer">0:00</span><button class="s-reset" title="reset timer">reset</button>'+
-        '<span class="s-clock">--:--</span><span class="s-count">1 / '+NOTES.length+'</span></div></div>'+
+        '<span class="s-clock">--:--</span><span class="s-answertimer"></span><span class="s-count">1 / '+NOTES.length+'</span></div></div>'+
       '<div class="s-grid">'+
         '<div class="s-now"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
         '<div class="s-side">'+
           '<div class="s-card s-next-wrap"><div class="s-lbl">Up next</div><div class="s-next-title"></div><div class="s-next-body"></div></div>'+
-          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answertimer"></div><div class="s-answers"></div><div class="s-roster"></div></div>'+
+          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answers"></div><div class="s-roster"></div></div>'+
         '</div>'+
       '</div>'+
       '<div class="s-ctrl"><button class="s-prev-btn">◀ Prev</button><button class="s-next-btn">Next ▶</button>'+
@@ -837,6 +859,7 @@ b,strong{font-weight:600}
       const sf=$('.s-frag'); if(fragN>0){ sf.textContent='reveal '+frag+' / '+fragN; sf.style.visibility='visible'; } else { sf.style.visibility='hidden'; }
       if(nx){ $('.s-next-title').textContent=nx.t; $('.s-next-body').innerHTML=nx.beat?('<p class="sbeat">'+nx.beat+'</p>'):''; $('.s-next-wrap').style.opacity='1'; }
       else { $('.s-next-title').textContent='— end of deck —'; $('.s-next-body').innerHTML=''; $('.s-next-wrap').style.opacity='.55'; }
+      const room=$('.s-room'); if(room) room.style.display = cur===0 ? '' : 'none';   // the room/paddock only matters on the join slide
     }
     function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join('');
       const ros=m.roster||[], rr=$('.s-roster'); if(rr){ rr.innerHTML=ros.map(p=>'<span class="s-rider"><span class="s-rav" style="border-color:'+(p.hex||'#3a4c6e')+'"><img src="/img/steed-'+(p.color||'navy')+'.png" alt="" onerror="this.style.display=\'none\'"></span>'+esc(p.name||'rider')+'</span>').join(''); } }
