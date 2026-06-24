@@ -125,6 +125,16 @@ b,strong{font-weight:600}
 .pchain-arrow{align-self:center; color:var(--ok-bright); font-size:24px; line-height:1}
 @media (max-width:980px){ .achain{flex-wrap:wrap} .pchain-arrow{transform:rotate(90deg)} .product{width:clamp(150px,42vw,220px)} }
 
+/* slide 9 — the four steps recombined into the whole run, end to end */
+.runstrip{margin-top:4px; padding:12px 16px 14px; background:rgba(255,255,255,.04); border:1.4px solid var(--d-line); border-radius:13px}
+.runcap{font-family:Caveat,cursive; font-size:clamp(15px,1.55vw,20px); color:var(--gold); margin-bottom:9px}
+.runchain{display:flex; align-items:stretch; gap:9px; flex-wrap:wrap}
+.runstep{display:flex; flex-direction:column; gap:1px; flex:1 1 auto; background:var(--ink-soft); border:1.3px solid var(--d-line); border-radius:10px; padding:9px 13px}
+.runstep b{font-family:Fraunces,serif; font-weight:600; font-size:clamp(13px,1.35vw,17px); color:var(--d-text); line-height:1.1}
+.runstep i{font-style:normal; font-size:11.5px; color:var(--d-muted); margin-top:2px}
+.runsep{align-self:center; color:var(--d-muted); font-size:19px; line-height:1}
+@media (max-width:820px){ .runsep{transform:rotate(90deg)} .runstep{flex-basis:100%} }
+
 /* scarcity */
 .scar{display:flex; flex-direction:column; gap:8px; margin-top:8px}
 .scarrow{display:grid; grid-template-columns:1.05fr 1.6fr auto; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:12px 16px}
@@ -392,9 +402,21 @@ b,strong{font-weight:600}
   <!-- HOW WOULD YOU DO IT DIFFERENTLY? (the redesign open input) -->
   <section class="slide dark" data-prompt="redesign" data-label="Forget the steps — how would you do it differently?" data-mode="open" data-mark>
     <div class="head"><div class="eyebrow">now flip it</div><h2 class="title sm">Don't speed up the old shape. <span class="hl">Redesign the job.</span></h2></div>
-    <p class="lede">Forget the four steps. Forget the four tools. Start from the <b>one job this whole thing exists to do</b> — and build for that. No monthly cascade, no pack, no meeting assumed. What would it be? Tell me on your phone.</p>
-    <div style="margin-top:6px"><span class="livetag"><span class="ld"></span>live · the room redesigns the whole thing</span></div>
-    <div class="feed" data-prompt="redesign" style="margin-top:14px; max-height:34vh"><div class="feedempty">redesigns from the room land here…</div></div>
+    <div class="runstrip">
+      <div class="runcap">those four “requests” were never separate — they're one monthly run:</div>
+      <div class="runchain">
+        <span class="runstep"><b>Build the deck</b><i>gather &amp; package the numbers</i></span>
+        <span class="runsep">→</span>
+        <span class="runstep"><b>The question loop</b><i>review, clarify, resend</i></span>
+        <span class="runsep">→</span>
+        <span class="runstep"><b>Roll it up</b><i>consolidate across teams</i></span>
+        <span class="runsep">→</span>
+        <span class="runstep"><b>The decision</b><i>the call gets made</i></span>
+      </div>
+    </div>
+    <p class="lede">Now forget the four steps and the four tools. Start from the <b>one job this whole run exists to do</b> — and build for that. No monthly cascade, no pack, no meeting assumed. What would it be? Tell me on your phone.</p>
+    <div style="margin-top:4px"><span class="livetag"><span class="ld"></span>live · the room redesigns the whole thing</span></div>
+    <div class="feed" data-prompt="redesign" style="margin-top:10px; max-height:24vh"><div class="feedempty">redesigns from the room land here…</div></div>
   </section>
 
   <!-- HANDOFF → MAIN DECK TO CLOSE -->
