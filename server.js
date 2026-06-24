@@ -193,6 +193,9 @@ function reqIp(req) {
 }
 const coachBuckets = new Map(); // workshop code -> bucket (kept OFF the workshop object so it never hits disk)
 const coachIpBuckets = new Map();                 // per-IP coach spend bucket
+let lastCoachErr = null;        // diag: the most recent coach upstream failure (surfaced in /api/health)
+let lastCoachOk = null;         // diag: the most recent successful coach call (kind + ms)
+function noteCoachErr(kind, e) { lastCoachErr = { kind, err: String((e && e.message) || e).slice(0, 240), at: new Date().toISOString() }; }
 const coachGlobalBucket = makeBucket(CONFIG.COACH_GLOBAL_BUCKET);  // one shared global ceiling
 function coachSpendAllowed(ip, room) {
   // per-room (existing intent), per-IP, and global — all must have a token to spend the key.
@@ -958,6 +961,7 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, build: BUILD, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
              model: AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : (AI_PROVIDER ? ANTHROPIC_MODEL : null),
              coachIpMax: CONFIG.COACH_IP_BUCKET.capacity, coachGlobalMax: CONFIG.COACH_GLOBAL_BUCKET.capacity,
+             lastCoachErr, lastCoachOk,
              db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
              voice: voiceCaps(),
              workshops: workshops.size, uptime: Math.round(process.uptime()) });
@@ -1528,10 +1532,12 @@ app.post('/api/coach', async (req, res) => {
           applyOps(team.canvas, j.ops || (j.proposal && j.proposal.ops));
           team.canvas.chat = team.canvas.chat || []; team.canvas.chat.push({ role: 'assistant', content: reply, ts: Date.now() });
           broadcast(room);
+          lastCoachOk = { kind: 'interview-stream', ops: (j.ops || []).length, at: new Date().toISOString() };
           const baseReady = interviewReady(team.canvas);
           res.write(CTRL + JSON.stringify({ degraded: false, done: baseReady && (!!j.done || interviewReady(team.canvas, { requireServed: true })) }));
           return res.end();
         } catch (e) {
+          noteCoachErr('interview-stream', e);
           log('coach_degraded', { kind: 'interview-stream', err: String(e.message || e).slice(0, 200) });
           if (res.headersSent) { try { return fallback(); } catch (_) { return res.end(); } }
           return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) });
@@ -1556,6 +1562,7 @@ app.post('/api/coach', async (req, res) => {
         const baseReady = interviewReady(team.canvas);
         return res.json({ reply, interview: true, done: baseReady && (!!j.done || interviewReady(team.canvas, { requireServed: true })) });
       } catch (e) {
+        noteCoachErr('interview', e);
         log('coach_degraded', { kind: 'interview', err: String(e.message || e).slice(0, 200) });
         return res.json({ reply: degradedInterviewReply(room, team), degraded: true, interview: true, done: interviewReady(team.canvas) });
       }
