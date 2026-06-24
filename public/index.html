@@ -1681,8 +1681,16 @@ function timerLow(){ const t=state&&state.timer; if(!t||!t.running) return false
 //==================================================================
 let lobbyTimer = null, tourTimer = null, posterTimer = null;
 let canvasCache = {};   // A0: live makeCanvas instances kept across state broadcasts (key: '<mode>:<teamId>')
+let _rendering = false;
 function render(){
   if (editingLock){ pendingRender = true; return; }
+  // Re-entrancy guard: a view fn can call render() WHILE render() is mid-build (e.g. converseTypePanel →
+  // VC.hangup() → render()). The nested call would clear+mount a full copy, then the outer call mounts ITS
+  // copy on top → two stacked app trees (the "double screen" / frozen-timer bug). Skip nested calls; the
+  // outer render already paints the current state. try/finally so the flag always clears even if a view throws.
+  if (_rendering) return;
+  _rendering = true;
+  try {
   // B5: focus survives the app.innerHTML wipe — extend the toolRestore idea to the focused element.
   // Keyed by data-testid (suite-stable) → .node[data-id] (B9) → #id; caret captured for inputs/textareas.
   const _af = document.activeElement;
@@ -1728,6 +1736,7 @@ function render(){
     // B3: announce the phase change (guard suppresses spam on first paint / reload)
     if(lastPhaseRendered!==null){ const soloA=!!(myTeam()&&myTeam().selfRebuild); announce({surface:'Surface phase — map your workflow', rebuild:soloA?'Rebuild phase — rebuild your own workflow':'Rebuild phase — you hold another team’s workflow', share:soloA?'Share phase — your before & after':'Share phase — the double reveal', closed:'Workshop closed', lobby:'Back in the lobby'}[st]||''); } }
   lastPhaseRendered = st;
+  } finally { _rendering = false; }
 }
 let lastPhaseRendered = null;
 
