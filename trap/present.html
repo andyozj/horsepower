@@ -77,19 +77,27 @@ b,strong{font-weight:600}
 .taskhead{display:flex; align-items:baseline; justify-content:space-between; gap:14px}
 .tasknum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--muted-soft)}
 .queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--muted-strong)} .queued b{font-variant-numeric:tabular-nums; color:var(--gold-deep)}
-.taskbody{display:grid; grid-template-columns:.85fr 1.15fr; gap:clamp(22px,3vw,52px); align-items:start; margin-top:8px}
-@media (max-width:880px){ .taskbody{grid-template-columns:1fr} }
-.tlabel{font-family:Caveat,cursive; font-size:clamp(16px,1.6vw,21px); color:var(--muted-strong); margin-bottom:2px}
-.tlabel.pain{color:var(--red); margin-top:12px}
-.taskbody p{font-size:clamp(14px,1.4vw,18px); color:var(--muted-strong); line-height:1.5}
-.asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(18px,1.9vw,25px); color:var(--ink); margin-bottom:10px}
-.feed{display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow:auto; padding-right:4px}
-.feedempty{font-size:14px; color:var(--muted-soft); font-style:italic; padding:10px 0}
-.achip{background:var(--amber); border:1.6px solid var(--amber-line); border-radius:12px 12px 12px 3px; padding:11px 15px; font-size:clamp(14px,1.35vw,17px); line-height:1.4; color:#5a4410; box-shadow:2px 3px 0 -1px color-mix(in srgb,var(--gold) 26%,transparent); animation:pop .3s cubic-bezier(.2,.9,.3,1.2)}
+/* compact context blurb (today + pain folded into one quiet line) */
+.ctxblurb{display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 13px; margin-top:2px; padding:10px 16px; background:color-mix(in srgb,var(--ink) 4%,var(--card)); border:1.4px solid var(--line); border-left:4px solid var(--muted-soft); border-radius:10px; font-size:clamp(13px,1.3vw,16px); color:var(--muted-strong); line-height:1.45; max-width:80ch}
+.ctxblurb .cb-l{font-family:Caveat,cursive; font-weight:700; font-size:1.16em; color:var(--muted-soft); margin-right:1px}
+.ctxblurb .cb-l.pain{color:var(--red)}
+.ctxblurb .cb-sep{color:var(--line); font-weight:700; padding:0 1px}
+.ask{margin-top:2px}
+.asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(19px,2vw,27px); color:var(--ink); margin-bottom:11px}
+/* the answer wall — participant replies tile in as live notes */
+.feed{display:flex; flex-wrap:wrap; align-content:flex-start; gap:11px; max-height:42vh; overflow:auto; padding:2px 4px 2px 1px}
+.feedempty{flex:1 1 100%; font-size:14.5px; color:var(--muted-soft); font-style:italic; padding:14px 2px}
+.achip{flex:1 1 clamp(230px,29vw,360px); position:relative; background:var(--amber); border:1.6px solid var(--amber-line); border-radius:14px 14px 14px 4px; padding:12px 16px 13px; font-size:clamp(13.5px,1.32vw,16.5px); line-height:1.42; color:#5a4410; box-shadow:2px 4px 0 -1px color-mix(in srgb,var(--gold) 28%,transparent); animation:pop .34s cubic-bezier(.2,.9,.3,1.2)}
+.achip:nth-child(3n+1){transform:rotate(-.5deg)} .achip:nth-child(3n){transform:rotate(.5deg)}
 .achip.dead{background:color-mix(in srgb,var(--red) 11%,var(--card)); border-color:color-mix(in srgb,var(--red) 45%,transparent); color:#7a1f1f; box-shadow:none}
 .achip.real{background:color-mix(in srgb,var(--ok) 12%,var(--card)); border-color:color-mix(in srgb,var(--ok) 48%,transparent); color:#1f5236; box-shadow:none}
-.achip .who{font-weight:700; opacity:.7; font-size:.82em; margin-right:6px}
-@keyframes pop{from{opacity:0; transform:translateY(8px) scale(.96)}to{opacity:1; transform:none}}
+.achip .who{display:block; font-family:Inter,sans-serif; font-weight:700; font-size:.74em; letter-spacing:.04em; text-transform:uppercase; color:var(--gold-deep); opacity:.9; margin-bottom:4px}
+@keyframes pop{from{opacity:0; transform:translateY(10px) scale(.96)}to{opacity:1; transform:none}}
+
+/* fragment reveal (presenter-paced, used on the assembly slide) */
+.frag{opacity:0; transform:translateY(12px); transition:opacity .5s cubic-bezier(.2,.8,.2,1), transform .5s cubic-bezier(.2,.8,.2,1); pointer-events:none}
+.frag.shown{opacity:1; transform:none; pointer-events:auto}
+@media (prefers-reduced-motion:reduce){ .frag{transition:opacity .2s; transform:none} }
 .tdots{display:flex; gap:7px; margin-top:4px}
 .tdot{width:24px; height:6px; border-radius:3px; background:color-mix(in srgb,var(--line) 80%,transparent)}
 .tdot.on{background:var(--gold-deep)}
@@ -102,6 +110,18 @@ b,strong{font-weight:600}
 .bot .chk svg{width:13px; height:13px; color:#fff}
 .pipe .parrow{color:var(--ok-bright); font-size:22px}
 .dark .triumph{font-family:Caveat,cursive; font-size:clamp(20px,2.2vw,28px); color:var(--ok-bright); margin-top:10px}
+
+/* assembly — the four pitched tools land one product at a time */
+.assembly{display:flex; align-items:stretch; gap:clamp(6px,1vw,14px); flex-wrap:wrap; margin-top:14px}
+.achain{display:flex; align-items:stretch; gap:clamp(6px,1vw,14px)}
+.product{position:relative; flex:0 0 auto; width:clamp(168px,15vw,212px); background:var(--ink-soft); border:1.6px solid var(--d-line); border-radius:14px; padding:15px 16px 14px; display:flex; flex-direction:column; gap:5px}
+.product .pchk{position:absolute; top:-11px; right:-11px; width:26px; height:26px; border-radius:50%; background:var(--ok); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px rgba(0,0,0,.45)}
+.product .pchk svg{width:15px; height:15px; color:#fff}
+.product .ptool{font-family:Fraunces,serif; font-weight:600; font-size:clamp(15px,1.55vw,19px); color:var(--d-text); line-height:1.12}
+.product .pdesc{font-size:clamp(11.5px,1.05vw,13px); color:var(--d-muted); line-height:1.4}
+.product .pfor{margin-top:auto; font-family:Caveat,cursive; font-size:clamp(13px,1.2vw,16px); color:var(--gold)}
+.pchain-arrow{align-self:center; color:var(--ok-bright); font-size:24px; line-height:1}
+@media (max-width:980px){ .achain{flex-wrap:wrap} .pchain-arrow{transform:rotate(90deg)} .product{width:clamp(150px,42vw,220px)} }
 
 /* scarcity */
 .scar{display:flex; flex-direction:column; gap:8px; margin-top:8px}
@@ -276,15 +296,10 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-review" data-label="Reviewing &amp; sending questions back — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>1</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build me something that drafts the clarifying questions and chases people for the answers?”</h2>
-    <div class="taskbody">
-      <div class="tcol">
-        <div class="tlabel">Today</div><p>You read the pack, spot gaps, write clarifying questions, and wait for a new version.</p>
-        <div class="tlabel pain">The pain</div><p>Rounds of back-and-forth before it's right.</p>
-      </div>
-      <div class="ask">
-        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
-        <div class="feed" data-prompt="t-review"><div class="feedempty">answers from the room land here…</div></div>
-      </div>
+    <div class="ctxblurb"><span class="cb-l">Today</span>you read the pack, spot gaps, write clarifying questions, and wait for a new version.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>rounds of back-and-forth before it's right.</div>
+    <div class="ask">
+      <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+      <div class="feed" data-prompt="t-review"><div class="feedempty">answers from the room land here…</div></div>
     </div>
     <div class="tdots"><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
   </section>
@@ -292,15 +307,10 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-rollup" data-label="Rolling it all up — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>2</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build a bot that just merges everyone's numbers into one combined view for me?”</h2>
-    <div class="taskbody">
-      <div class="tcol">
-        <div class="tlabel">Today</div><p>Take everyone's packs and merge them into a single view to pass upward.</p>
-        <div class="tlabel pain">The pain</div><p>Slow, manual, and stale by the time it's done.</p>
-      </div>
-      <div class="ask">
-        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
-        <div class="feed" data-prompt="t-rollup"><div class="feedempty">answers from the room land here…</div></div>
-      </div>
+    <div class="ctxblurb"><span class="cb-l">Today</span>take everyone's packs and merge them into a single view to pass upward.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>slow, manual, and stale by the time it's done.</div>
+    <div class="ask">
+      <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+      <div class="feed" data-prompt="t-rollup"><div class="feedempty">answers from the room land here…</div></div>
     </div>
     <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span><span class="tdot"></span></div>
   </section>
@@ -308,15 +318,10 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-deck" data-label="Building the deck — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>3</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build me a tool to auto-pull the numbers and build the deck?”</h2>
-    <div class="taskbody">
-      <div class="tcol">
-        <div class="tlabel">Today</div><p>Export from every system, then assemble the slides.</p>
-        <div class="tlabel pain">The pain</div><p>A day of swivel-chair, every cycle.</p>
-      </div>
-      <div class="ask">
-        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
-        <div class="feed" data-prompt="t-deck"><div class="feedempty">answers from the room land here…</div></div>
-      </div>
+    <div class="ctxblurb"><span class="cb-l">Today</span>export from every system, then assemble the slides.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>a day of swivel-chair, every cycle.</div>
+    <div class="ask">
+      <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+      <div class="feed" data-prompt="t-deck"><div class="feedempty">answers from the room land here…</div></div>
     </div>
     <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot"></span></div>
   </section>
@@ -324,46 +329,64 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-meeting" data-label="The review meeting — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>4</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build something that captures every decision and owner from the meeting?”</h2>
-    <div class="taskbody">
-      <div class="tcol">
-        <div class="tlabel">Today</div><p>Get everyone in a room; someone scribbles the actions and owners.</p>
-        <div class="tlabel pain">The pain</div><p>Decisions get lost; the follow-up slips.</p>
-      </div>
-      <div class="ask">
-        <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
-        <div class="feed" data-prompt="t-meeting"><div class="feedempty">answers from the room land here…</div></div>
-      </div>
+    <div class="ctxblurb"><span class="cb-l">Today</span>get everyone in a room; someone scribbles the actions and owners.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>decisions get lost; the follow-up slips.</div>
+    <div class="ask">
+      <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
+      <div class="feed" data-prompt="t-meeting"><div class="feedempty">answers from the room land here…</div></div>
     </div>
     <div class="tdots"><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span><span class="tdot on"></span></div>
   </section>
 
-  <!-- ASSEMBLY (fake triumph) -->
-  <section class="slide dark">
-    <div class="head"><div class="eyebrow">the result</div><h2 class="title sm">Wire them together: the <span class="hl">Autonomous Reporting</span> machine.</h2></div>
-    <div class="pipe">
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">build the deck</div></div>
-      <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">the question loop</div></div>
-      <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">roll it up</div></div>
-      <span class="parrow">→</span>
-      <div class="bot"><div class="chk"><svg><use href="#i-check"/></svg></div><div class="bn">the decision</div></div>
+  <!-- ASSEMBLY (fake triumph) — the four pitched tools land one product at a time (presenter-paced fragments) -->
+  <section class="slide dark" data-fragments>
+    <div class="head"><div class="eyebrow">the result</div><h2 class="title sm">Wire your four answers together: the <span class="hl">Autonomous Reporting</span> machine.</h2></div>
+    <div class="assembly">
+      <div class="product frag">
+        <div class="pchk"><svg><use href="#i-check"/></svg></div>
+        <div class="ptool">The clarifier</div>
+        <div class="pdesc">drafts the questions, chases the answers</div>
+        <div class="pfor">for · the question loop</div>
+      </div>
+      <div class="achain frag"><span class="pchain-arrow">→</span>
+        <div class="product">
+          <div class="pchk"><svg><use href="#i-check"/></svg></div>
+          <div class="ptool">The roll-up bot</div>
+          <div class="pdesc">merges every team into one combined view</div>
+          <div class="pfor">for · roll it up</div>
+        </div>
+      </div>
+      <div class="achain frag"><span class="pchain-arrow">→</span>
+        <div class="product">
+          <div class="pchk"><svg><use href="#i-check"/></svg></div>
+          <div class="ptool">The deck builder</div>
+          <div class="pdesc">auto-pulls the numbers, assembles the slides</div>
+          <div class="pfor">for · build the deck</div>
+        </div>
+      </div>
+      <div class="achain frag"><span class="pchain-arrow">→</span>
+        <div class="product">
+          <div class="pchk"><svg><use href="#i-check"/></svg></div>
+          <div class="ptool">The minute-taker</div>
+          <div class="pdesc">logs every decision and owner from the meeting</div>
+          <div class="pfor">for · the decision</div>
+        </div>
+      </div>
     </div>
-    <div class="triumph">Four tools. Every step automated.</div>
-    <p class="punch" style="margin-top:14px">Looks like a win, doesn't it?</p>
+    <div class="triumph frag">Four tools. Every step automated.</div>
+    <p class="punch frag" style="margin-top:14px">Looks like a win, doesn't it?</p>
   </section>
 
   <!-- CONFESSION (② triggers each phone's personal gotcha) -->
   <section class="slide dark" data-prompt="confess" data-mode="confess" data-label="Caught you">
-    <div class="head"><div class="eyebrow">but look again</div><h2 class="title">Look at what I asked you. <span class="hl">Every single time.</span></h2></div>
-    <p class="lede"><b>"What tool would you build for this step?"</b> — four times, you answered the question I rigged. <b>Check your phone</b> — that's your own answer, and what it was really retrofitting.</p>
-    <p class="punch" style="margin-top:18px">You've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
+    <div class="head"><div class="eyebrow">but look again</div><h2 class="title">Four times, I asked the <span class="hl">same rigged question.</span></h2></div>
+    <p class="lede">Every time: <b>“what would you build?”</b> And every time, you bolted a tool onto a step you never thought to question. <b>Check your phone</b> — there's your own answer, and the dead assumption it just made permanent.</p>
+    <p class="punch" style="margin-top:18px">That's retrofitting, on demand.<br><span style="color:var(--red-bright)">And it's exactly what this lab gets asked for every week.</span></p>
   </section>
 
   <!-- HOW WOULD YOU DO IT DIFFERENTLY? (the redesign open input) -->
   <section class="slide dark" data-prompt="redesign" data-label="Forget the steps — how would you do it differently?" data-mode="open" data-mark>
-    <div class="head"><div class="eyebrow">now flip it</div><h2 class="title sm">You just wired four tools onto the old shape. <span class="hl">How would you do it differently?</span></h2></div>
-    <p class="lede">Forget the steps. Forget the tools. If you started from the <b>job this is really for</b> — not the pieces — what would this actually be? Tell me on your phone.</p>
+    <div class="head"><div class="eyebrow">now flip it</div><h2 class="title sm">Don't speed up the old shape. <span class="hl">Redesign the job.</span></h2></div>
+    <p class="lede">Forget the four steps. Forget the four tools. Start from the <b>one job this whole thing exists to do</b> — and build for that. No monthly cascade, no pack, no meeting assumed. What would it be? Tell me on your phone.</p>
     <div style="margin-top:6px"><span class="livetag"><span class="ld"></span>live · the room redesigns the whole thing</span></div>
     <div class="feed" data-prompt="redesign" style="margin-top:14px; max-height:34vh"><div class="feedempty">redesigns from the room land here…</div></div>
   </section>
@@ -394,7 +417,11 @@ b,strong{font-weight:600}
   slides.forEach((s,n)=>{ const b=document.createElement('button'); b.setAttribute('aria-label','Slide '+(n+1)); if(s.hasAttribute('data-mark')) b.classList.add('mark'); b.onclick=(e)=>{e.stopPropagation(); go(n);}; dotsWrap.append(b); });
   const dots=[...dotsWrap.children];
 
-  function go(n){
+  /* intra-slide fragments: slides marked [data-fragments] reveal their .frag children one at a time */
+  function fragEls(s){ return s ? [...s.querySelectorAll('.frag')] : []; }
+  let fragStep=0;
+  function applyFrags(s,upTo){ fragEls(s).forEach((el,k)=>el.classList.toggle('shown',k<upTo)); }
+  function go(n,dir){
     n=Math.max(0,Math.min(slides.length-1,n));
     slides.forEach((s,k)=>{ s.classList.toggle('active',k===n); s.classList.toggle('past',k<n); });
     dots.forEach((d,k)=>d.classList.toggle('on',k===n));
@@ -402,16 +429,22 @@ b,strong{font-weight:600}
     const dark=slides[n].classList.contains('dark');
     brand.classList.toggle('ondark',dark);
     count.classList.toggle('ondark',dark);
-    i=n; syncPrompt();
+    i=n;
+    const fr=fragEls(slides[n]);
+    fragStep = fr.length ? (dir==='fwd' ? 0 : fr.length) : 0;   // step into forward = hidden; back/jump = fully revealed
+    if(fr.length) applyFrags(slides[n],fragStep);
+    syncPrompt();
   }
+  function next(){ const fr=fragEls(slides[i]); if(fr.length && fragStep<fr.length){ fragStep++; applyFrags(slides[i],fragStep); return; } go(i+1,'fwd'); }
+  function prev(){ const fr=fragEls(slides[i]); if(fr.length && fragStep>0){ fragStep--; applyFrags(slides[i],fragStep); return; } go(i-1,'back'); }
   document.addEventListener('keydown',e=>{
-    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(i+1); }
-    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); next(); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); prev(); }
     else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
     else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
     else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
-  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
+  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
 
   /* ---- live wiring ---- */
   const params=new URLSearchParams(location.search); const hostKey=params.get('host')||'';
