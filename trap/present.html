@@ -77,11 +77,9 @@ b,strong{font-weight:600}
 .taskhead{display:flex; align-items:baseline; justify-content:space-between; gap:14px}
 .tasknum{font-family:Fraunces,serif; font-weight:600; font-size:clamp(16px,1.7vw,21px); color:var(--muted-soft)}
 .queued{font-family:Caveat,cursive; font-size:clamp(17px,1.7vw,22px); color:var(--muted-strong)} .queued b{font-variant-numeric:tabular-nums; color:var(--gold-deep)}
-/* compact context blurb (today + pain folded into one quiet line) */
-.ctxblurb{display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 13px; margin-top:2px; padding:10px 16px; background:color-mix(in srgb,var(--ink) 4%,var(--card)); border:1.4px solid var(--line); border-left:4px solid var(--muted-soft); border-radius:10px; font-size:clamp(13px,1.3vw,16px); color:var(--muted-strong); line-height:1.45; max-width:80ch}
-.ctxblurb .cb-l{font-family:Caveat,cursive; font-weight:700; font-size:1.16em; color:var(--muted-soft); margin-right:1px}
-.ctxblurb .cb-l.pain{color:var(--red)}
-.ctxblurb .cb-sep{color:var(--line); font-weight:700; padding:0 1px}
+/* one quiet context blurb (no labels — the whole step + its cost in a single line) */
+.ctxblurb{margin-top:2px; padding:11px 17px; background:color-mix(in srgb,var(--ink) 4%,var(--card)); border:1.4px solid var(--line); border-left:4px solid var(--muted-soft); border-radius:10px; font-size:clamp(13.5px,1.32vw,16.5px); color:var(--muted-strong); line-height:1.5; max-width:82ch}
+.ctxblurb .cost{color:var(--red); font-weight:600}
 .ask{margin-top:2px}
 .asklabel{display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:Caveat,cursive; font-size:clamp(19px,2vw,27px); color:var(--ink); margin-bottom:11px}
 /* the answer wall — participant replies tile in as live notes */
@@ -308,7 +306,7 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-review" data-label="Reviewing &amp; sending questions back — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>1</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build me something that drafts the clarifying questions and chases people for the answers?”</h2>
-    <div class="ctxblurb"><span class="cb-l">Today</span>you read the pack, spot gaps, write clarifying questions, and wait for a new version.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>rounds of back-and-forth before it's right.</div>
+    <div class="ctxblurb">You read the pack, spot gaps, and write clarifying questions — then <span class="cost">wait through rounds of back-and-forth before it's right.</span></div>
     <div class="ask">
       <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
       <div class="feed" data-prompt="t-review"><div class="feedempty">answers from the room land here…</div></div>
@@ -319,7 +317,7 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-rollup" data-label="Rolling it all up — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>2</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build a bot that just merges everyone's numbers into one combined view for me?”</h2>
-    <div class="ctxblurb"><span class="cb-l">Today</span>take everyone's packs and merge them into a single view to pass upward.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>slow, manual, and stale by the time it's done.</div>
+    <div class="ctxblurb">You merge everyone's packs into one combined view to pass upward — <span class="cost">slow, manual, and stale by the time it's done.</span></div>
     <div class="ask">
       <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
       <div class="feed" data-prompt="t-rollup"><div class="feedempty">answers from the room land here…</div></div>
@@ -330,7 +328,7 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-deck" data-label="Building the deck — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>3</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build me a tool to auto-pull the numbers and build the deck?”</h2>
-    <div class="ctxblurb"><span class="cb-l">Today</span>export from every system, then assemble the slides.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>a day of swivel-chair, every cycle.</div>
+    <div class="ctxblurb">You export from every system and assemble the slides by hand — <span class="cost">a full day of swivel-chair, every cycle.</span></div>
     <div class="ask">
       <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
       <div class="feed" data-prompt="t-deck"><div class="feedempty">answers from the room land here…</div></div>
@@ -341,7 +339,7 @@ b,strong{font-weight:600}
   <section class="slide light task" data-prompt="t-meeting" data-label="The review meeting — what would you build?" data-mode="build">
     <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>4</b> / 4</span></div>
     <h2 class="title sm quote">“Can you build something that captures every decision and owner from the meeting?”</h2>
-    <div class="ctxblurb"><span class="cb-l">Today</span>get everyone in a room; someone scribbles the actions and owners.<span class="cb-sep">·</span><span class="cb-l pain">the pain</span>decisions get lost; the follow-up slips.</div>
+    <div class="ctxblurb">Everyone piles into a room and someone scribbles the actions and owners — <span class="cost">decisions get lost and the follow-up slips.</span></div>
     <div class="ask">
       <div class="asklabel">What would you build? <span class="livetag"><span class="ld"></span>live · the room answers</span></div>
       <div class="feed" data-prompt="t-meeting"><div class="feedempty">answers from the room land here…</div></div>
