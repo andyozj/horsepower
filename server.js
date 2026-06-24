@@ -75,7 +75,7 @@ function originAllowed(origin) {
 
 // ---- AI provider config (anthropic | azure) ----
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-7';
 const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1/messages';
 // Auth header name: native Anthropic uses 'x-api-key'; some gateways (e.g. the Heineken GenAI proxy
 // at genai.heineken.com/models/anthropic/v1/messages) use 'api-key'. Override to retarget.
