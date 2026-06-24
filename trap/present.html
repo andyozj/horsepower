@@ -448,6 +448,7 @@ b,strong{font-weight:600}
     if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); go(i+1); }
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
     else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
+    else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
   });
   document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
 
@@ -461,9 +462,13 @@ b,strong{font-weight:600}
   const ROUND_MS=240000; // 4-min timebox for the Dead-or-Alive round
   let curRound=null;
   function wsSend(o){ if(ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
+  let clearArm=0;   // ⇧R twice within 4s → clear the room (kills stale/ghost players before a session)
+  function flash(msg){ let f=document.getElementById('flashmsg'); if(!f){ f=document.createElement('div'); f.id='flashmsg'; f.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font:600 14px Inter;z-index:50;transition:opacity .3s'; document.body.appendChild(f);} f.textContent=msg; f.style.opacity='1'; clearTimeout(f._t); f._t=setTimeout(()=>{f.style.opacity='0';},2600); }
+  function tryClearRoom(){ const now=Date.now(); if(now-clearArm<4000){ clearArm=0; wsSend({type:'clearRoom'}); flash('Room cleared — fresh board.'); } else { clearArm=now; flash('Press ⇧R again to clear the room'); } }
   function syncPrompt(){
     const s=slides[i]; const pid=s.dataset.prompt;
     if(pid) wsSend({type:'setPrompt', prompt:{ id:pid, label:s.dataset.label||'What would you build?', mode:s.dataset.mode||'build' }});
+    else wsSend({type:'setPrompt'});   // narrative slide → clear the phone (no stale activity screen)
     const round=s.dataset.round||null;          // timeboxed round → auto start on enter, stop on leave
     if(round!==curRound){
       if(round) wsSend({type:'timer', action:'start', durationMs:ROUND_MS});

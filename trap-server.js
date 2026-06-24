@@ -259,6 +259,19 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // wipe the room to a fresh state (kills stale/ghost players before a session)
+    if(m.type === 'clearRoom'){
+      if(ws.role !== 'presenter') return;
+      players.clear();
+      wss.clients.forEach(c=>{ if(c.role==='participant') c.player=null; });
+      session.answers = {}; session.timer = null; session.activePrompt = null;
+      toAll({ type:'prompt', activePrompt: null });
+      toAll({ type:'timer', timer: null });
+      toPresenters({ type:'cleared' });
+      pushBoard(); pushCount();
+      return;
+    }
+
     if(m.type === 'reset'){
       if(ws.role !== 'presenter') return;
       session.answers = {}; session.timer = null;
