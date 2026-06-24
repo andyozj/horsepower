@@ -320,13 +320,13 @@ b,strong{font-weight:600}
 .s-count{font-family:Fraunces,serif; font-weight:600; font-size:18px; color:var(--gold); font-variant-numeric:tabular-nums}
 .s-grid{flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0}
 /* speaker layout: script FULL-left, slide previews stacked right (current on top, next smaller below) */
-.s-grid2{flex:1; display:grid; grid-template-columns:1.6fr 1fr; gap:clamp(14px,1.8vw,22px); min-height:0}
+.s-grid2{flex:1; display:grid; grid-template-columns:2fr 1fr; gap:clamp(14px,1.8vw,22px); min-height:0}
 .s-leftcol{display:flex; flex-direction:column; gap:13px; min-height:0}
 .s-leftcol .s-notespanel{flex:1 1 auto; min-height:0}
 .s-rightcol{display:flex; flex-direction:column; gap:12px; min-height:0}
 .s-prev{display:flex; flex-direction:column; gap:6px; min-width:0}
 .s-rightcol .s-prev-now .thumb-box{width:100%}
-.s-rightcol .s-prev-next .thumb-box{width:82%}
+.s-rightcol .s-prev-next .thumb-box{width:74%}
 .thumb-box{position:relative; aspect-ratio:16/9; overflow:hidden; border-radius:12px; border:1.5px solid var(--d-line); background:var(--paper); box-shadow:0 8px 26px -16px rgba(0,0,0,.5)}
 .thumb-box iframe{position:absolute; top:0; left:0; width:1280px; height:720px; border:0; transform-origin:top left; pointer-events:none}
 .thumb-box.ended iframe{display:none}
@@ -336,15 +336,17 @@ b,strong{font-weight:600}
 .s-now{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:16px; padding:clamp(16px,2vw,26px); overflow:auto; display:flex; flex-direction:column; gap:12px}
 .s-now-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
 .s-now-title{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.5vw,34px); color:var(--d-text)}
-.s-frag{font-family:Caveat,cursive; font-size:20px; color:var(--gold); white-space:nowrap}
-.sbeat{font-size:clamp(16px,1.6vw,21px); font-weight:600; color:var(--gold); line-height:1.35}
-.ssay{font-size:clamp(16.5px,1.75vw,22px); line-height:1.55; color:var(--d-text); border-left:3px solid var(--gold); padding:2px 0 2px 15px; margin:2px 0}
+.s-frag{font-family:Caveat,cursive; font-size:20px; color:var(--d-muted); white-space:nowrap}
+.sbeat{font-size:clamp(15px,1.5vw,19px); font-weight:600; color:var(--d-muted); line-height:1.35}
+/* script body dim, bold bright — emphasis by brightness, no colour accent */
+.ssay{font-size:clamp(16.5px,1.75vw,22px); line-height:1.62; color:var(--d-muted); margin:4px 0}
+.ssay b{color:var(--d-text); font-weight:700}
 .snotes{margin:6px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:9px}
 .snotes li{font-size:clamp(15px,1.55vw,19px); line-height:1.45; color:var(--d-muted)}
 .s-side{display:flex; flex-direction:column; gap:14px; min-height:0}
 .s-card{background:var(--ink-soft); border:1px solid var(--d-line); border-radius:14px; padding:15px 18px}
-.s-room{flex:1; overflow:auto}
-.s-lbl{font-family:Caveat,cursive; font-size:17px; color:var(--gold); margin-bottom:6px}
+.s-room{flex:0 0 auto; overflow:auto}
+.s-lbl{font-family:Caveat,cursive; font-size:16px; color:var(--d-muted); margin-bottom:6px}
 .s-next-title{font-family:Fraunces,serif; font-weight:600; font-size:20px; color:var(--d-text); margin-bottom:5px}
 .s-next-body .sbeat{font-size:15.5px; font-weight:500; color:var(--d-muted)}
 .s-roomstat{font-size:16px; color:var(--d-text)} .s-roomstat b{font-size:27px; font-family:Fraunces,serif; color:var(--ok-bright); margin-right:5px}
