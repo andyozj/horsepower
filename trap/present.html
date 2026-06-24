@@ -275,6 +275,16 @@ b,strong{font-weight:600}
 .joinmeta .jl{font-family:Caveat,cursive; font-size:clamp(16px,1.5vw,20px); color:var(--muted-soft)}
 .joinmeta .jv{font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.7vw,24px); color:var(--ink)}
 .joinmeta .jv b{color:var(--gold-deep); letter-spacing:.08em}
+/* slide 1 — the paddock fills with steeds as people join */
+.paddock{margin-top:clamp(14px,2.4vw,34px); width:100%; max-height:34vh; overflow:auto}
+.paddock-head{font-family:Caveat,cursive; font-size:clamp(16px,1.7vw,22px); color:var(--gold-deep); margin-bottom:10px; display:none}
+.paddock-rail{display:flex; flex-wrap:wrap; gap:clamp(10px,1.3vw,18px) clamp(8px,1vw,16px); align-items:flex-start}
+.paddock-empty{font-family:Caveat,cursive; font-size:clamp(16px,1.6vw,20px); color:var(--muted-soft)}
+.steed{display:flex; flex-direction:column; align-items:center; gap:5px; width:clamp(58px,5.2vw,80px); animation:steedin .42s cubic-bezier(.2,.9,.3,1.2)}
+.steed-av{width:clamp(46px,4.4vw,62px); height:clamp(46px,4.4vw,62px); border-radius:50%; background:#fff; border:2.5px solid var(--line); overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:2px 3px 0 -1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.steed-av img{width:100%; height:100%; object-fit:contain}
+.steed-name{font-family:Fraunces,serif; font-weight:600; font-size:clamp(11px,1.05vw,13px); color:var(--ink); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+@keyframes steedin{from{opacity:0; transform:translateY(9px) scale(.88)}to{opacity:1; transform:none}}
 
 .brandtag{position:fixed; top:20px; left:clamp(24px,5vw,60px); font-family:Fraunces,serif; font-weight:600; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:7px; z-index:10; transition:color var(--t)}
 .brandtag .bt-tag{font-style:italic; font-weight:500; font-size:13px; color:var(--muted-soft)}
@@ -325,6 +335,10 @@ b,strong{font-weight:600}
 .s-roomstat{font-size:16px; color:var(--d-text)} .s-roomstat b{font-size:27px; font-family:Fraunces,serif; color:var(--ok-bright); margin-right:5px}
 .s-answertimer{display:none; margin-top:9px; font-family:Fraunces,serif; font-weight:600; font-size:18px; font-variant-numeric:tabular-nums; color:var(--gold)}
 .s-answertimer.on{display:block} .s-answertimer.low{color:var(--red-bright)}
+.s-roster{display:flex; flex-wrap:wrap; gap:8px 13px; margin-top:13px}
+.s-rider{display:inline-flex; align-items:center; gap:7px; font-size:13.5px; color:var(--d-text)}
+.s-rav{width:27px; height:27px; border-radius:50%; background:#fff; border:2px solid var(--d-line); overflow:hidden; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto}
+.s-rav img{width:100%; height:100%; object-fit:contain}
 .s-answers{display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:10px}
 .s-ans{font-size:13.5px; color:var(--d-muted)} .s-ans b{color:var(--gold); font-variant-numeric:tabular-nums; margin-right:3px}
 .s-ctrl{display:flex; align-items:center; justify-content:center; gap:14px}
@@ -367,6 +381,7 @@ b,strong{font-weight:600}
         <div class="joinmeta"><span class="jl">or open</span><span class="jv" id="joinbig">…</span></div>
       </div>
     </div>
+    <div class="paddock"><div class="paddock-head" id="paddock-head"></div><div class="paddock-rail" id="paddock"><div class="paddock-empty">no riders yet — scan to saddle up</div></div></div>
   </section>
 
   <!-- OVERVIEW — set up the activity; do NOT spoil the trap -->
@@ -682,8 +697,16 @@ b,strong{font-weight:600}
     else { timerEnd=0; const el=document.getElementById('rtnum'); if(el) el.textContent=fmt(ROUND_MS); if(box) box.classList.remove('low','done'); }
   }
   let lastBoard=[];
+  function renderPaddock(){
+    const el=document.getElementById('paddock'); if(!el) return;
+    const head=document.getElementById('paddock-head');
+    if(!lastBoard.length){ el.innerHTML='<div class="paddock-empty">no riders yet — scan to saddle up</div>'; if(head) head.style.display='none'; return; }
+    if(head){ head.style.display='block'; head.textContent=lastBoard.length+' saddled up'; }
+    el.innerHTML=lastBoard.map(r=>{ const st=r.steed||{}; const c=st.color||'navy', hex=st.hex||'#cfc4a6', nm=r.name||st.name||'rider';
+      return '<div class="steed" title="'+esc(nm)+'"><div class="steed-av" style="border-color:'+hex+'"><img src="/img/steed-'+c+'.png" alt="" onerror="this.style.display=\'none\'"></div><div class="steed-name">'+esc(nm)+'</div></div>'; }).join('');
+  }
   function renderBoard(board){
-    board=board||[]; lastBoard=board;
+    board=board||[]; lastBoard=board; renderPaddock(); bcLive();
     const track=document.getElementById('track'); if(!track) return;
     if(!board.length){ track.innerHTML='<div class="trackempty" id="trackempty">horses line up as the room joins…</div>'; return; }
     const top=Math.max(...board.map(r=>r.score),0);
@@ -786,7 +809,7 @@ b,strong{font-weight:600}
 
   /* ---- deck ⇄ speaker sync (same browser, BroadcastChannel) ---- */
   function bcState(){ if(chan) chan.postMessage({k:'state', i, total:slides.length, frag:fragStep, fragN:(fragEls(slides[i])||[]).length, st:stEnd}); }
-  function bcLive(){ if(!chan) return; const a={}; document.querySelectorAll('.feed[data-prompt]').forEach(f=>{ a[f.dataset.prompt]=(answers[f.dataset.prompt]||[]).length; }); chan.postMessage({k:'live', count:liveCount, answers:a}); }
+  function bcLive(){ if(!chan) return; const a={}; document.querySelectorAll('.feed[data-prompt]').forEach(f=>{ a[f.dataset.prompt]=(answers[f.dataset.prompt]||[]).length; }); const roster=lastBoard.map(r=>({ name:r.name||(r.steed&&r.steed.name)||'rider', color:(r.steed&&r.steed.color)||'navy', hex:(r.steed&&r.steed.hex)||'' })); chan.postMessage({k:'live', count:liveCount, answers:a, roster}); }
   function openSpeaker(){ const u=new URL(location.href); u.searchParams.set('view','speaker'); window.open(u.toString(),'trap-speaker','width=1040,height=760'); }
   if(chan) chan.onmessage=ev=>{ const m=ev.data||{}; if(m.k==='cmd'){ if(m.cmd==='next') next(); else if(m.cmd==='prev') prev(); else if(m.cmd==='goto') go(m.n); } else if(m.k==='hello'){ bcState(); bcLive(); } };
 
@@ -804,7 +827,7 @@ b,strong{font-weight:600}
         '<div class="s-now"><div class="s-now-head"><span class="s-now-title"></span><span class="s-frag"></span></div><div class="s-now-body"></div></div>'+
         '<div class="s-side">'+
           '<div class="s-card s-next-wrap"><div class="s-lbl">Up next</div><div class="s-next-title"></div><div class="s-next-body"></div></div>'+
-          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answertimer"></div><div class="s-answers"></div></div>'+
+          '<div class="s-card s-room"><div class="s-lbl">Room</div><div class="s-roomstat"><b class="s-join">0</b> joined</div><div class="s-answertimer"></div><div class="s-answers"></div><div class="s-roster"></div></div>'+
         '</div>'+
       '</div>'+
       '<div class="s-ctrl"><button class="s-prev-btn">◀ Prev</button><button class="s-next-btn">Next ▶</button>'+
@@ -822,7 +845,8 @@ b,strong{font-weight:600}
       if(nx){ $('.s-next-title').textContent=nx.t; $('.s-next-body').innerHTML=nx.beat?('<p class="sbeat">'+nx.beat+'</p>'):''; $('.s-next-wrap').style.opacity='1'; }
       else { $('.s-next-title').textContent='— end of deck —'; $('.s-next-body').innerHTML=''; $('.s-next-wrap').style.opacity='.55'; }
     }
-    function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join(''); }
+    function renderLive(m){ $('.s-join').textContent=(m.count||0); const a=m.answers||{}; const lbl={'t-review':'Ask 1','t-rollup':'Ask 2','t-deck':'Ask 3','t-meeting':'Ask 4','redesign':'Redesign'}; $('.s-answers').innerHTML=Object.keys(lbl).map(p=>'<span class="s-ans"><b>'+(a[p]||0)+'</b>'+lbl[p]+'</span>').join('');
+      const ros=m.roster||[], rr=$('.s-roster'); if(rr){ rr.innerHTML=ros.map(p=>'<span class="s-rider"><span class="s-rav" style="border-color:'+(p.hex||'#3a4c6e')+'"><img src="/img/steed-'+(p.color||'navy')+'.png" alt="" onerror="this.style.display=\'none\'"></span>'+esc(p.name||'rider')+'</span>').join(''); } }
     function send(cmd,n){ if(chan) chan.postMessage({k:'cmd',cmd,n}); }
     $('.s-next-btn').onclick=()=>send('next');
     $('.s-prev-btn').onclick=()=>send('prev');
