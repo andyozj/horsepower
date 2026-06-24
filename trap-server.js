@@ -205,6 +205,9 @@ wss.on('connection', (ws) => {
       send(ws, { type:'you', token: p.token, pid: p.pid, steed: p.steed, name: p.name, score: p.score, found: p.found });
       send(ws, { type:'prompt', activePrompt: session.activePrompt });
       send(ws, { type:'timer', timer: liveTimer() });
+      // re-hydrate confess/vote for a late joiner (else they get a blank card)
+      if(session.activePrompt && session.activePrompt.mode==='confess') send(ws, { type:'confession', items: confessionFor(p) });
+      if(session.activePrompt && session.activePrompt.mode==='vote') send(ws, { type:'voteSet', items: session.voteItems||assembleVoteItems() });
       pushCount(); pushBoard();
       return;
     }
@@ -216,14 +219,14 @@ wss.on('connection', (ws) => {
         label: String(m.prompt.label||'').slice(0,200),
         mode: String(m.prompt.mode||'build').slice(0,20)
       } : null;
+      if(!(session.activePrompt && session.activePrompt.mode==='vote')) session.voteOpen = false;  // left the vote → next entry is a fresh one
       toAll({ type:'prompt', activePrompt: session.activePrompt });
       if(session.activePrompt && session.activePrompt.mode==='confess'){  // ② push each phone its personal gotcha
         wss.clients.forEach(c=>{ if(c.readyState===1 && c.role==='participant' && c.player) send(c, { type:'confession', items: confessionFor(c.player) }); });
       }
       if(session.activePrompt && session.activePrompt.mode==='vote'){     // ①+④ open the dead/alive vote
-        players.forEach(p=>{ p.votes={}; });
-        const items = assembleVoteItems(); session.voteItems = items;
-        toAll({ type:'voteSet', items });
+        if(!session.voteOpen){ players.forEach(p=>{ p.votes={}; }); session.voteItems = assembleVoteItems(); session.voteOpen = true; }  // reset ONLY on genuine first entry — re-entering keeps the room's votes
+        toAll({ type:'voteSet', items: session.voteItems });
         toPresenters({ type:'voteTally', tallies: voteTallies() });
       }
       return;
