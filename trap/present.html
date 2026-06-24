@@ -44,6 +44,9 @@ b,strong{font-weight:600}
 .head .eyebrow{margin-bottom:.2em}
 .slide h2.title{font-size:clamp(30px,4.2vw,60px); max-width:21ch}
 .slide h2.title.sm{font-size:clamp(24px,3vw,42px); max-width:24ch}
+/* slides 2-5: a verbatim "can you build me…" request from a real user */
+.slide h2.title.quote{font-style:italic; color:var(--ink-soft); max-width:26ch; position:relative; padding-left:18px}
+.slide h2.title.quote::before{content:""; position:absolute; left:0; top:.12em; bottom:.12em; width:5px; border-radius:3px; background:var(--red)}
 .kicker{font-family:Caveat,cursive; font-size:clamp(22px,2.7vw,36px); color:var(--red); transform:rotate(-1deg)}
 .dark .kicker{color:var(--red-bright)}
 .punch{font-family:Fraunces,serif; font-weight:600; font-size:clamp(22px,2.8vw,40px); line-height:1.12; letter-spacing:-.02em}
@@ -264,8 +267,8 @@ b,strong{font-weight:600}
 
   <!-- 4 SCRAMBLED TASKS (live feeds) — bam, bam, bam, bam -->
   <section class="slide light task" data-prompt="t-review" data-label="Reviewing &amp; sending questions back — what would you build?" data-mode="build">
-    <div class="taskhead"><span class="tasknum">Step #2</span><span class="queued">tools queued · <b>1</b> / 4</span></div>
-    <h2 class="title sm">Review what came up — and send your questions back.</h2>
+    <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>1</b> / 4</span></div>
+    <h2 class="title sm quote">“Can you build me something that drafts the clarifying questions and chases people for the answers?”</h2>
     <div class="taskbody">
       <div class="tcol">
         <div class="tlabel">Today</div><p>You read the pack, spot gaps, write clarifying questions, and wait for a new version.</p>
@@ -280,8 +283,8 @@ b,strong{font-weight:600}
   </section>
 
   <section class="slide light task" data-prompt="t-rollup" data-label="Rolling it all up — what would you build?" data-mode="build">
-    <div class="taskhead"><span class="tasknum">Step #4</span><span class="queued">tools queued · <b>2</b> / 4</span></div>
-    <h2 class="title sm">Roll several of these up into one combined view.</h2>
+    <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>2</b> / 4</span></div>
+    <h2 class="title sm quote">“Can you build a bot that just merges everyone's numbers into one combined view for me?”</h2>
     <div class="taskbody">
       <div class="tcol">
         <div class="tlabel">Today</div><p>Take everyone's packs and merge them into a single view to pass upward.</p>
@@ -296,8 +299,8 @@ b,strong{font-weight:600}
   </section>
 
   <section class="slide light task" data-prompt="t-deck" data-label="Building the deck — what would you build?" data-mode="build">
-    <div class="taskhead"><span class="tasknum">Step #1</span><span class="queued">tools queued · <b>3</b> / 4</span></div>
-    <h2 class="title sm">Pull the numbers together and build the deck.</h2>
+    <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>3</b> / 4</span></div>
+    <h2 class="title sm quote">“Can you build me a tool to auto-pull the numbers and build the deck?”</h2>
     <div class="taskbody">
       <div class="tcol">
         <div class="tlabel">Today</div><p>Export from every system, then assemble the slides.</p>
@@ -312,8 +315,8 @@ b,strong{font-weight:600}
   </section>
 
   <section class="slide light task" data-prompt="t-meeting" data-label="The review meeting — what would you build?" data-mode="build">
-    <div class="taskhead"><span class="tasknum">Step #3</span><span class="queued">tools queued · <b>4</b> / 4</span></div>
-    <h2 class="title sm">Run the review meeting and walk through the pack.</h2>
+    <div class="taskhead"><span class="tasknum">a real request</span><span class="queued">tools queued · <b>4</b> / 4</span></div>
+    <h2 class="title sm quote">“Can you build something that captures every decision and owner from the meeting?”</h2>
     <div class="taskbody">
       <div class="tcol">
         <div class="tlabel">Today</div><p>Get everyone in a room; someone scribbles the actions and owners.</p>
