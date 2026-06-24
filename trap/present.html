@@ -111,6 +111,23 @@ b,strong{font-weight:600}
 .scarrow.alive{border-color:color-mix(in srgb,var(--ok) 55%,transparent); border-left:5px solid var(--ok); background:color-mix(in srgb,var(--ok) 15%,var(--card))}
 .barline{margin-top:10px; font-family:Fraunces,serif; font-weight:600; font-size:clamp(17px,1.9vw,25px)} .barline .r{color:var(--red)}
 .reflex{margin-top:13px; background:color-mix(in srgb,var(--gold) 8%,var(--card)); border:1.4px solid color-mix(in srgb,var(--gold) 35%,transparent); border-radius:13px; padding:13px 18px; font-size:clamp(13.5px,1.35vw,17px); color:var(--muted-strong); line-height:1.5; max-width:76ch} .reflex b{color:var(--gold-deep)}
+/* ①+④ interactive vote rows */
+.voterows{display:flex; flex-direction:column; gap:9px; margin-top:12px}
+.vrempty{color:var(--muted-soft); font-style:italic; font-size:16px; padding:8px 2px}
+.vrow{display:grid; grid-template-columns:1fr 1.5fr minmax(190px,1.1fr) auto; gap:16px; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:11px 16px; transition:background .4s,border-color .4s}
+.vrow .vrstep{font-family:Fraunces,serif; font-weight:600; font-size:clamp(14px,1.5vw,18px)}
+.vrow .vrtext{font-size:clamp(12.5px,1.3vw,15.5px); color:var(--muted-strong); line-height:1.35}
+.vrtally{display:flex; align-items:center; gap:9px}
+.vrbar{height:11px; border-radius:6px; display:flex; overflow:hidden; flex:1; background:color-mix(in srgb,var(--line) 45%,transparent)}
+.vrbar .bd{background:var(--red); height:100%; transition:width .4s} .vrbar .ba{background:var(--ok); height:100%; transition:width .4s}
+.vrcount{font-size:12px; color:var(--muted-soft); white-space:nowrap; font-variant-numeric:tabular-nums}
+.vrtag{font-size:11.5px; font-weight:700; letter-spacing:.05em; padding:5px 11px; border-radius:999px; white-space:nowrap; opacity:0; transition:opacity .4s}
+.vrow.revealed .vrtag{opacity:1}
+.vrtag.dead{color:var(--red); background:color-mix(in srgb,var(--red) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--red) 40%,transparent)}
+.vrtag.real{color:var(--ok); background:color-mix(in srgb,var(--ok) 10%,var(--card)); border:1.3px solid color-mix(in srgb,var(--ok) 45%,transparent)}
+.vrow.revealed.alive{background:color-mix(in srgb,var(--ok) 12%,var(--card)); border-left:5px solid var(--ok)}
+.voterevealmsg{margin-top:13px; font-family:Caveat,cursive; font-size:clamp(16px,1.7vw,22px); color:var(--gold-deep)} .voterevealmsg b{color:var(--red)}
+.voterevealmsg.done{color:var(--ok)}
 
 /* versus */
 .versus{display:grid; grid-template-columns:1fr 1fr; gap:clamp(18px,2.4vw,40px); margin-top:8px; align-items:stretch}
@@ -326,10 +343,10 @@ b,strong{font-weight:600}
     <p class="punch" style="margin-top:14px">Looks like a win, doesn't it?</p>
   </section>
 
-  <!-- CONFESSION -->
-  <section class="slide dark">
+  <!-- CONFESSION (② triggers each phone's personal gotcha) -->
+  <section class="slide dark" data-prompt="confess" data-mode="confess" data-label="Caught you">
     <div class="head"><div class="eyebrow">but look again</div><h2 class="title">Look at what I asked you. <span class="hl">Every single time.</span></h2></div>
-    <p class="lede"><b>"What tool would you build for this step?"</b> — four times, you answered the question I rigged. It's the exact question that lands in this lab every week. And every answer made the process a little more permanent.</p>
+    <p class="lede"><b>"What tool would you build for this step?"</b> — four times, you answered the question I rigged. <b>Check your phone</b> — that's your own answer, and what it was really retrofitting.</p>
     <p class="punch" style="margin-top:18px">You've been retrofitting on demand.<br><span style="color:var(--red-bright)">So have we.</span></p>
   </section>
 
@@ -366,16 +383,12 @@ b,strong{font-weight:600}
     </div>
   </section>
 
-  <section class="slide light">
-    <div class="head"><div class="eyebrow">what you found</div><h2 class="title sm">Why each step <span class="hl">exists.</span></h2></div>
-    <div class="scar">
-      <div class="scarrow"><div class="st">Build the deck</div><div class="sc">the level above can't see your numbers, so you package them</div><span class="tag dead">DEAD</span></div>
-      <div class="scarrow"><div class="st">The question loop</div><div class="sc">they can't drill into the data themselves, so they ask — and you resend</div><span class="tag dead">DEAD</span></div>
-      <div class="scarrow"><div class="st">Roll it up</div><div class="sc">numbers couldn't combine themselves across the level below</div><span class="tag dead">DEAD</span></div>
-      <div class="scarrow alive"><div class="st">The decision in the room</div><div class="sc">someone must own a consequential, hard-to-reverse call</div><span class="tag real">STILL REAL</span></div>
-    </div>
-    <div class="barline">Three of four exist for a scarcity that's <span class="r">already gone.</span> One is still real.</div>
-    <div class="reflex">The reflex to keep: <b>what scarcity was this step a workaround for — and is it still real?</b> If it's dead, don't build the bot. Delete the step.</div>
+  <!-- ①+④ the interactive dead/alive vote on the room's surfaced assumptions -->
+  <section class="slide light" data-prompt="vote" data-mode="vote" data-label="Dead or alive">
+    <div class="head"><div class="eyebrow">your turn — phones up</div><h2 class="title sm">The assumptions you surfaced — <span class="hl">dead or alive?</span></h2></div>
+    <div class="voterows" id="voterows"><div class="vrempty">the room votes on each one…</div></div>
+    <div class="voterevealmsg" id="voterevealmsg">vote on your phones · <b>press V</b> to reveal the truth</div>
+    <div class="reflex">If the scarcity is dead, don't build the bot — <b>delete the step.</b> Three of four are already gone. One is still real.</div>
   </section>
 
   <!-- ===== INTERLUDE 3 — REDESIGN THE WHOLE ===== -->
@@ -449,6 +462,7 @@ b,strong{font-weight:600}
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(i-1); }
     else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
     else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
+    else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
   document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed')) return; go(i + (e.clientX > innerWidth/2 ? 1 : -1)); });
 
@@ -526,6 +540,35 @@ b,strong{font-weight:600}
     w.classList.add('show');
   }
   function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  /* ①+④ vote rows */
+  let voteRevealed=false;
+  function renderVoteRows(items){
+    voteRevealed=false; const c=document.getElementById('voterows'); if(!c) return;
+    if(!items||!items.length){ c.innerHTML='<div class="vrempty">the room votes on each one…</div>'; return; }
+    c.innerHTML=items.map(it=>'<div class="vrow" data-id="'+esc(it.id)+'" data-dead="'+(it.dead?1:0)+'">'+
+      '<div class="vrstep">'+esc(it.step)+'</div>'+
+      '<div class="vrtext">“'+esc(it.text)+'”</div>'+
+      '<div class="vrtally"><div class="vrbar"><div class="bd" style="width:0%"></div><div class="ba" style="width:0%"></div></div><span class="vrcount">0 · 0</span></div>'+
+      '<span class="vrtag tag '+(it.dead?'dead':'real')+'">'+(it.dead?'DEAD':'STILL REAL')+'</span></div>').join('');
+    const m=document.getElementById('voterevealmsg'); if(m){ m.classList.remove('done'); m.innerHTML='vote on your phones · <b>press V</b> to reveal the truth'; }
+  }
+  function updateTally(tallies){
+    tallies=tallies||{};
+    document.querySelectorAll('#voterows .vrow').forEach(row=>{
+      const t=tallies[row.dataset.id]||{dead:0,alive:0}; const tot=(t.dead+t.alive)||1;
+      const bd=row.querySelector('.bd'), ba=row.querySelector('.ba'), cnt=row.querySelector('.vrcount');
+      if(bd) bd.style.width=(t.dead/tot*100)+'%'; if(ba) ba.style.width=(t.alive/tot*100)+'%';
+      if(cnt) cnt.textContent=t.dead+' dead · '+t.alive+' alive';
+    });
+  }
+  function revealTruth(truth){
+    voteRevealed=true;
+    document.querySelectorAll('#voterows .vrow').forEach(row=>{
+      const dead = truth ? !!truth[row.dataset.id] : row.dataset.dead==='1';
+      row.classList.add('revealed'); row.classList.add(dead?'dead':'alive');
+    });
+    const m=document.getElementById('voterevealmsg'); if(m){ m.classList.add('done'); m.innerHTML='three are dead. one is still real — keep that one, reshape it.'; }
+  }
 
   function renderQR(url){
     const box=document.getElementById('qrbox'); if(!box) return;
@@ -554,6 +597,9 @@ b,strong{font-weight:600}
       else if(m.type==='count'){ setCount(m.count||0); }
       else if(m.type==='timer'){ setTimer(m.timer); }
       else if(m.type==='board'){ renderBoard(m.board); }
+      else if(m.type==='voteSet'){ renderVoteRows(m.items); }
+      else if(m.type==='voteTally'){ updateTally(m.tallies); }
+      else if(m.type==='voteReveal'){ revealTruth(m.truth); }
       else if(m.type==='cleared'){ answers={}; renderAll(); renderBoard([]); const w=document.getElementById('winline'); if(w){w.classList.remove('show'); w.innerHTML='';} }
       else if(m.type==='denied'){ console.warn('Presenter denied — open the /present?host=… link from the server console.'); }
     };

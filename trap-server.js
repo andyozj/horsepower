@@ -62,6 +62,29 @@ const STEPS = [
     assumptions:['you need everyone physically in a room to decide','someone must be accountable for a consequential call','the decision can only be made once a month','people won’t engage unless it’s a scheduled meeting'] },
 ];
 const AI_ON = !!process.env.ANTHROPIC_API_KEY;
+
+// the debrief truth — shared by ② the personal gotcha and ①+④ the dead/alive vote
+const STEP_TRUTH = {
+  deck:   { dead:true,  scarcity:'the level above couldn’t see your numbers themselves' },
+  review: { dead:true,  scarcity:'they couldn’t drill into the data themselves' },
+  rollup: { dead:true,  scarcity:'the numbers couldn’t combine themselves across teams' },
+  meeting:{ dead:false, scarcity:'someone must own a consequential, hard-to-reverse call' },
+};
+// ② each participant's own slide 2–5 answers, tagged with what they were really retrofitting
+function confessionFor(p){
+  const items=[];
+  STEPS.forEach(s=>{ const tool = p.built && p.built[s.id]; if(tool){ const t=STEP_TRUTH[s.id]||{}; items.push({ step:s.title, tool, scarcity:t.scarcity, dead:t.dead }); } });
+  return items;
+}
+// ①+④ the dead/alive vote, built from the assumptions the room actually surfaced in the race
+function assembleVoteItems(){
+  return STEPS.map(s=>{
+    let text = STEP_TRUTH[s.id] ? STEP_TRUTH[s.id].scarcity : s.blurb;     // fallback: the canonical scarcity
+    for(const p of players.values()){ const f = p.found && p.found[s.id]; if(f && f.length){ text = f[f.length-1]; break; } } // prefer a real surfaced one
+    return { id:s.id, step:s.title, text, dead: STEP_TRUTH[s.id] ? STEP_TRUTH[s.id].dead : true };
+  });
+}
+function voteTallies(){ const t={}; STEPS.forEach(s=>t[s.id]={dead:0,alive:0}); players.forEach(p=>{ if(p.votes) for(const k in p.votes){ if(t[k]) t[k][p.votes[k]==='dead'?'dead':'alive']++; } }); return t; }
 const MAX_PER_STEP = 4;        // offline cap so nobody spams one step to win
 const MAX_FOUND_LEN = 160;
 
@@ -194,6 +217,15 @@ wss.on('connection', (ws) => {
         mode: String(m.prompt.mode||'build').slice(0,20)
       } : null;
       toAll({ type:'prompt', activePrompt: session.activePrompt });
+      if(session.activePrompt && session.activePrompt.mode==='confess'){  // ② push each phone its personal gotcha
+        wss.clients.forEach(c=>{ if(c.readyState===1 && c.role==='participant' && c.player) send(c, { type:'confession', items: confessionFor(c.player) }); });
+      }
+      if(session.activePrompt && session.activePrompt.mode==='vote'){     // ①+④ open the dead/alive vote
+        players.forEach(p=>{ p.votes={}; });
+        const items = assembleVoteItems(); session.voteItems = items;
+        toAll({ type:'voteSet', items });
+        toPresenters({ type:'voteTally', tallies: voteTallies() });
+      }
       return;
     }
 
@@ -206,9 +238,11 @@ wss.on('connection', (ws) => {
       const text = String(m.text||'').trim().slice(0, MAX_LEN);
       if(!promptId || !text) return;
       const tag = m.tag === 'dead' || m.tag === 'real' ? m.tag : null;
-      const ans = { id: crypto.randomBytes(4).toString('hex'), name: ws.name||'', text, tag };
+      const p = ws.player;
+      const ans = { id: crypto.randomBytes(4).toString('hex'), name: (p&&p.name)||ws.name||'', text, tag };
       const arr = (session.answers[promptId] = session.answers[promptId] || []);
       if(arr.length < MAX_ANSWERS) arr.push(ans);
+      if(p){ const sid = promptId.replace(/^t-/,''); p.built = p.built || {}; p.built[sid] = text; }  // ② remember each person's answer
       toPresenters({ type:'answer', promptId, answer: ans });
       send(ws, { type:'ack', promptId });
       return;
@@ -256,6 +290,24 @@ wss.on('connection', (ws) => {
       const board = leaderboard();
       const idx = board.findIndex(r=>r.id===p.pid);
       send(ws, { type:'rank', rank: idx>=0?idx+1:board.length, total: board.length, score: p.score });
+      return;
+    }
+
+    // ①+④ participant votes dead/alive on a surfaced assumption
+    if(m.type === 'vote'){
+      const p = ws.player; if(ws.role!=='participant' || !p) return;
+      const itemId = String(m.itemId||'').slice(0,20); const call = m.call==='dead'?'dead':(m.call==='alive'?'alive':null);
+      if(!STEPS.some(s=>s.id===itemId) || !call) return;
+      p.votes = p.votes || {}; p.votes[itemId] = call;
+      toPresenters({ type:'voteTally', tallies: voteTallies() });
+      send(ws, { type:'voteAck', itemId, call });
+      return;
+    }
+    // ①+④ facilitator reveals the truth
+    if(m.type === 'reveal'){
+      if(ws.role !== 'presenter') return;
+      const truth={}; STEPS.forEach(s=>{ truth[s.id] = STEP_TRUTH[s.id] ? STEP_TRUTH[s.id].dead : true; });
+      toAll({ type:'voteReveal', truth });
       return;
     }
 

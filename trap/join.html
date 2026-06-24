@@ -82,6 +82,28 @@ textarea{min-height:58px; resize:none; line-height:1.4}
 .gdone .dl{font-size:14.5px; color:var(--muted-strong); line-height:1.5}
 .gdone .big{font-family:Fraunces,serif; font-weight:600; font-size:40px; color:var(--gold-deep); margin:6px 0}
 .gdone .drank{font-family:Caveat,cursive; font-size:21px; color:var(--gold-deep); margin-bottom:2px}
+.clist{display:flex; flex-direction:column; gap:11px; margin-top:6px}
+.citem{border-radius:13px; padding:13px 15px; border:1.6px solid}
+.citem.dead{background:color-mix(in srgb,var(--red) 7%,#fff); border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.citem.alive{background:color-mix(in srgb,var(--ok) 9%,#fff); border-color:color-mix(in srgb,var(--ok) 48%,transparent)}
+.citem .ctool{font-family:Fraunces,serif; font-weight:600; font-size:16px; color:var(--ink); line-height:1.2}
+.citem .cfor{font-size:13px; color:var(--muted-strong); margin-top:2px}
+.citem .cverdict{font-size:13.5px; line-height:1.45; margin-top:8px}
+.citem.dead .cverdict{color:#7a1f1f} .citem.alive .cverdict{color:#1f5236}
+.cempty{font-size:14px; color:var(--muted-strong); font-style:italic; padding:8px 2px}
+.vlist{display:flex; flex-direction:column; gap:12px; margin-top:6px}
+.vitem{border:1.6px solid var(--line); border-radius:13px; padding:13px 15px; background:#fff}
+.vitem .vstep{font-family:Fraunces,serif; font-weight:600; font-size:15px; color:var(--ink)}
+.vitem .vtext{font-size:13.5px; color:var(--muted-strong); margin:3px 0 10px; line-height:1.4}
+.vbtns{display:flex; gap:9px}
+.vbtn{flex:1; font-family:Inter,sans-serif; font-weight:600; font-size:14px; padding:11px; border-radius:10px; border:1.6px solid; cursor:pointer; background:#fff; transition:background .15s,color .15s,border-color .15s}
+.vbtn.dead{color:var(--red); border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.vbtn.alive{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.vbtn.dead.sel{background:var(--red); color:#fff; border-color:var(--red)}
+.vbtn.alive.sel{background:var(--ok); color:#fff; border-color:var(--ok)}
+.vtruth{display:none; font-size:13px; font-weight:600; margin-top:9px; padding-top:8px; border-top:1px dashed var(--line)}
+.vitem.revealed .vtruth{display:block}
+.vtruth.dead{color:#7a1f1f} .vtruth.alive{color:#1f5236}
 .askcard .ctx{margin-bottom:4px} .askcard .ctx:last-child{margin-bottom:0}
 .askcard .ctx-l{font-family:Caveat,cursive; font-size:14.5px; margin-right:7px; color:var(--gold-deep)}
 .askcard .ctx-l.pain{color:var(--red)}
@@ -142,6 +164,20 @@ textarea{min-height:58px; resize:none; line-height:1.4}
     <div class="gdone" id="gdone" style="display:none"></div>
   </div>
 
+  <!-- ② personal gotcha -->
+  <div class="card" id="confesscard" style="display:none">
+    <h1>Caught you.</h1>
+    <p class="sub">Every tool you just pitched bolts AI onto a step that already exists — that's <b>retrofitting.</b> Here's what you said:</p>
+    <div class="clist" id="clist"></div>
+  </div>
+
+  <!-- ①+④ the dead/alive vote -->
+  <div class="card" id="votecard" style="display:none">
+    <h1>Dead or alive?</h1>
+    <p class="sub">For each step you raced on — is the assumption it rests on still true today, or already <b>dead?</b></p>
+    <div class="vlist" id="vlist"></div>
+  </div>
+
   <div class="status" id="status">connecting…</div>
 </div>
 
@@ -150,15 +186,52 @@ textarea{min-height:58px; resize:none; line-height:1.4}
   const $=id=>document.getElementById(id);
   fetch('/api/info').then(r=>r.json()).then(d=>{ $('code').textContent='· code '+d.code; }).catch(()=>{});
   function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function renderVote(items){
+    const v=$('vlist'); if(!v) return;
+    v.innerHTML=(items||[]).map(it=>'<div class="vitem" data-id="'+esc(it.id)+'" data-dead="'+(it.dead?1:0)+'">'+
+      '<div class="vstep">'+esc(it.step)+'</div>'+
+      '<div class="vtext">“'+esc(it.text)+'”</div>'+
+      '<div class="vbtns"><button class="vbtn dead" data-call="dead">DEAD</button><button class="vbtn alive" data-call="alive">STILL ALIVE</button></div>'+
+      '<div class="vtruth"></div></div>').join('');
+  }
+  function voteReveal(truth){
+    document.querySelectorAll('#vlist .vitem').forEach(item=>{
+      const dead = truth ? !!truth[item.dataset.id] : item.dataset.dead==='1';
+      item.classList.add('revealed');
+      const t=item.querySelector('.vtruth'); if(!t) return; t.className='vtruth '+(dead?'dead':'alive');
+      t.textContent = dead ? '✕ Dead — that scarcity is gone. Delete the step.' : '✓ Still real — the one job to keep.';
+    });
+  }
+  document.getElementById('vlist').addEventListener('click', e=>{
+    const btn=e.target.closest('.vbtn'); if(!btn) return;
+    const item=btn.closest('.vitem'); if(!item) return;
+    item.querySelectorAll('.vbtn').forEach(x=>x.classList.remove('sel')); btn.classList.add('sel');
+    if(ws && ws.readyState===1) ws.send(JSON.stringify({type:'vote', itemId:item.dataset.id, call:btn.dataset.call}));
+  });
+  function renderConfession(items){
+    const c=$('clist'); if(!c) return;
+    if(!items.length){ c.innerHTML='<div class="cempty">You didn’t pitch a tool this round — but the room did, and every one was a retrofit.</div>'; return; }
+    c.innerHTML=items.map(it=>'<div class="citem '+(it.dead?'dead':'alive')+'">'+
+      '<div class="ctool">“'+esc(it.tool)+'”</div>'+
+      '<div class="cfor">your fix for <b>'+esc(it.step)+'</b></div>'+
+      '<div class="cverdict">'+(it.dead
+        ? 'But that step only exists because '+esc(it.scarcity)+' — and that’s no longer true. ✕ you retrofitted a dead step.'
+        : 'This one’s the real job: '+esc(it.scarcity)+'. ✓ keep it — just reshape it.')+'</div></div>').join('');
+  }
 
   /* ---- view routing ---- */
   function show(prompt){
     active=prompt;
     if(!joined) return;
-    const race = prompt && prompt.mode==='race';
+    const mode = prompt && prompt.mode;
+    const race = mode==='race', confess = mode==='confess', vote = mode==='vote';
     $('gamecard').style.display = race? 'block':'none';
-    $('livecard').style.display = race? 'none':'block';
+    $('confesscard').style.display = confess? 'block':'none';
+    $('votecard').style.display = vote? 'block':'none';
+    $('livecard').style.display = (race||confess||vote)? 'none':'block';
     if(race){ ensureGame(); return; }
+    if(confess){ return; }  // populated by the 'confession' push
+    if(vote){ return; }     // populated by the 'voteSet' message
     $('waiting').style.display = prompt? 'none':'block';
     $('promptarea').style.display = prompt? 'block':'none';
     if(prompt){
@@ -315,6 +388,9 @@ textarea{min-height:58px; resize:none; line-height:1.4}
       else if(m.type==='prompt'){ show(m.activePrompt); }
       else if(m.type==='timer'){ setTimer(m.timer); }
       else if(m.type==='assumeResult'){ onResult(m); }
+      else if(m.type==='confession'){ renderConfession(m.items||[]); }
+      else if(m.type==='voteSet'){ renderVote(m.items||[]); }
+      else if(m.type==='voteReveal'){ voteReveal(m.truth); }
       else if(m.type==='rank'){ myRank={rank:m.rank,total:m.total}; if(raceDone) showDone(); }
     };
     ws.onclose=()=>{ $('status').textContent='reconnecting…'; setTimeout(connect,1500); };
