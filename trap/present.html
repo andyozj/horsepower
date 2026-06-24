@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The retrofit trap — presenter</title>
+<title>GenAI Lab — presenter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2321314f'%3E%3Cpath d='M5.2 13.4 L6.8 13 C8.2 12.7 9.4 13.2 10.2 14.3 C10.8 15.6 10.7 17.6 10.6 19.6 L18 19.6 C18.7 15.4 18.3 9.6 15.4 5.6 L14.6 3.2 L13.4 5 L12.6 3.4 L11.2 5.2 C8.6 6.8 6 9.6 4.9 11.6 C4.6 12.4 4.8 13.2 5.2 13.4 Z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -196,6 +197,8 @@ b,strong{font-weight:600}
 .joinmeta .jv b{color:var(--hl); letter-spacing:.08em}
 
 .brandtag{position:fixed; top:20px; left:clamp(24px,5vw,60px); font-family:Fraunces,serif; font-weight:600; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:7px; z-index:10; transition:color var(--t)}
+.brandtag .bt-tag{font-style:italic; font-weight:500; font-size:13px; color:var(--muted-soft)}
+.brandtag.ondark .bt-tag{color:var(--d-muted)}
 .brandtag.ondark{color:var(--d-text)}
 .foot{position:fixed; bottom:18px; left:clamp(24px,5vw,60px); right:clamp(24px,5vw,60px); display:flex; align-items:center; justify-content:space-between; z-index:10}
 .dots{display:flex; gap:6px; flex-wrap:wrap; max-width:60vw}
@@ -219,7 +222,7 @@ b,strong{font-weight:600}
 </defs></svg>
 
 <div class="joinbar deckchrome" id="joinbar"><span class="jurl" id="jurl">starting…</span><span class="jcode" id="jcode"></span><span class="jcount"><span class="jdot"></span><span id="jcount">0</span> in</span></div>
-<div class="brandtag deckchrome" id="brand"><svg class="horse" width="23" height="23" viewBox="0 0 24 24"><use href="#g-horse"/></svg> FORGE · redesign lab</div>
+<div class="brandtag deckchrome" id="brand"><svg class="horse" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5.2 13.4 L6.8 13 C8.2 12.7 9.4 13.2 10.2 14.3 C10.8 15.6 10.7 17.6 10.6 19.6 L18 19.6 C18.7 15.4 18.3 9.6 15.4 5.6 L14.6 3.2 L13.4 5 L12.6 3.4 L11.2 5.2 C8.6 6.8 6 9.6 4.9 11.6 C4.6 12.4 4.8 13.2 5.2 13.4 Z"/></svg> GenAI&nbsp;Lab <span class="bt-tag">· stop putting engines on horses</span></div>
 
 <div class="deck" id="deck">
 
