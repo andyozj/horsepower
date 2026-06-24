@@ -247,9 +247,20 @@ b,strong{font-weight:600}
 .closeline{font-family:Fraunces,serif; font-weight:600; font-size:clamp(36px,4.8vw,72px); line-height:.99; letter-spacing:-.03em; color:var(--ink)}
 .mantra{font-family:Fraunces,serif; font-weight:600; font-style:italic; font-size:clamp(21px,2.7vw,38px); letter-spacing:-.01em; color:var(--gold-deep)}
 .close .cue{font-family:Caveat,cursive; font-size:clamp(19px,2vw,26px); color:var(--red)}
-.closeart-wrap{flex:1 1 640px; min-width:300px; display:flex; justify-content:center}
+.closeart-wrap{flex:1 1 640px; min-width:300px; display:flex; justify-content:center; align-items:center}
 .closeart{width:100%; max-width:640px; height:auto; display:block}
-.closevid{width:100%; max-width:820px; aspect-ratio:16/9; height:auto; display:block; object-fit:contain; background:var(--paper); border:1.5px solid var(--line); border-radius:14px; box-shadow:0 16px 46px -22px rgba(33,49,79,.42)}
+/* close hook → video: the blueprint horse is the hook; Enter/click brings it to life */
+.closereveal{position:relative; width:100%; max-width:820px; aspect-ratio:16/9}
+.closehook{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:none; border:0; padding:0; cursor:pointer; transition:opacity .5s ease, transform .5s cubic-bezier(.4,0,.2,1)}
+.closehook img{max-width:100%; max-height:100%; object-fit:contain; transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.closehook:hover img{transform:scale(1.015)}
+.closehint{position:absolute; bottom:4%; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:6px; font-family:Caveat,cursive; font-weight:700; font-size:clamp(15px,1.5vw,20px); color:var(--gold-deep); background:color-mix(in srgb,var(--card) 90%,transparent); border:1.5px solid var(--line); border-radius:999px; padding:6px 15px; white-space:nowrap; animation:hookpulse 2.2s ease-in-out infinite}
+.closehint svg{color:var(--red)}
+@keyframes hookpulse{0%,100%{opacity:.72; transform:translateX(-50%) translateY(0)}50%{opacity:1; transform:translateX(-50%) translateY(-3px)}}
+.closevid{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper); border:1.5px solid var(--line); border-radius:14px; opacity:0; transform:scale(.96); pointer-events:none; transition:opacity .6s ease .12s, transform .6s cubic-bezier(.2,.85,.25,1) .12s, box-shadow .6s ease}
+.closereveal.played .closehook{opacity:0; transform:scale(1.06); pointer-events:none}
+.closereveal.played .closevid{opacity:1; transform:none; pointer-events:auto; box-shadow:0 18px 50px -22px rgba(33,49,79,.45)}
+@media (prefers-reduced-motion:reduce){ .closehook,.closehook img,.closevid{transition:opacity .25s} .closehint{animation:none} }
 .jokesvg{width:clamp(116px,13vw,168px); height:auto; display:block}
 @media (prefers-reduced-motion:reduce){ .assembly.powered > .product,.assembly.powered > .achain .product{animation:none} }
 
@@ -536,9 +547,15 @@ b,strong{font-weight:600}
         <div class="cue">Stop the animal abuse.</div>
       </div>
       <div class="closeart-wrap">
-        <video class="closevid" controls playsinline preload="metadata" poster="/img/engine-horse.png">
-          <source src="/img/close.mp4" type="video/mp4">
-        </video>
+        <div class="closereveal" id="closereveal">
+          <button class="closehook" type="button" aria-label="play the redesign video">
+            <img src="/img/engine-horse.png" alt="a blueprint of an engine bolted onto a horse fitted with casters" onerror="this.style.opacity=.001">
+            <span class="closehint"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> press Enter to bring it to life</span>
+          </button>
+          <video class="closevid" controls playsinline preload="metadata" poster="/img/engine-horse.png">
+            <source src="/img/close.mp4" type="video/mp4">
+          </video>
+        </div>
       </div>
     </div>
   </section>
@@ -628,6 +645,7 @@ b,strong{font-weight:600}
     syncPrompt();
     maybeSlideTimer();
     bcState();
+    if(slides[n].classList.contains('close')) resetClose(); else pauseClose();   // close hook resets on enter, video pauses on leave
   }
   function next(){ const fr=fragEls(slides[i]); if(fr.length && fragStep<fr.length){ fragStep++; applyFrags(slides[i],fragStep); maybeSlideTimer(); bcState(); return; } go(i+1,'fwd'); }
   function prev(){ const fr=fragEls(slides[i]); if(fr.length && fragStep>0){ fragStep--; applyFrags(slides[i],fragStep); maybeSlideTimer(); bcState(); return; } go(i-1,'back'); }
@@ -648,11 +666,18 @@ b,strong{font-weight:600}
     if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); next(); }
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); prev(); }
     else if(e.key==='Home'){ go(0); } else if(e.key==='End'){ go(slides.length-1); }
+    else if(e.key==='Enter' && slides[i] && slides[i].classList.contains('close')){ e.preventDefault(); revealClose(); }   // bring the blueprint to life
     else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
     else if((e.key==='s'||e.key==='S') && !e.shiftKey){ e.preventDefault(); openSpeaker(); }
     else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
-  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed,.closevid')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
+  document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed,.closevid,.closehook')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
+  /* close slide: the blueprint horse is the hook; Enter or a click brings it to life and plays the video */
+  function closeRevealEl(){ return document.getElementById('closereveal'); }
+  function revealClose(){ const w=closeRevealEl(); if(!w || w.classList.contains('played')) return; w.classList.add('played'); const v=w.querySelector('.closevid'); if(v){ try{ v.play(); }catch(e){} } }
+  function resetClose(){ const w=closeRevealEl(); if(!w) return; w.classList.remove('played'); const v=w.querySelector('.closevid'); if(v){ try{ v.pause(); v.currentTime=0; }catch(e){} } }
+  function pauseClose(){ const w=closeRevealEl(); if(!w) return; const v=w.querySelector('.closevid'); if(v){ try{ v.pause(); }catch(e){} } }
+  { const hook=document.querySelector('.closehook'); if(hook) hook.addEventListener('click',e=>{ e.stopPropagation(); revealClose(); }); }
 
   /* ---- live wiring ---- */
   const params=new URLSearchParams(location.search); const hostKey=params.get('host')||'';
