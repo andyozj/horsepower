@@ -42,7 +42,7 @@ const CONFIG = {
   COACH_BUCKET: { capacity: 6, refillPerSec: 10 / 60 },   // ~10/min per room, burst 6
   // public-internet coach spend caps (per-IP + global). Env-overridable; defaults are high
   // enough that no honest LAN room trips them. On trip → degrade to the free bank reply.
-  COACH_IP_BUCKET: { capacity: Number(process.env.COACH_IP_MAX) || 40, refillPerSec: 40 / 3600 },        // ~40/hr/IP
+  COACH_IP_BUCKET: { capacity: Number(process.env.COACH_IP_MAX) || 600, refillPerSec: (Number(process.env.COACH_IP_MAX) || 600) / 3600 },  // ~600/hr/IP — a whole workshop sits behind ONE office NAT (shared IP); 40/hr starved the room. The per-ROOM bucket (10/min) is the real abuse throttle; per-IP is just a backstop.
   COACH_GLOBAL_BUCKET: { capacity: Number(process.env.COACH_GLOBAL_MAX) || 2000, refillPerSec: 2000 / 86400 }, // ~2000/day total
   COACH_TIMEOUT_MS: 20_000,
   COACH_REPLY_MAX: 1200,
@@ -957,6 +957,7 @@ app.get('/api/health', (req, res) => {
   if (shuttingDown) return res.status(503).json({ ok: false, shuttingDown: true });
   res.json({ ok: true, build: BUILD, ai: !!AI_PROVIDER, provider: AI_PROVIDER || null,
              model: AI_PROVIDER === 'azure' ? AZURE_DEPLOYMENT : (AI_PROVIDER ? ANTHROPIC_MODEL : null),
+             coachIpMax: CONFIG.COACH_IP_BUCKET.capacity, coachGlobalMax: CONFIG.COACH_GLOBAL_BUCKET.capacity,
              db: USE_PG ? (pgReady ? 'postgres' : 'postgres-error') : 'file',
              voice: voiceCaps(),
              workshops: workshops.size, uptime: Math.round(process.uptime()) });

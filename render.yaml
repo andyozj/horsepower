@@ -47,7 +47,7 @@ services:
       - key: MINT_GLOBAL_MAX
         value: "300"
       - key: COACH_IP_MAX
-        value: "40"
+        value: "600"                        # a whole workshop is behind ONE office NAT (shared IP); 40/hr starved the room. Per-ROOM bucket (10/min) is the real throttle.
       - key: COACH_GLOBAL_MAX
         value: "2000"
       - key: ALLOWED_ORIGINS
