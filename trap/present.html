@@ -257,10 +257,20 @@ b,strong{font-weight:600}
 .closehint{position:absolute; bottom:4%; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:6px; font-family:Caveat,cursive; font-weight:700; font-size:clamp(15px,1.5vw,20px); color:var(--gold-deep); background:color-mix(in srgb,var(--card) 90%,transparent); border:1.5px solid var(--line); border-radius:999px; padding:6px 15px; white-space:nowrap; animation:hookpulse 2.2s ease-in-out infinite}
 .closehint svg{color:var(--red)}
 @keyframes hookpulse{0%,100%{opacity:.72; transform:translateX(-50%) translateY(0)}50%{opacity:1; transform:translateX(-50%) translateY(-3px)}}
-.closevid{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper); border:1.5px solid var(--line); border-radius:14px; opacity:0; transform:scale(.96); pointer-events:none; transition:opacity .6s ease .12s, transform .6s cubic-bezier(.2,.85,.25,1) .12s, box-shadow .6s ease}
-.closereveal.played .closehook{opacity:0; transform:scale(1.06); pointer-events:none}
+.closevid{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper); border:1.5px solid var(--line); border-radius:14px; opacity:0; transform:scale(.96); pointer-events:none; transition:opacity .55s ease .42s, transform .55s cubic-bezier(.2,.85,.25,1) .42s, box-shadow .55s ease .42s}
+.closereveal.played .closehook{opacity:0; transform:scale(1.07); pointer-events:none; transition-delay:.38s}
+.closereveal.played .closehook img{animation:gallopshake .5s ease both}
 .closereveal.played .closevid{opacity:1; transform:none; pointer-events:auto; box-shadow:0 18px 50px -22px rgba(33,49,79,.45)}
-@media (prefers-reduced-motion:reduce){ .closehook,.closehook img,.closevid{transition:opacity .25s} .closehint{animation:none} }
+/* the "comes alive" burst — a quick buck + a gold flash + an expanding red ring */
+@keyframes gallopshake{0%{transform:none}14%{transform:translateX(-7px) rotate(-1.8deg)}30%{transform:translateX(8px) rotate(2deg)}46%{transform:translateX(-6px) rotate(-1.4deg)}62%{transform:translateX(5px) rotate(1.1deg)}78%{transform:translateX(-3px) rotate(-.6deg)}100%{transform:none}}
+.closeflash,.closering{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); pointer-events:none; opacity:0}
+.closeflash{width:124%; height:124%; border-radius:50%; background:radial-gradient(circle, rgba(255,210,74,.6), rgba(255,210,74,0) 62%)}
+.closering{width:42px; height:42px; border-radius:50%; border:4px solid var(--red)}
+.closereveal.played .closeflash{animation:closeflash .55s ease-out both}
+.closereveal.played .closering{animation:closering .72s cubic-bezier(.2,.85,.2,1) both}
+@keyframes closeflash{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
+@keyframes closering{0%{opacity:0; transform:translate(-50%,-50%) scale(.2)}15%{opacity:.85}100%{opacity:0; transform:translate(-50%,-50%) scale(13)}}
+@media (prefers-reduced-motion:reduce){ .closehook,.closehook img,.closevid{transition:opacity .25s} .closehook img,.closeflash,.closering{animation:none!important} .closehint{animation:none} }
 .jokesvg{width:clamp(116px,13vw,168px); height:auto; display:block}
 @media (prefers-reduced-motion:reduce){ .assembly.powered > .product,.assembly.powered > .achain .product{animation:none} }
 
@@ -555,6 +565,8 @@ b,strong{font-weight:600}
           <video class="closevid" controls playsinline preload="metadata" poster="/img/engine-horse.png">
             <source src="/img/close.mp4" type="video/mp4">
           </video>
+          <span class="closeflash" aria-hidden="true"></span>
+          <span class="closering" aria-hidden="true"></span>
         </div>
       </div>
     </div>
@@ -669,8 +681,10 @@ b,strong{font-weight:600}
     else if(e.key==='Enter' && slides[i] && slides[i].classList.contains('close')){ e.preventDefault(); revealClose(); }   // bring the blueprint to life
     else if((e.key==='R'||e.key==='r') && e.shiftKey){ e.preventDefault(); tryClearRoom(); }
     else if((e.key==='s'||e.key==='S') && !e.shiftKey){ e.preventDefault(); openSpeaker(); }
+    else if((e.key==='f'||e.key==='F') && !e.shiftKey){ e.preventDefault(); toggleFs(); }   // fullscreen present mode
     else if((e.key==='v'||e.key==='V') && slides[i] && slides[i].dataset.mode==='vote'){ e.preventDefault(); wsSend({type:'reveal'}); }
   });
+  function toggleFs(){ try{ const el=document.documentElement; if(!document.fullscreenElement){ (el.requestFullscreen||el.webkitRequestFullscreen).call(el); } else { (document.exitFullscreen||document.webkitExitFullscreen).call(document); } }catch(e){} }
   document.getElementById('deck').addEventListener('click',e=>{ if(e.target.closest('.feed,.closevid,.closehook')) return; (e.clientX > innerWidth/2 ? next : prev)(); });
   /* close slide: the blueprint horse is the hook; Enter or a click brings it to life and plays the video */
   function closeRevealEl(){ return document.getElementById('closereveal'); }
